@@ -1,0 +1,10 @@
+.env
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+data/releases/*
+!data/releases/.gitkeep
+
+# Official Semgrep rules, downloaded by scripts/fetch_semgrep_rules.sh
+config/semgrep-rules/

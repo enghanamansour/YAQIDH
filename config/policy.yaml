@@ -1,0 +1,14 @@
+# Release policy: decides pass/fail. Plain code reads this file; no AI is involved.
+#
+# The two severity levels (high, low) and the threshold are this project's own choice, not
+# taken from NCA or CVSS. Related reference: vulnerability management subdomain (2-10) of
+# NCA ECC-2:2024 (verify the text yourself). This is not a compliance claim.
+#
+# Two levels only. block_on: an open finding of these severities makes the stage fail.
+# Anything else (low) is recorded but passes.
+block_on: [high]
+
+# An exception lets a finding stay open. These rules say what an exception needs to count.
+exceptions:
+  require_justification: true
+  require_human_approval: true
