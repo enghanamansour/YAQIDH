@@ -8,8 +8,8 @@ from src.schema import Closure, ExceptionRecord, Finding, FindingStatus, Severit
 DEFAULT_POLICY = Path(__file__).resolve().parents[1] / "config" / "policy.yaml"
 
 
-def finding(id="F-1", severity=Severity.HIGH, status=FindingStatus.OPEN, **kw):
-    return Finding(id=id, tool="semgrep", severity=severity, location="a.py:1", status=status, **kw)
+def finding(fingerprint="F-1", severity=Severity.HIGH, status=FindingStatus.OPEN, **kw):
+    return Finding(fingerprint=fingerprint, tool="semgrep", severity=severity, location="a.py:1", status=status, **kw)
 
 
 @pytest.fixture
@@ -77,7 +77,7 @@ def test_fixed_but_rescan_says_still_open_counts(policy):
 # --- exceptions need a justification and a human approval ---
 
 def excepted(**exc):
-    return finding(status=FindingStatus.EXCEPTED, exception=ExceptionRecord(**exc))
+    return finding(status=FindingStatus.EXCEPTED, reported_as="medium", exception=ExceptionRecord(**exc))
 
 
 def test_full_exception_is_honored(policy):
@@ -97,13 +97,35 @@ def test_exception_without_approval_is_ignored(policy):
 
 
 def test_excepted_with_no_record_at_all_is_ignored(policy):
-    assert evaluate_policy([finding(status=FindingStatus.EXCEPTED)], policy).result == "fail"
+    assert evaluate_policy([finding(status=FindingStatus.EXCEPTED, reported_as="medium")], policy).result == "fail"
+
+
+@pytest.mark.parametrize("level", ["critical", "high", "unknown", ""])
+def test_exception_is_not_allowed_above_medium(policy, level):
+    f = finding(
+        status=FindingStatus.EXCEPTED,
+        reported_as=level,
+        exception=ExceptionRecord(justification="legacy", approved_by="Sara"),
+    )
+    d = evaluate_policy([f], policy)
+    assert d.result == "fail"
+    assert f"F-1: exception ignored, not allowed for {level or 'unknown'}" in d.reasons
+
+
+def test_allowed_levels_can_be_widened_in_the_policy():
+    wide = Policy(block_on=[Severity.HIGH], exceptions=ExceptionRules(allowed_for=["medium", "high"]))
+    f = finding(
+        status=FindingStatus.EXCEPTED,
+        reported_as="high",
+        exception=ExceptionRecord(justification="legacy", approved_by="Sara"),
+    )
+    assert evaluate_policy([f], wide).result == "pass"
 
 
 def test_exception_rules_can_be_relaxed_in_the_policy():
     relaxed = Policy(
         block_on=[Severity.HIGH],
-        exceptions=ExceptionRules(require_justification=False, require_human_approval=False),
+        exceptions=ExceptionRules(require_justification=False, require_human_approval=False, allowed_for=[]),
     )
     assert evaluate_policy([finding(status=FindingStatus.EXCEPTED)], relaxed).result == "pass"
 
@@ -114,6 +136,7 @@ def test_default_policy_file_loads():
     p = load_policy(DEFAULT_POLICY)
     assert p.block_on == [Severity.HIGH]
     assert p.exceptions.require_justification and p.exceptions.require_human_approval
+    assert p.exceptions.allowed_for == ["medium"]
 
 
 def write(tmp_path, text):

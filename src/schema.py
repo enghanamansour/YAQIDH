@@ -49,9 +49,12 @@ class ExceptionRecord(BaseModel):
 
 
 class Finding(BaseModel):
-    id: str
+    fingerprint: str
     tool: str
     severity: Severity
+    # The level the tool itself reported, normalized (critical, high, medium, low, info, unknown).
+    # `severity` is our two-level result; this keeps the detail, e.g. so only medium can get an exception.
+    reported_as: str = ""
     location: str
     status: FindingStatus = FindingStatus.OPEN
     rule: str = ""

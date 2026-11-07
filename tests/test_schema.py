@@ -13,7 +13,7 @@ from src.schema import (
 
 
 def make_finding(**kw):
-    base = dict(id="F-001", tool="semgrep", severity=Severity.HIGH, location="app/db.py:42")
+    base = dict(fingerprint="F-001", tool="semgrep", severity=Severity.HIGH, location="app/db.py:42")
     return Finding(**{**base, **kw})
 
 

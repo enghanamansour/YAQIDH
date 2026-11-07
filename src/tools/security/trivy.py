@@ -5,20 +5,20 @@ from pathlib import Path
 
 from src.schema import Finding, Severity
 from src.tools.base import ToolError
-from src.tools.finding_id import finding_id
+from src.tools.fingerprint import fingerprint
 
-# Our own coarse mapping, not a CVSS score: CRITICAL and HIGH block, MEDIUM and LOW pass.
-# Any unknown level (e.g. UNKNOWN) is treated as high, so it can never pass silently.
-SEVERITY_MAP = {
-    "CRITICAL": Severity.HIGH,
-    "HIGH": Severity.HIGH,
-    "MEDIUM": Severity.LOW,
-    "LOW": Severity.LOW,
-}
+# Our own coarse mapping, not a CVSS score: only LOW passes. CRITICAL, HIGH, MEDIUM and UNKNOWN
+# are all high, and any new level Trivy invents is high too, so it can never pass silently.
+# The original level is kept in `reported_as` (medium may get an exception, see config/policy.yaml).
+KNOWN_LEVELS = {"CRITICAL", "HIGH", "MEDIUM", "LOW", "UNKNOWN"}
 
 
 def _severity(raw: str) -> Severity:
-    return SEVERITY_MAP.get(raw, Severity.HIGH)
+    return Severity.LOW if raw == "LOW" else Severity.HIGH
+
+
+def _reported_as(raw: str) -> str:
+    return raw.lower() if raw in KNOWN_LEVELS else "unknown"
 
 
 def parse_output(data: dict) -> list[Finding]:
@@ -34,22 +34,30 @@ def parse_output(data: dict) -> list[Finding]:
         for vuln in result.get("Vulnerabilities") or []:
             rule = vuln["VulnerabilityID"]
             snippet = f"{vuln['PkgName']}=={vuln['InstalledVersion']}"
-            fid = finding_id("trivy", rule, target, snippet)
-            findings[fid] = Finding(
-                id=fid, tool="trivy", severity=_severity(vuln.get("Severity", "")), location=target, rule=rule
+            fp = fingerprint("trivy", rule, target, snippet)
+            raw = vuln.get("Severity", "")
+            findings[fp] = Finding(
+                fingerprint=fp,
+                tool="trivy",
+                severity=_severity(raw),
+                reported_as=_reported_as(raw),
+                location=target,
+                rule=rule,
             )
         for secret in result.get("Secrets") or []:
             rule = secret["RuleID"]
-            fid = finding_id("trivy", rule, target, secret.get("Match", ""))
-            findings[fid] = Finding(
-                id=fid,
+            fp = fingerprint("trivy", rule, target, secret.get("Match", ""))
+            raw = secret.get("Severity", "")
+            findings[fp] = Finding(
+                fingerprint=fp,
                 tool="trivy",
-                severity=_severity(secret.get("Severity", "")),
+                severity=_severity(raw),
+                reported_as=_reported_as(raw),
                 location=f"{target}:{secret['StartLine']}",
                 rule=rule,
             )
     # Sorted so the same input always yields the same list, which keeps decisions deterministic.
-    return sorted(findings.values(), key=lambda f: (f.location, f.id))
+    return sorted(findings.values(), key=lambda f: (f.location, f.fingerprint))
 
 
 class TrivyTool:

@@ -6,9 +6,14 @@
 #
 # Two levels only. block_on: an open finding of these severities makes the stage fail.
 # Anything else (low) is recorded but passes.
+# Trivy: CRITICAL, HIGH, MEDIUM and UNKNOWN count as high; only LOW is low.
+# Semgrep: ERROR and WARNING count as high; only INFO is low. Medium (Trivy MEDIUM, Semgrep WARNING) can get an exception.
 block_on: [high]
 
 # An exception lets a finding stay open. These rules say what an exception needs to count.
+# allowed_for: only findings the tool reported at these levels can get an exception
+# (medium only: critical, high and unknown can never be excepted).
 exceptions:
+  allowed_for: [medium]
   require_justification: true
   require_human_approval: true

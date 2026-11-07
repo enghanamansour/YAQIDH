@@ -28,10 +28,10 @@ def test_get_missing_fails(store):
 def test_save_persists_changes(store):
     ev = store.create("rel-001")
     ev.stage(StageName.QA).findings.append(
-        Finding(id="F-001", tool="semgrep", severity=Severity.HIGH, location="a.py:1")
+        Finding(fingerprint="F-001", tool="semgrep", severity=Severity.HIGH, location="a.py:1")
     )
     store.save(ev)
-    assert store.get("rel-001").stages[0].findings[0].id == "F-001"
+    assert store.get("rel-001").stages[0].findings[0].fingerprint == "F-001"
 
 
 @pytest.mark.parametrize("bad", ["../evil", "a/b", "", "x" * 65, "a b", "..", "a.json"])

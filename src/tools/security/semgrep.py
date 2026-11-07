@@ -6,15 +6,18 @@ from pathlib import Path
 
 from src.schema import Finding, Severity
 from src.tools.base import ToolError
-from src.tools.finding_id import finding_id, normalize_snippet
+from src.tools.fingerprint import fingerprint, normalize_snippet
 
-# Our own coarse mapping, not a CVSS score: ERROR blocks, WARNING and INFO pass.
+# Our own coarse mapping, not a CVSS score: ERROR and WARNING block, only INFO passes.
+# WARNING is reported as "medium", so it is the one that can get an exception (config/policy.yaml).
 # Any unknown level is treated as high, so it can never pass silently.
 SEVERITY_MAP = {
     "ERROR": Severity.HIGH,
-    "WARNING": Severity.LOW,
+    "WARNING": Severity.HIGH,
     "INFO": Severity.LOW,
 }
+# Semgrep's own level, expressed on the common scale.
+REPORTED_AS = {"ERROR": "high", "WARNING": "medium", "INFO": "low"}
 
 
 def _read_snippet(file: Path, start: int, end: int) -> str:
@@ -50,16 +53,17 @@ def parse_output(data: dict, target: Path) -> list[Finding]:
             rel = path.relative_to(target)
         except ValueError:
             rel = path
-        fid = finding_id("semgrep", rule, str(rel), snippet)
-        findings[fid] = Finding(
-            id=fid,
+        fp = fingerprint("semgrep", rule, str(rel), snippet)
+        findings[fp] = Finding(
+            fingerprint=fp,
             tool="semgrep",
             severity=SEVERITY_MAP.get(result["extra"]["severity"], Severity.HIGH),
+            reported_as=REPORTED_AS.get(result["extra"]["severity"], "unknown"),
             location=f"{rel}:{start}",
             rule=rule,
         )
     # Sorted so the same code always yields the same list, which keeps decisions deterministic.
-    return sorted(findings.values(), key=lambda f: (f.location, f.id))
+    return sorted(findings.values(), key=lambda f: (f.location, f.fingerprint))
 
 
 class SemgrepTool:

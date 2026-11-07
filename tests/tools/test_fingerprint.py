@@ -1,9 +1,9 @@
-from src.tools.finding_id import finding_id
+from src.tools.fingerprint import fingerprint
 
 
 def base(**kw):
     args = dict(tool="semgrep", rule="r", file="a.py", snippet="db.execute(q)")
-    return finding_id(**{**args, **kw})
+    return fingerprint(**{**args, **kw})
 
 
 def test_same_input_same_id():
@@ -21,4 +21,4 @@ def test_different_snippet_rule_file_or_tool_changes_id():
 
 def test_line_number_is_not_part_of_the_id():
     # The signature has no line argument at all: moving code must not change its identity.
-    assert "line" not in finding_id.__code__.co_varnames
+    assert "line" not in fingerprint.__code__.co_varnames

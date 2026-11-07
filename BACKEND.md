@@ -16,7 +16,7 @@ src/
   schema.py    data shapes: Finding, Evidence, Decision
   storage.py   saves and loads the evidence file
   policy.py    decides pass/fail
-  tools/       base.py, finding_id.py, security/semgrep.py + trivy.py, qa/ (Playwright, planned)
+  tools/       base.py, fingerprint.py, security/semgrep.py + trivy.py, qa/ (Playwright, planned)
   verifier.py  checks a finding was closed  (planned)
   phases/      qa_phase.py, security_phase.py (planned)
   mcp_server.py, agent/, github.py, api.py   (planned)

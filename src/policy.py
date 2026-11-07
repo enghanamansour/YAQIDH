@@ -20,6 +20,8 @@ class ExceptionRules(BaseModel):
 
     require_justification: bool = True
     require_human_approval: bool = True
+    # Only findings the tool reported at one of these levels can get an exception. Empty = any level.
+    allowed_for: list[str] = Field(default_factory=lambda: ["medium"])
 
 
 class Policy(BaseModel):
@@ -55,13 +57,15 @@ def _still_open(finding: Finding, policy: Policy) -> str | None:
         # Fixed only counts when the verifier's re-scan closed it.
         if finding.closure is not None and finding.closure.result == "closed":
             return None
-        return f"{finding.id}: marked fixed without a verified closure"
+        return f"{finding.fingerprint}: marked fixed without a verified closure"
     exc = finding.exception
     rules = policy.exceptions
+    if rules.allowed_for and finding.reported_as not in rules.allowed_for:
+        return f"{finding.fingerprint}: exception ignored, not allowed for {finding.reported_as or 'unknown'}"
     if rules.require_justification and not (exc and exc.justification.strip()):
-        return f"{finding.id}: exception ignored, no justification"
+        return f"{finding.fingerprint}: exception ignored, no justification"
     if rules.require_human_approval and not (exc and exc.approved_by.strip()):
-        return f"{finding.id}: exception ignored, no human approval"
+        return f"{finding.fingerprint}: exception ignored, no human approval"
     return None
 
 

@@ -42,7 +42,13 @@ def test_rule_id_does_not_depend_on_where_the_rules_are_stored(check_id):
     assert _rule_id(check_id) == SQLI
 
 
-@pytest.mark.parametrize("semgrep,ours", [("ERROR", Severity.HIGH), ("WARNING", Severity.LOW), ("INFO", Severity.LOW), ("SOMETHING_NEW", Severity.HIGH)])
+def test_original_level_is_kept(tmp_path):
+    for semgrep, reported in [("ERROR", "high"), ("WARNING", "medium"), ("INFO", "low"), ("NEW", "unknown")]:
+        [f] = parse_output({"results": [fake_result(tmp_path, severity=semgrep)], "errors": []}, tmp_path)
+        assert f.reported_as == reported
+
+
+@pytest.mark.parametrize("semgrep,ours", [("ERROR", Severity.HIGH), ("WARNING", Severity.HIGH), ("INFO", Severity.LOW), ("SOMETHING_NEW", Severity.HIGH)])
 def test_severity_mapping(tmp_path, semgrep, ours):
     [f] = parse_output({"results": [fake_result(tmp_path, severity=semgrep)], "errors": []}, tmp_path)
     assert f.severity == ours
@@ -55,7 +61,7 @@ def test_id_survives_a_line_shift(tmp_path):
     shifted = {**result, "start": {"line": 4}, "end": {"line": 4}}
     second = parse_output({"results": [shifted], "errors": []}, tmp_path)[0]
     assert first.location != second.location
-    assert first.id == second.id
+    assert first.fingerprint == second.fingerprint
 
 
 def test_duplicate_results_collapse_to_one_finding(tmp_path):
@@ -91,14 +97,22 @@ needs_real_scan = pytest.mark.skipif(
 
 
 @pytest.fixture(scope="module")
+def fixtures(tmp_path_factory):
+    # Semgrep skips folders named "tests" by default (and does so in git repos), so scan a copy elsewhere.
+    dest = tmp_path_factory.mktemp("semgrep_fixtures")
+    shutil.copytree(FIXTURES, dest, dirs_exist_ok=True)
+    return dest
+
+
+@pytest.fixture(scope="module")
 def tool():
     return SemgrepTool(RULES_DIR)
 
 
 @pytest.fixture(scope="module")
-def vulnerable_findings(tool):
+def vulnerable_findings(tool, fixtures):
     # One real scan is shared by the tests below: loading the official rules takes about 10 seconds.
-    return tool.run(FIXTURES / "vulnerable")
+    return tool.run(fixtures / "vulnerable")
 
 
 @needs_real_scan
@@ -112,17 +126,17 @@ def test_real_scan_finds_planted_vulnerabilities(vulnerable_findings):
 def test_real_scan_severities(vulnerable_findings):
     by_rule = {f.rule: f.severity for f in vulnerable_findings}
     assert by_rule[SQLI] == Severity.HIGH
-    assert by_rule[DEBUG] == Severity.LOW
+    assert by_rule[DEBUG] == Severity.HIGH
 
 
 @needs_real_scan
-def test_real_scan_of_clean_code_finds_nothing(tool):
-    assert tool.run(FIXTURES / "clean") == []
+def test_real_scan_of_clean_code_finds_nothing(tool, fixtures):
+    assert tool.run(fixtures / "clean") == []
 
 
 @needs_real_scan
-def test_real_scan_is_deterministic(tool, vulnerable_findings):
-    assert tool.run(FIXTURES / "vulnerable") == vulnerable_findings
+def test_real_scan_is_deterministic(tool, fixtures, vulnerable_findings):
+    assert tool.run(fixtures / "vulnerable") == vulnerable_findings
 
 
 @needs_real_scan

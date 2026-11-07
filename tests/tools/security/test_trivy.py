@@ -38,12 +38,21 @@ def test_secret_fields():
 
 @pytest.mark.parametrize(
     "raw,ours",
-    [("CRITICAL", Severity.HIGH), ("HIGH", Severity.HIGH), ("MEDIUM", Severity.LOW), ("LOW", Severity.LOW),
+    [("CRITICAL", Severity.HIGH), ("HIGH", Severity.HIGH), ("MEDIUM", Severity.HIGH), ("LOW", Severity.LOW),
      ("UNKNOWN", Severity.HIGH), ("SOMETHING_NEW", Severity.HIGH)],
 )
 def test_severity_mapping(raw, ours):
     [f] = parse_output(output([vuln(severity=raw)]))
     assert f.severity == ours
+
+
+@pytest.mark.parametrize(
+    "raw,reported",
+    [("CRITICAL", "critical"), ("HIGH", "high"), ("MEDIUM", "medium"), ("LOW", "low"), ("UNKNOWN", "unknown"), ("NEW", "unknown")],
+)
+def test_original_level_is_kept(raw, reported):
+    [f] = parse_output(output([vuln(severity=raw)]))
+    assert f.reported_as == reported
 
 
 def test_empty_results():
@@ -53,7 +62,7 @@ def test_empty_results():
 
 def test_same_cve_in_two_packages_is_two_findings():
     fs = parse_output(output([vuln(pkg="flask"), vuln(pkg="other")]))
-    assert len({f.id for f in fs}) == 2
+    assert len({f.fingerprint for f in fs}) == 2
 
 
 def test_duplicates_collapse():
@@ -61,14 +70,14 @@ def test_duplicates_collapse():
 
 
 def test_id_is_stable_and_changes_with_the_package_version():
-    a = parse_output(output([vuln(version="0.12.2")]))[0].id
-    assert a == parse_output(output([vuln(version="0.12.2")]))[0].id
-    assert a != parse_output(output([vuln(version="0.12.1")]))[0].id
+    a = parse_output(output([vuln(version="0.12.2")]))[0].fingerprint
+    assert a == parse_output(output([vuln(version="0.12.2")]))[0].fingerprint
+    assert a != parse_output(output([vuln(version="0.12.1")]))[0].fingerprint
 
 
 def test_secret_id_survives_a_line_shift():
-    a = parse_output(output(secrets=[secret(line=2)]))[0].id
-    b = parse_output(output(secrets=[secret(line=9)]))[0].id
+    a = parse_output(output(secrets=[secret(line=2)]))[0].fingerprint
+    b = parse_output(output(secrets=[secret(line=9)]))[0].fingerprint
     assert a == b
 
 
