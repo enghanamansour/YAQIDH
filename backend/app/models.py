@@ -26,6 +26,9 @@ class Finding(BaseModel):
     line: int | None = Field(default=None, ge=1)
     description: str = Field(default="", max_length=4000)
     snippet: str = Field(default="", max_length=4000)
+    # When the checking tool already gives the finding a stable id, we keep it
+    # as the fingerprint instead of making a second one.
+    external_id: str | None = Field(default=None, max_length=100)
 
     @field_validator("severity", mode="before")
     @classmethod
@@ -46,7 +49,9 @@ class Finding(BaseModel):
         It ignores the line number on purpose, so moving code around does not
         make an old problem look new, and a fixed problem really disappears.
         """
-        body = re.sub(r"\s+", " ", self.snippet or self.title).strip().lower()
+        if self.external_id:
+            return self.external_id
+        body =re.sub(r"\s+", " ", self.snippet or self.title).strip().lower()
         raw = "|".join([self.rule_id.strip().lower(), self.file.strip(), body])
         return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]
 
