@@ -88,9 +88,23 @@ def test_closing_the_high_one_lets_it_pass_with_the_low_one_still_open(gate):
     assert d.allowed and d.low_open == 1
 
 
-def test_only_two_severities_exist():
-    with pytest.raises(ValueError):
-        finding(severity="critical")
+def test_critical_is_classified_as_high(gate):
+    f = finding(severity="critical")
+    assert f.severity == "high"
+    gate.record_scan(scan([f]))
+    assert not gate.check("o/r", 1, "security", "abc1234").allowed
+
+
+def test_severity_is_case_insensitive():
+    assert finding(severity="HIGH").severity == "high"
+    assert finding(severity="Critical").severity == "high"
+    assert finding(severity="LOW").severity == "low"
+
+
+def test_other_severity_names_are_still_rejected():
+    for bad in ("medium", "info", "urgent", ""):
+        with pytest.raises(ValueError):
+            finding(severity=bad)
 
 
 def test_phases_and_pull_requests_are_independent(gate):

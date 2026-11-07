@@ -52,8 +52,13 @@ def test_low_only_scan_passes_and_the_comment_still_shows_it(client):
     assert r["open"][0]["blocking"] is False and "Minor thing" in r["comment"]
 
 
+def test_critical_is_accepted_and_counted_as_high(client):
+    r = client.post("/scans", json=body([dict(F, severity="critical")]), headers=TOKEN).json()
+    assert r["allowed"] is False and r["open"][0]["severity"] == "high" and r["blocking_count"] == 1
+
+
 def test_unknown_severity_is_rejected(client):
-    assert client.post("/scans", json=body([dict(F, severity="critical")]), headers=TOKEN).status_code == 422
+    assert client.post("/scans", json=body([dict(F, severity="urgent")]), headers=TOKEN).status_code == 422
 
 
 def test_evidence_is_recorded_and_intact(client):

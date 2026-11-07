@@ -5,7 +5,7 @@ import hashlib
 import re
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 Severity = Literal["high", "low"]
 Phase = Literal["qa", "security"]
@@ -26,6 +26,14 @@ class Finding(BaseModel):
     line: int | None = Field(default=None, ge=1)
     description: str = Field(default="", max_length=4000)
     snippet: str = Field(default="", max_length=4000)
+
+    @field_validator("severity", mode="before")
+    @classmethod
+    def _critical_counts_as_high(cls, value):
+        """There are only two levels. 'critical' is simply a high finding."""
+        if isinstance(value, str) and value.strip().lower() == "critical":
+            return "high"
+        return value.strip().lower() if isinstance(value, str) else value
 
     @property
     def fingerprint(self) -> str:
