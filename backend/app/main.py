@@ -13,13 +13,15 @@ from functools import lru_cache
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Query
 
-from . import comment
+from . import comment, config
 from .evidence import EvidenceLog
 from .explainer import Explainer, explain_group, get_explainer
 from .gate import Gate
 from .github import GitHubClient, GitHubError
 from .grouping import group_findings
 from .models import BLOCKING, Phase, Scan
+
+config.load_env()  # keys come from the local .env file (never committed)
 
 app = FastAPI(title="Yaqidh agent backend", version="0.1.0")
 

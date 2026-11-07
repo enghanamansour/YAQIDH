@@ -42,6 +42,17 @@ set LLM_MODEL=meta-llama/llama-3.3-70b-instruct
 
 ولنشر التعليق والحالة على GitHub: `set GITHUB_TOKEN=...` وأرسلوا `"publish": true` مع الفحص.
 
+### الإعدادات والمفاتيح (ملف `.env`)
+
+المفاتيح كلها في ملف واحد اسمه `.env` في مجلد الريبو (بجانب `.env.example`). الملف مستثنى في `.gitignore` فما يرتفع على GitHub أبداً، والكود يقرأه تلقائياً عند التشغيل.
+
+1. انسخي `.env.example` باسم `.env`، واكتبي فيه `LLM_API_KEY` و`API_TOKEN`.
+2. لتغيير النموذج، غيّري الاسم في `LLM_MODEL` فقط، بدون ما تلمسين الكود.
+3. `DIALECT_MODEL` اختياري: نموذج ثاني يعيد صياغة الشرح العربي باللهجة السعودية. اتركيه فاضي لإيقافه.
+4. متغيرات البيئة الحقيقية تتقدّم على الملف، والقيمة الفاضية في الملف تُهمل.
+
+آلية الشرح باللهجة: النموذج الأول يفهم الثغرة ويشرحها، والثاني يغيّر اللهجة فقط. والكود يتحقق إن الصياغة ما غيّرت المعنى (المصطلحات التقنية وأرقام CWE والأرقام لازم تبقى، وما يظهر كود). إذا انحرفت يُستخدم شرح النموذج الأول كما هو.
+
 ### الواجهة
 
 | الطلب | الوظيفة |
@@ -84,6 +95,17 @@ The first slice of the agent: it takes a scan result, explains every open findin
 ### Run
 
 See the commands above. Without `LLM_API_KEY` it uses a fixed template. To enable an external model (use test data only), set `LLM_API_KEY`, `LLM_BASE_URL` and `LLM_MODEL`.
+
+### Settings and keys (the `.env` file)
+
+All keys live in one file called `.env` in the repository folder (next to `.env.example`). It is listed in `.gitignore`, so it is never pushed to GitHub, and the code reads it automatically on start.
+
+1. Copy `.env.example` to `.env` and fill in `LLM_API_KEY` and `API_TOKEN`.
+2. To change the model, change the name in `LLM_MODEL` only, no code change.
+3. `DIALECT_MODEL` is optional: a second model that rewrites the Arabic explanation in Saudi dialect. Leave it empty to turn it off.
+4. Real environment variables win over the file, and a blank value in the file is ignored.
+
+How the dialect works: the first model understands the finding and explains it, the second only changes the dialect. The code checks the rewrite did not change the meaning (technical terms, CWE ids and numbers must stay, and no code may appear). If it drifts, the first model's explanation is used as it is.
 
 ### Not built yet
 

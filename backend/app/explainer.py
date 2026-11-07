@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from typing import Protocol
 
 import httpx
@@ -84,6 +85,27 @@ class TemplateExplainer:
         return Explanation(problem=problem[:800], why_dangerous=_WHY[lang][finding.severity], direction=_DIRECTION[lang])
 
 
+def _chat_json(client: httpx.Client, base_url: str, api_key: str, model: str, messages: list[dict]) -> dict | None:
+    """One call to an OpenAI-compatible chat endpoint that must answer with a JSON object.
+
+    Returns None on any failure (network, bad status, not JSON), never raises.
+    """
+    try:
+        resp = client.post(
+            f"{base_url.rstrip('/')}/chat/completions",
+            headers={"Authorization": f"Bearer {api_key}"},
+            json={"model": model, "temperature": 0, "messages": messages},
+        )
+        resp.raise_for_status()
+        content = resp.json()["choices"][0]["message"]["content"].strip()
+        if content.startswith("```"):  # some models wrap JSON in a fence
+            content = content.strip("`").removeprefix("json").strip()
+        data = json.loads(content)
+    except (httpx.HTTPError, KeyError, IndexError, ValueError):
+        return None
+    return data if isinstance(data, dict) else None
+
+
 class LLMExplainer:
     """Asks an OpenAI-compatible chat endpoint. Falls back to the template."""
 
@@ -109,18 +131,13 @@ class LLMExplainer:
         }
 
     def _ask(self, finding: Finding, lang: str) -> Explanation | None:
+        payload = self._payload(finding, lang)
+        data = _chat_json(self.client, self.base_url, self.api_key, payload["model"], payload["messages"])
+        if data is None:
+            return None
         try:
-            resp = self.client.post(
-                f"{self.base_url}/chat/completions",
-                headers={"Authorization": f"Bearer {self.api_key}"},
-                json=self._payload(finding, lang),
-            )
-            resp.raise_for_status()
-            content = resp.json()["choices"][0]["message"]["content"].strip()
-            if content.startswith("```"):  # some models wrap JSON in a fence
-                content = content.strip("`").removeprefix("json").strip()
-            exp = Explanation(**json.loads(content))
-        except (httpx.HTTPError, KeyError, IndexError, ValueError, ValidationError):
+            exp = Explanation(**data)
+        except ValidationError:
             return None
         return None if violates_rules(exp) else exp
 
@@ -132,13 +149,91 @@ class LLMExplainer:
         return self.fallback.explain(finding, lang)
 
 
+DIALECT_PROMPT = (
+    "You rewrite a short security explanation in natural, easy Saudi Arabic dialect. "
+    "Keep the meaning exactly: do not add, remove or change any fact. Keep every "
+    "technical term, acronym, rule name, CWE id and number exactly as written, in "
+    "its original English form. Never write code, commands or backticks. Answer with "
+    'one JSON object with exactly the same three string keys: "problem", '
+    '"why_dangerous", "direction".'
+)
+
+_FIELDS = ("problem", "why_dangerous", "direction")
+_TECHNICAL = re.compile(r"CWE-\d+|\b[A-Z][A-Z0-9]{2,}\b|\d+")
+
+
+def _text(exp: Explanation) -> str:
+    return " ".join(getattr(exp, f) for f in _FIELDS)
+
+
+def preserves_meaning(original: Explanation, rewritten: Explanation) -> bool:
+    """Cheap checks that a dialect rewrite did not change the substance.
+
+    Every technical token (CWE ids, acronyms like SQL, numbers) of the original
+    must still be there, no code appeared, and no field changed size wildly.
+    """
+    if violates_rules(rewritten):
+        return False
+    after = _text(rewritten)
+    if any(token not in after for token in set(_TECHNICAL.findall(_text(original)))):
+        return False
+    for f in _FIELDS:
+        a, b = len(getattr(original, f)), len(getattr(rewritten, f))
+        if b < 0.3 * a or b > 3 * a:
+            return False
+    return True
+
+
+class DialectRewriter:
+    """Rewrites an explanation in Saudi dialect. Returns None if it drifts."""
+
+    def __init__(self, base_url: str, api_key: str, model: str, *, client: httpx.Client | None = None,
+                 timeout: float = 30.0):
+        self.base_url, self.api_key, self.model = base_url, api_key, model
+        self.client = client or httpx.Client(timeout=timeout)
+
+    def rewrite(self, exp: Explanation) -> Explanation | None:
+        data = _chat_json(self.client, self.base_url, self.api_key, self.model, [
+            {"role": "system", "content": DIALECT_PROMPT},
+            {"role": "user", "content": json.dumps(exp.model_dump(), ensure_ascii=False)},
+        ])
+        if data is None:
+            return None
+        try:
+            out = Explanation(**data)
+        except ValidationError:
+            return None
+        return out if preserves_meaning(exp, out) else None
+
+
+class ChainExplainer:
+    """A strong model understands and explains; a second one only changes the dialect.
+
+    If the dialect step fails or drifts, the first explanation is kept as it is.
+    """
+
+    def __init__(self, reasoner: Explainer, rewriter: DialectRewriter):
+        self.reasoner, self.rewriter = reasoner, rewriter
+
+    def explain(self, finding: Finding, lang: str = "ar") -> Explanation:
+        exp = self.reasoner.explain(finding, lang)
+        if lang != "ar":
+            return exp
+        return self.rewriter.rewrite(exp) or exp
+
+
 def get_explainer() -> Explainer:
     key = os.environ.get("LLM_API_KEY")
     if not key:
         return TemplateExplainer()
-    return LLMExplainer(
-        base_url=os.environ.get("LLM_BASE_URL", "https://openrouter.ai/api/v1"),
+    base_url = os.environ.get("LLM_BASE_URL", "https://api.groq.com/openai/v1")
+    reasoner = LLMExplainer(
+        base_url=base_url,
         api_key=key,
-        model=os.environ.get("LLM_MODEL", "meta-llama/llama-3.3-70b-instruct"),
+        model=os.environ.get("LLM_MODEL", "llama-3.3-70b-versatile"),
         send_snippets=os.environ.get("SEND_SNIPPETS", "0") == "1",
     )
+    dialect_model = os.environ.get("DIALECT_MODEL", "").strip()
+    if dialect_model:
+        return ChainExplainer(reasoner, DialectRewriter(base_url, key, dialect_model))
+    return reasoner
