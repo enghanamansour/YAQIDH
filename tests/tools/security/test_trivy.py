@@ -6,7 +6,7 @@ import pytest
 
 from src.schema import Severity
 from src.tools.base import ToolError
-from src.tools.security.trivy import TrivyTool, parse_output
+from src.tools.security.trivy import TrivyTool, parse_components, parse_output
 
 FIXTURES = Path(__file__).parent / "fixtures"
 FAKE_TOKEN = "ghp_aBcDeFgHiJkLmNoPqRsTuVwXyZ0123456789"
@@ -53,6 +53,23 @@ def test_severity_mapping(raw, ours):
 def test_original_level_is_kept(raw, reported):
     [f] = parse_output(output([vuln(severity=raw)]))
     assert f.reported_as == reported
+
+
+def test_vulnerability_keeps_its_package_and_version():
+    [f] = parse_output(output([vuln(pkg="flask", version="0.12.2")]))
+    assert f.component == "flask==0.12.2"
+
+
+def test_secret_has_no_component():
+    [f] = parse_output(output(secrets=[secret()], target="config.py"))
+    assert f.component == ""
+
+
+def test_components_include_packages_without_vulnerabilities():
+    data = {"Results": [{"Target": "requirements.txt", "Packages": [
+        {"Name": "flask", "Version": "3.0.3"}, {"Name": "requests", "Version": "2.32.3"}]}]}
+    assert parse_components(data) == {"flask==3.0.3", "requests==2.32.3"}
+    assert parse_components({}) == set()
 
 
 def test_empty_results():
@@ -162,3 +179,9 @@ def test_clean_project_has_no_findings():
 def test_versions_are_recorded():
     v = TrivyTool().versions()
     assert set(v) == {"trivy", "trivy-db"} and all(v.values())
+
+
+@needs_trivy
+def test_real_scan_reports_all_packages():
+    scan = TrivyTool().scan(FIXTURES / "trivy_vulnerable")
+    assert {"flask==0.12.2", "jinja2==2.10", "requests==2.19.0"} <= scan.components

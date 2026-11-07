@@ -55,6 +55,10 @@ class Finding(BaseModel):
     # The level the tool itself reported, normalized (critical, high, medium, low, info, unknown).
     # `severity` is our two-level result; this keeps the detail, e.g. so only medium can get an exception.
     reported_as: str = ""
+    # For dependency findings: the package and version, e.g. "flask==0.12.2". Empty otherwise.
+    component: str = ""
+    # How the finding first appeared. Set by the verifier; "initial" for the first scan.
+    origin: Literal["initial", "new", "new_from_db_update"] = "initial"
     location: str
     status: FindingStatus = FindingStatus.OPEN
     rule: str = ""

@@ -17,7 +17,7 @@ src/
   storage.py   saves and loads the evidence file
   policy.py    decides pass/fail
   tools/       base.py, fingerprint.py, security/semgrep.py + trivy.py, qa/ (Playwright, planned)
-  verifier.py  checks a finding was closed  (planned)
+  verifier.py  checks a finding was closed
   phases/      qa_phase.py, security_phase.py (planned)
   mcp_server.py, agent/, github.py, api.py   (planned)
 tests/         mirrors src/
@@ -50,4 +50,4 @@ pytest
 
 ## Status
 
-Phases 0-4 done (skeleton, schema and storage, Semgrep, Trivy, policy engine). Next: the verifier (re-scan and decide closed / still_open / new).
+Phases 0-5 done (skeleton, schema and storage, Semgrep, Trivy, policy engine, verifier). Next: Playwright (QA tool).

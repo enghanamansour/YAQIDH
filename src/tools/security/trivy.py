@@ -1,6 +1,7 @@
 import json
 import shutil
 import subprocess
+from dataclasses import dataclass
 from pathlib import Path
 
 from src.schema import Finding, Severity
@@ -41,6 +42,7 @@ def parse_output(data: dict) -> list[Finding]:
                 tool="trivy",
                 severity=_severity(raw),
                 reported_as=_reported_as(raw),
+                component=snippet,
                 location=target,
                 rule=rule,
             )
@@ -58,6 +60,21 @@ def parse_output(data: dict) -> list[Finding]:
             )
     # Sorted so the same input always yields the same list, which keeps decisions deterministic.
     return sorted(findings.values(), key=lambda f: (f.location, f.fingerprint))
+
+
+def parse_components(data: dict) -> set[str]:
+    """Every package Trivy saw, with or without vulnerabilities, as "name==version"."""
+    return {
+        f"{pkg['Name']}=={pkg['Version']}"
+        for result in data.get("Results") or []
+        for pkg in result.get("Packages") or []
+    }
+
+
+@dataclass(frozen=True)
+class TrivyScan:
+    findings: list[Finding]
+    components: set[str]  # lets the verifier tell "dependency changed" from "DB got newer"
 
 
 class TrivyTool:
@@ -102,16 +119,22 @@ class TrivyTool:
             raise ToolError("trivy vulnerability DB not found, run TrivyTool().update_db()")
         return {"trivy": info["Version"], "trivy-db": db["UpdatedAt"]}
 
-    def run(self, target: Path) -> list[Finding]:
+    def scan(self, target: Path) -> TrivyScan:
         target = Path(target)
         if not target.exists():
             raise ToolError(f"target does not exist: {target}")
         self.versions()  # fails early and clearly if the DB is missing
         proc = self._run(
-            ["fs", "--scanners", "vuln,secret", "--format", "json", "--quiet", "--skip-db-update", str(target)]
+            [
+                "fs", "--scanners", "vuln,secret", "--list-all-pkgs",
+                "--format", "json", "--quiet", "--skip-db-update", str(target),
+            ]
         )
         try:
             data = json.loads(proc.stdout)
         except json.JSONDecodeError as e:
             raise ToolError(f"trivy produced no JSON (exit {proc.returncode}): {proc.stderr[-300:]}") from e
-        return parse_output(data)
+        return TrivyScan(findings=parse_output(data), components=parse_components(data))
+
+    def run(self, target: Path) -> list[Finding]:
+        return self.scan(target).findings
