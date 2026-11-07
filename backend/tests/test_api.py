@@ -42,7 +42,18 @@ def test_full_flow_blocked_then_allowed(client):
     assert r2["allowed"] is True and r2["closed"] == [r["open"][0]["fingerprint"]]
 
     gate = client.get("/gate", params={"repo": "o/r", "pr": 1, "phase": "security", "commit": "def5678"}, headers=TOKEN)
-    assert gate.json() == {"allowed": True, "reason": "clean", "open_count": 0}
+    assert gate.json() == {"allowed": True, "reason": "clean", "open_count": 0, "low_open": 0}
+
+
+def test_low_only_scan_passes_and_the_comment_still_shows_it(client):
+    low = dict(F, severity="low", title="Minor thing")
+    r = client.post("/scans", json=body([low]), headers=TOKEN).json()
+    assert r["allowed"] is True and r["blocking_count"] == 0 and r["low_count"] == 1
+    assert r["open"][0]["blocking"] is False and "Minor thing" in r["comment"]
+
+
+def test_unknown_severity_is_rejected(client):
+    assert client.post("/scans", json=body([dict(F, severity="critical")]), headers=TOKEN).status_code == 422
 
 
 def test_evidence_is_recorded_and_intact(client):

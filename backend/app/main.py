@@ -17,7 +17,7 @@ from . import comment
 from .evidence import EvidenceLog
 from .explainer import Explainer, get_explainer
 from .gate import Gate
-from .models import Phase, Scan
+from .models import BLOCKING, Phase, Scan
 
 app = FastAPI(title="Yaqidh agent backend", version="0.1.0")
 
@@ -59,8 +59,11 @@ def record_scan(scan: Scan, gate: Gate = Depends(get_gate), agent: Explainer = D
     return {
         "allowed": decision.allowed,
         "reason": decision.reason,
+        "blocking_count": decision.open_count,
+        "low_count": decision.low_open,
         "open": [
-            {"fingerprint": f.fingerprint, "severity": f.severity, "title": f.title, "explanation": e.model_dump()}
+            {"fingerprint": f.fingerprint, "severity": f.severity, "title": f.title,
+             "blocking": f.severity in BLOCKING, "explanation": e.model_dump()}
             for f, e in items
         ],
         "closed": result.closed,
@@ -77,7 +80,7 @@ def gate_status(
     gate: Gate = Depends(get_gate),
 ) -> dict:
     d = gate.check(repo, pr, phase, commit)
-    return {"allowed": d.allowed, "reason": d.reason, "open_count": d.open_count}
+    return {"allowed": d.allowed, "reason": d.reason, "open_count": d.open_count, "low_open": d.low_open}
 
 
 @app.get("/evidence", dependencies=[Depends(require_token)])

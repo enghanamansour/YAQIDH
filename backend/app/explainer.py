@@ -29,18 +29,12 @@ SYSTEM_PROMPT = (
 
 _WHY = {
     "ar": {
-        "critical": "خطورتها حرجة: ممكن تُستغل مباشرة وتسبب ضرراً كبيراً قبل ما يلاحظها أحد.",
-        "high": "خطورتها عالية: استغلالها ممكن ويؤثر على بيانات أو خدمات مهمة.",
-        "medium": "خطورتها متوسطة: تحتاج ظروف معينة عشان تُستغل، لكنها تضعف الأمان.",
-        "low": "خطورتها منخفضة: أثرها محدود، لكن الأفضل إصلاحها قبل ما تتراكم.",
-        "info": "ملاحظة للعلم: ما تمثل خطراً مباشراً.",
+        "high": "خطورتها عالية: استغلالها ممكن ويؤثر على بيانات أو خدمات مهمة، ولذلك تمنع الدمج.",
+        "low": "خطورتها منخفضة: أثرها أقل ولا تمنع الدمج، لكنها ليست بلا ضرر. الأفضل إصلاحها قبل ما تتراكم.",
     },
     "en": {
-        "critical": "Critical: it can be exploited directly and cause serious harm before anyone notices.",
-        "high": "High: exploitation is realistic and affects important data or services.",
-        "medium": "Medium: it needs certain conditions to be exploited, but it weakens security.",
-        "low": "Low: limited impact, but better fixed before problems pile up.",
-        "info": "For your information: it is not a direct risk.",
+        "high": "High: exploitation is realistic and affects important data or services, so it blocks the merge.",
+        "low": "Low: lower impact and it does not block the merge, but it is not harmless. Better fixed before they pile up.",
     },
 }
 _DIRECTION = {

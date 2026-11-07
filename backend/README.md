@@ -6,7 +6,7 @@
 
 ### القواعد اللي يفرضها الكود
 
-- الدمج يمر فقط إذا يوجد فحص لنفس الـ commit اللي بيندمج، وما فيه أي ثغرة مفتوحة فيه.
+- الدمج يمر فقط إذا يوجد فحص لنفس الـ commit اللي بيندمج، وما فيه أي ثغرة **عالية الخطورة (high)** مفتوحة. الثغرات المنخفضة (low) لا تمنع الدمج لكنها تظهر في التعليق وتُسجّل، وهي ليست بلا ضرر.
 - أي commit جديد ما انفحص يبقى ممنوع.
 - إذا ما فيه فحص أصلاً، أو أعيد تشغيل الخادم، يبقى ممنوع (القاعدة تفشل بإغلاق).
 - القرار ما يدخل فيه النموذج اللغوي أبداً.
@@ -60,7 +60,7 @@ The first slice of the agent: it takes a scan result, explains every open findin
 
 ### Rules the code enforces
 
-- A merge passes only if a scan exists for the exact commit being merged and it has no open findings.
+- A merge passes only if a scan exists for the exact commit being merged and it has no open **high-severity** finding. Low-severity findings do not block, but they are shown in the comment and recorded; they are not harmless.
 - A new, unscanned commit stays blocked.
 - With no scan at all, or after a server restart, it stays blocked (the rule fails closed).
 - The language model never takes part in the decision.

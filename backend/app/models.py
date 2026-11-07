@@ -7,10 +7,13 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-Severity = Literal["critical", "high", "medium", "low", "info"]
+Severity = Literal["high", "low"]
 Phase = Literal["qa", "security"]
 
-SEVERITY_ORDER = {"critical": 0, "high": 1, "medium": 2, "low": 3, "info": 4}
+SEVERITY_ORDER = {"high": 0, "low": 1}
+
+# Only these severities stop a merge. Lower ones are recorded and shown, but pass.
+BLOCKING = frozenset({"high"})
 
 
 class Finding(BaseModel):

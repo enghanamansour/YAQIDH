@@ -68,6 +68,31 @@ def test_fixing_one_of_two_keeps_it_blocked(gate):
     assert not d.allowed and d.open_count == 1
 
 
+def test_low_findings_do_not_block_but_stay_counted(gate):
+    gate.record_scan(scan([finding(rule="L1", severity="low")]))
+    d = gate.check("o/r", 1, "security", "abc1234")
+    assert d.allowed and d.reason == "clean" and d.open_count == 0 and d.low_open == 1
+
+
+def test_high_blocks_even_when_low_ones_are_present(gate):
+    gate.record_scan(scan([finding(rule="H", severity="high"), finding(rule="L", severity="low")]))
+    d = gate.check("o/r", 1, "security", "abc1234")
+    assert not d.allowed and d.open_count == 1 and d.low_open == 1
+
+
+def test_closing_the_high_one_lets_it_pass_with_the_low_one_still_open(gate):
+    low = finding(rule="L", severity="low")
+    gate.record_scan(scan([finding(rule="H", severity="high"), low]))
+    gate.record_scan(scan([low], commit="def5678"))
+    d = gate.check("o/r", 1, "security", "def5678")
+    assert d.allowed and d.low_open == 1
+
+
+def test_only_two_severities_exist():
+    with pytest.raises(ValueError):
+        finding(severity="critical")
+
+
 def test_phases_and_pull_requests_are_independent(gate):
     gate.record_scan(scan([], phase="qa"))
     assert gate.check("o/r", 1, "qa", "abc1234").allowed
