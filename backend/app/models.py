@@ -29,6 +29,17 @@ class Finding(BaseModel):
     # When the checking tool already gives the finding a stable id, we keep it
     # as the fingerprint instead of making a second one.
     external_id: str | None = Field(default=None, max_length=100)
+    # What the tool itself says about the finding. Used to explain it and to tell
+    # apart two different problems that happen to sit on the same line.
+    cwe: str | None = Field(default=None, max_length=300)
+    confidence: Literal["high", "medium", "low"] | None = None
+
+    @field_validator("confidence", mode="before")
+    @classmethod
+    def _clean_confidence(cls, value):
+        if isinstance(value, str) and value.strip().lower() in {"high", "medium", "low"}:
+            return value.strip().lower()
+        return None  # unknown or missing: we simply do not claim anything
 
     @field_validator("severity", mode="before")
     @classmethod
@@ -51,7 +62,7 @@ class Finding(BaseModel):
         """
         if self.external_id:
             return self.external_id
-        body =re.sub(r"\s+", " ", self.snippet or self.title).strip().lower()
+        body = re.sub(r"\s+", " ", self.snippet or self.title).strip().lower()
         raw = "|".join([self.rule_id.strip().lower(), self.file.strip(), body])
         return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]
 
@@ -65,6 +76,8 @@ class Scan(BaseModel):
     phase: Phase
     findings: list[Finding] = Field(default_factory=list, max_length=2000)
     lang: Literal["ar", "en"] = "ar"
+    # Post the comment and the status on GitHub. Off unless asked, and it needs GITHUB_TOKEN.
+    publish: bool = False
 
 
 class Explanation(BaseModel):

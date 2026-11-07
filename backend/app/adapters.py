@@ -28,7 +28,7 @@ def _split_location(location: str) -> tuple[str, int | None]:
 def from_team_finding(item: dict) -> Finding:
     """Accepts one finding in the shape the team's tools produce.
 
-    Required: id, rule, location, severity. Optional: message, snippet. The
+    Required: id, rule, location, severity. Optional: message, snippet, cwe, confidence. The
     id they give is kept as the fingerprint, so there is one id everywhere.
     """
     file, line = _split_location(item["location"])
@@ -42,6 +42,8 @@ def from_team_finding(item: dict) -> Finding:
         description=item.get("message", ""),
         snippet=item.get("snippet", ""),
         external_id=item["id"],
+        cwe=item.get("cwe"),
+        confidence=item.get("confidence"),
     )
 
 

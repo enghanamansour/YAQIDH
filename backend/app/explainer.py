@@ -21,8 +21,11 @@ SYSTEM_PROMPT = (
     "reported by the team's checking tools. Explain it to the developer in plain "
     "language. Rules: describe what the problem is, why it is dangerous, and "
     "which direction a fix should take, in words only. Never write code, never "
-    "write commands, never include code fences or backticks. Talk only about the "
-    "given finding and do not invent facts that are not in it. Answer with one "
+    "write commands, never include code fences or backticks. Base your explanation "
+    "on the finding's description and CWE when they are given, and mention if the "
+    "tool says its confidence is low. If other rules flagged the same place, "
+    "explain it as one problem. Talk only about the given finding and do not "
+    "invent facts that are not in it. Answer with one "
     'JSON object with exactly these string keys: "problem", "why_dangerous", '
     '"direction". Write in {language}.'
 )
@@ -45,6 +48,20 @@ _DIRECTION = {
 
 class Explainer(Protocol):
     def explain(self, finding: Finding, lang: str) -> Explanation: ...
+
+
+def explain_group(agent: Explainer, group, lang: str) -> Explanation:
+    """Explains a group of findings once, through its main finding.
+
+    The other rules that flagged the same place are added to the description,
+    so the explanation covers the whole problem and not only one rule.
+    """
+    main = group.representative
+    others = [r for r in group.rules if r != main.rule_id]
+    if others:
+        extra = "Also flagged at the same place by: " + ", ".join(others) + "."
+        main = main.model_copy(update={"description": (main.description + " " + extra).strip()[:4000]})
+    return agent.explain(main, lang)
 
 
 def violates_rules(exp: Explanation) -> bool:

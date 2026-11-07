@@ -13,6 +13,9 @@
 - القرار ما يدخل فيه النموذج اللغوي أبداً.
 - الوكيل يشرح ولا يكتب كود. وإذا حاول النموذج يكتب كود، تُرفض إجابته وتُعاد مرة، ثم يُستخدم قالب ثابت.
 - كل ثغرة لها بصمة لا تتأثر برقم السطر، فتختفي فقط إذا انحلّت فعلاً.
+- لو أكثر من قاعدة نبّهت على نفس السطر، تُدمج في **مشكلة وحدة** وتُشرح مرة وحدة (البصمات تبقى منفصلة، فالدمج للعرض فقط ولا يغيّر المنع أو المرور). الثغرات بدون رقم سطر (مثل المكتبات) لا تُدمج أبداً.
+- إذا الأداة نفسها غير متأكدة (ثقة منخفضة)، يُضاف للتعليق تنبيه "احتمال، تأكد منه" بقاعدة ثابتة في الكود وليس من النموذج.
+- نشر التعليق والحالة على GitHub لا يغيّر القرار أبداً، وفشله يظهر في الرد ولا يُخفى.
 - سجل الأدلة مرتبط بسلسلة هاش، وأي تعديل أو حذف في وسطه يكشفه `GET /evidence/verify`.
 - كل الطلبات تحتاج رمز (`API_TOKEN`)، وبدونه الخادم يرفض.
 - كود الثغرة (snippet) لا يُرسل للنموذج الخارجي إلا إذا فعّلتوا `SEND_SNIPPETS=1`.
@@ -37,6 +40,8 @@ set LLM_BASE_URL=https://openrouter.ai/api/v1
 set LLM_MODEL=meta-llama/llama-3.3-70b-instruct
 ```
 
+ولنشر التعليق والحالة على GitHub: `set GITHUB_TOKEN=...` وأرسلوا `"publish": true` مع الفحص.
+
 ### الواجهة
 
 | الطلب | الوظيفة |
@@ -48,7 +53,8 @@ set LLM_MODEL=meta-llama/llama-3.3-70b-instruct
 
 ### غير موجود بعد
 
-- ربط GitHub (نشر التعليق فعلياً وحالة الفحص على الـ PR).
+- تجربة نشر التعليق والحالة على GitHub **فعلياً**: الكود مكتوب ومختبر بنماذج وهمية فقط، وما اتجرّب على PR حقيقي. ويحتاج `GITHUB_TOKEN`، وتفعيل "Require status checks" باسم `yaqidh/security` في حماية الفرع، وإلا ما يمنع GitHub الدمج.
+- أخذ وصف الثغرة والـ CWE ومستوى الثقة من أدوات الفحص نفسها (المحوّل يقبلها إذا وُجدت، لكن أدوات الفريق ما تمررها بعد).
 - البحث في بيانات الثغرات (RAG) وأمثلة few-shot.
 - تخزين دائم للحالة (الآن في الذاكرة، والسجل فقط على ملف).
 - طلب الاستثناءات.
@@ -68,6 +74,9 @@ The first slice of the agent: it takes a scan result, explains every open findin
 - The language model never takes part in the decision.
 - The agent explains and never writes code. If the model writes code, its answer is rejected and retried once, then a fixed template is used.
 - Every finding has a fingerprint that ignores the line number, so it disappears only when it is really fixed.
+- If several rules flag the same line, they are merged into **one problem** and explained once (fingerprints stay separate, so merging only changes what is shown, never what blocks or passes). Findings with no line number (like libraries) are never merged.
+- If the tool itself is unsure (low confidence), the comment gets a "this is a possibility, check it" note, added by fixed code and not by the model.
+- Posting the comment and the status to GitHub never changes the decision, and a failed post is reported, not hidden.
 - The evidence log is hash-chained; editing or deleting anything in the middle is detected by `GET /evidence/verify`.
 - Every request needs a token (`API_TOKEN`); without one the server refuses.
 - The finding's code snippet is not sent to the external model unless `SEND_SNIPPETS=1` is set.
@@ -78,7 +87,8 @@ See the commands above. Without `LLM_API_KEY` it uses a fixed template. To enabl
 
 ### Not built yet
 
-- GitHub integration (actually posting the comment and the status check on the PR).
+- Trying the comment and status posting on GitHub **for real**: the code is written and tested with fake responses only, never on a real PR. It needs `GITHUB_TOKEN`, and "Require status checks" named `yaqidh/security` in the branch protection, otherwise GitHub does not block the merge.
+- Getting the description, CWE and confidence from the checking tools themselves (the adapter accepts them when present, but the team's tools do not pass them yet).
 - Search over the vulnerability data (RAG) and few-shot examples.
 - Persistent state (now in memory; only the log is on disk).
 - Exception requests.
