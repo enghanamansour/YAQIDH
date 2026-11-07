@@ -29,11 +29,15 @@ class Finding(BaseModel):
 
     @field_validator("severity", mode="before")
     @classmethod
-    def _critical_counts_as_high(cls, value):
-        """There are only two levels. 'critical' is simply a high finding."""
-        if isinstance(value, str) and value.strip().lower() == "critical":
-            return "high"
-        return value.strip().lower() if isinstance(value, str) else value
+    def _only_low_is_low(cls, value):
+        """There are only two levels, and only an explicit 'low' is low.
+
+        'critical', 'medium', 'info' and any unknown name count as high, so a
+        label we did not expect can never let a finding slip through.
+        """
+        if isinstance(value, str) and value.strip().lower() == "low":
+            return "low"
+        return "high"
 
     @property
     def fingerprint(self) -> str:

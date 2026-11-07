@@ -101,10 +101,15 @@ def test_severity_is_case_insensitive():
     assert finding(severity="LOW").severity == "low"
 
 
-def test_other_severity_names_are_still_rejected():
-    for bad in ("medium", "info", "urgent", ""):
-        with pytest.raises(ValueError):
-            finding(severity=bad)
+def test_only_an_explicit_low_is_low():
+    for name in ("medium", "info", "warning", "urgent", "", "hihg"):
+        assert finding(severity=name).severity == "high", name
+    assert finding(severity="  Low  ").severity == "low"
+
+
+def test_an_unknown_severity_blocks_the_merge(gate):
+    gate.record_scan(scan([finding(severity="medium")]))
+    assert not gate.check("o/r", 1, "security", "abc1234").allowed
 
 
 def test_phases_and_pull_requests_are_independent(gate):

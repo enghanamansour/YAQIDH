@@ -57,8 +57,10 @@ def test_critical_is_accepted_and_counted_as_high(client):
     assert r["allowed"] is False and r["open"][0]["severity"] == "high" and r["blocking_count"] == 1
 
 
-def test_unknown_severity_is_rejected(client):
-    assert client.post("/scans", json=body([dict(F, severity="urgent")]), headers=TOKEN).status_code == 422
+def test_unknown_or_medium_severity_counts_as_high(client):
+    for name in ("urgent", "medium", "info"):
+        r = client.post("/scans", json=body([dict(F, severity=name)]), headers=TOKEN).json()
+        assert r["allowed"] is False and r["open"][0]["severity"] == "high", name
 
 
 def test_evidence_is_recorded_and_intact(client):
