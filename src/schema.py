@@ -62,6 +62,8 @@ class Finding(BaseModel):
     location: str
     status: FindingStatus = FindingStatus.OPEN
     rule: str = ""
+    # The tool's own message about the problem (e.g. the failed assertion). Raw tool output, not an AI text.
+    detail: str = ""
     explanation: Explanation | None = None
     closure: Closure | None = None
     exception: ExceptionRecord | None = None
@@ -81,6 +83,12 @@ class StageRecord(BaseModel):
     decision: Decision | None = None
     # Versions of the tools and their data (e.g. trivy, trivy-db), so a scan can be reproduced.
     tool_versions: dict[str, str] = Field(default_factory=dict)
+    # Every package the scan saw (e.g. "flask==0.12.2"), so a re-scan can tell a newer DB from a changed dependency.
+    components: list[str] = Field(default_factory=list)
+    # QA checks that failed on a first try but passed on a retry. Logged here, they are not findings.
+    flaky_tests: list[str] = Field(default_factory=list)
+    # When the stage was last scanned. A human decision older than this scan does not cover the new results.
+    scanned_at: datetime | None = None
 
 
 class HumanDecision(BaseModel):

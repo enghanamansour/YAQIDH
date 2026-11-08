@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Maktabti{% endblock %} · Maktabti Bookstore</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header class="site-header">
+    <div class="wrap bar">
+      <a class="brand" href="{{ url_for('index') }}">Maktabti <span>مكتبتي</span></a>
+      <form class="search" action="{{ url_for('search') }}" method="get" role="search">
+        <input type="search" name="q" placeholder="Search by title or author" aria-label="Search books" value="{{ query or '' }}">
+        <button type="submit">Search</button>
+      </form>
+      <nav>
+        <a href="{{ url_for('catalog') }}">Browse</a>
+        <a href="{{ url_for('cart') }}" data-testid="cart-link">Cart <span class="badge" data-testid="cart-count">{{ cart_count }}</span></a>
+        {% if user_name %}
+          <form action="{{ url_for('logout') }}" method="post" class="inline">
+            <span class="hello" data-testid="greeting">Hi, {{ user_name }}</span>
+            <button class="link" type="submit">Log out</button>
+          </form>
+        {% else %}
+          <a href="{{ url_for('login') }}">Log in</a>
+        {% endif %}
+      </nav>
+    </div>
+  </header>
+  <main class="wrap">
+    {% with messages = get_flashed_messages() %}
+      {% for m in messages %}<p class="flash" role="status">{{ m }}</p>{% endfor %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </main>
+  <footer class="site-footer"><div class="wrap">© 2026 Maktabti Bookstore · Riyadh · Free delivery on orders over 150 SAR</div></footer>
+</body>
+</html>

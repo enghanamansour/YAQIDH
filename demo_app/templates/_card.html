@@ -1,0 +1,11 @@
+<article class="card" data-testid="book-card">
+  <a class="cover" href="{{ url_for('book', book_id=b.id) }}" tabindex="-1" aria-hidden="true">
+    <img src="{{ url_for('cover', book_id=b.id) }}" alt="" loading="lazy">
+  </a>
+  <div class="meta">
+    <p class="cat">{{ b.category }}</p>
+    <h3><a href="{{ url_for('book', book_id=b.id) }}">{{ b.title }}</a></h3>
+    <p class="author">{{ b.author }}</p>
+    <p class="price">{{ '%.2f'|format(b.price) }} SAR</p>
+  </div>
+</article>

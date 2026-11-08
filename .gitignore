@@ -8,3 +8,6 @@ data/releases/*
 
 # Official Semgrep rules, downloaded by scripts/fetch_semgrep_rules.sh
 config/semgrep-rules/
+
+# demo app database
+demo_app/*.db

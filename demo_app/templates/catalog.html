@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}{% if query is not none %}Search{% else %}Catalog{% endif %}{% endblock %}
+{% block content %}
+<h1>{% if query is not none %}Results for “{{ query }}”{% else %}{{ selected or 'All books' }}{% endif %}</h1>
+<ul class="chips">
+  <li><a href="{{ url_for('catalog') }}" {% if not selected and query is none %}class="on"{% endif %}>All</a></li>
+  {% for c in categories %}
+    <li><a href="{{ url_for('catalog', category=c.category) }}" {% if selected == c.category %}class="on"{% endif %}>{{ c.category }}</a></li>
+  {% endfor %}
+</ul>
+{% if books %}
+  <p class="count" data-testid="result-count">{{ books|length }} book{{ '' if books|length == 1 else 's' }}</p>
+  <div class="grid">{% for b in books %}{% include "_card.html" %}{% endfor %}</div>
+{% else %}
+  <p class="empty" data-testid="no-results">No books matched your search.</p>
+{% endif %}
+{% endblock %}

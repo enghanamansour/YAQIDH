@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Your cart{% endblock %}
+{% block content %}
+<h1>Your cart</h1>
+{% if items %}
+<table class="cart" data-testid="cart-table">
+  <thead><tr><th>Book</th><th>Qty</th><th>Price</th><th></th></tr></thead>
+  <tbody>
+  {% for i in items %}
+    <tr>
+      <td><a href="{{ url_for('book', book_id=i.id) }}">{{ i.title }}</a><br><small>{{ i.author }}</small></td>
+      <td>{{ i.quantity }}</td>
+      <td>{{ '%.2f'|format(i.price * i.quantity) }} SAR</td>
+      <td><form action="{{ url_for('remove_from_cart', book_id=i.id) }}" method="post"><button class="link" type="submit">Remove</button></form></td>
+    </tr>
+  {% endfor %}
+  </tbody>
+  <tfoot><tr><th colspan="2">Total</th><th data-testid="cart-total">{{ '%.2f'|format(total) }} SAR</th><th></th></tr></tfoot>
+</table>
+{% else %}
+  <p class="empty" data-testid="cart-empty">Your cart is empty. <a href="{{ url_for('catalog') }}">Find something to read.</a></p>
+{% endif %}
+{% endblock %}
