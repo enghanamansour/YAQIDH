@@ -2,6 +2,8 @@ from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from src.envfile import load_env
+
 
 class Settings(BaseSettings):
     """All configuration comes from environment variables or .env, never from code.
@@ -10,7 +12,7 @@ class Settings(BaseSettings):
     between free-tier providers only means changing these three variables.
     """
 
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(extra="ignore")
 
     llm_api_key: str = ""
     llm_base_url: str = ""
@@ -25,4 +27,5 @@ class Settings(BaseSettings):
 
 
 def get_settings() -> Settings:
+    load_env()  # the shared .env reader; real environment variables still win
     return Settings()
