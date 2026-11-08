@@ -1,0 +1,34 @@
+[
+  {
+    "id": "F-363d42d8b6",
+    "tool": "semgrep",
+    "severity": "high",
+    "location": "app.py:12",
+    "status": "open",
+    "rule": "python.flask.security.injection.tainted-sql-string"
+  },
+  {
+    "id": "F-95b1ec17e4",
+    "tool": "semgrep",
+    "severity": "high",
+    "location": "app.py:12",
+    "status": "open",
+    "rule": "python.django.security.injection.tainted-sql-string"
+  },
+  {
+    "id": "F-fd9402f7e1",
+    "tool": "semgrep",
+    "severity": "high",
+    "location": "app.py:12",
+    "status": "open",
+    "rule": "python.sqlalchemy.security.sqlalchemy-execute-raw-query"
+  },
+  {
+    "id": "F-6c518b5a46",
+    "tool": "semgrep",
+    "severity": "low",
+    "location": "app.py:17",
+    "status": "open",
+    "rule": "python.flask.security.audit.debug-enabled"
+  }
+]

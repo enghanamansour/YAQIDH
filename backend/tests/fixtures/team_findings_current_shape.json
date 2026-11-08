@@ -1,0 +1,50 @@
+[
+  {
+    "fingerprint": "F-aaaaaaaaaa",
+    "tool": "semgrep",
+    "severity": "high",
+    "reported_as": "high",
+    "component": "",
+    "origin": "initial",
+    "location": "app.py:12",
+    "status": "open",
+    "rule": "python.flask.security.injection.tainted-sql-string"
+  },
+  {
+    "fingerprint": "F-bbbbbbbbbb",
+    "tool": "trivy",
+    "severity": "high",
+    "reported_as": "medium",
+    "component": "flask==0.12.2",
+    "origin": "initial",
+    "location": "requirements.txt",
+    "status": "open",
+    "rule": "CVE-2018-1000656"
+  },
+  {
+    "fingerprint": "F-cccccccccc",
+    "tool": "semgrep",
+    "severity": "low",
+    "reported_as": "info",
+    "component": "",
+    "origin": "initial",
+    "location": "app.py:17",
+    "status": "open",
+    "rule": "python.flask.security.audit.debug-enabled"
+  },
+  {
+    "fingerprint": "F-dddddddddd",
+    "tool": "semgrep",
+    "severity": "high",
+    "reported_as": "high",
+    "component": "",
+    "origin": "initial",
+    "location": "util.py:3",
+    "status": "fixed",
+    "rule": "python.lang.security.audit.eval-detected",
+    "closure": {
+      "verified_by": "rescan",
+      "result": "closed"
+    }
+  }
+]
