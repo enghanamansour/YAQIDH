@@ -318,6 +318,12 @@ document.addEventListener('submit',async event=>{
     if(form.id==='thread-new'){const result=await api('/api/threads',{...data,release:form.dataset.release,finding:form.dataset.finding});location.href='/communication?thread='+encodeURIComponent(result.id)}
     if(form.id==='account-delete'){await api('/api/company/accounts/delete',{account:form.dataset.id});dialog.close();await load();notify(copy('حُذف الحساب من قائمة المستخدمين.','The account was removed from the user list.'))}
     if(form.id==='account-edit'){await api('/api/company/accounts',{account:form.dataset.id,role:data.role,active:data.active==='on',assigned:new FormData(form).getAll('projects').length>0,projects:new FormData(form).getAll('projects')});dialog.close();await load()}
+    if(form.id==='exception-form'){
+      const key=form.dataset.release;
+      const updated=await api('/api/releases/'+encodeURIComponent(key)+'/exception',{fingerprint:form.dataset.finding,justification:data.justification});
+      if(release?.id===key){release=updated;render()}
+      notify(copy('سُجّل قرار الاستثناء مع تبريرك','The exception decision was recorded with your reason'));
+    }
     if(form.id==='decision-form'){
       const key=form.dataset.release;
       const updated=await api('/api/releases/'+encodeURIComponent(key)+'/decision',{decision:form.dataset.choice,reason:data.reason,commit:form.dataset.commit});

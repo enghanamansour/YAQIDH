@@ -70,6 +70,7 @@ STATIC = {
     "/pages/communication.js": "pages/communication.js",
     "/pages/admin.js": "pages/admin.js",
     "/pages/dashboard/report.js": "pages/dashboard/report.js",
+    "/pages/dashboard/exceptions.js": "pages/dashboard/exceptions.js",
     "/pages/dashboard/developer.js": "pages/dashboard/developer.js",
     "/pages/dashboard/review.js": "pages/dashboard/review.js",
     "/pages/dashboard/index.js": "pages/dashboard/index.js",
@@ -221,7 +222,7 @@ class Handler(BaseHTTPRequestHandler):
         live = self.server.live
         return {
             "id": key, **{k: v for k, v in meta.items() if k != "owner"}, "demo": True,
-            "stage": stage_name, "outcome": outcome, "runs": runs,
+            "stage": stage_name, "outcome": outcome, "runs": runs, "live": live is not None,
             # the developer's report is worked out by the Yaqidh API (live mode only; the demo has no history to measure)
             "report": live.report(key) if live and role == "developer" else None,
             "findings": [clean_finding(finding) for finding in stage.findings] if stage else [],
@@ -428,6 +429,26 @@ class Handler(BaseHTTPRequestHandler):
         self.server.requests[name] = {"role": role, "salt": salt, "digest": digest}
         return self.json(201, {"status": "pending"})
 
+    def grant_exception(self, account, key, data):
+        """The security reviewer accepts a finding the tool rated medium, with a written reason. Live mode only."""
+        if key not in RELEASES or ACCOUNTS[account]["role"] != "security" or not self.visible(account, key) or RELEASES[key]["active"] != "security":
+            return self.fail(403, "forbidden")
+        fingerprint, reason = data.get("fingerprint"), data.get("justification")
+        if not isinstance(fingerprint, str) or not isinstance(reason, str) or not 10 <= len(reason.strip()) <= 1000:
+            return self.fail(400, "invalid_input")
+        if not self.server.live:
+            return self.fail(409, "live_only")
+        target = next((f for f in self.release_view(account, key)["findings"] if f["fingerprint"] == fingerprint), None)
+        if target is None or target["reported_as"] != "medium" or target["status"] != "open":
+            return self.fail(409, "exception_refused")  # only an open finding the tool itself rated medium; never high
+        from live import LiveError
+        try:
+            self.server.live.grant_exception(key, "security", fingerprint, reason.strip(), account)
+        except LiveError as e:
+            return self.fail(409 if e.status in (409, 422) else 502, "exception_refused")
+        self.refresh_live()
+        return self.json(200, self.release_view(account, key))
+
     def resolve_request(self, account, data):
         if ACCOUNTS[account]["role"] != "company-admin":
             return self.fail(403, "forbidden")
@@ -503,6 +524,8 @@ class Handler(BaseHTTPRequestHandler):
             if path == "/api/threads" or path.startswith("/api/threads/"):
                 return self.post_thread(account, path, data)
             parts = path.strip("/").split("/")
+            if len(parts) == 4 and parts[:2] == ["api", "releases"] and parts[3] == "exception":
+                return self.grant_exception(account, parts[2], data)
             if len(parts) != 4 or parts[:2] != ["api", "releases"] or parts[3] != "decision":
                 return self.fail(404, "not_found")
             key = parts[2]

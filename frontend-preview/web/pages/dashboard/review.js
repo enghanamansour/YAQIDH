@@ -51,5 +51,5 @@ function reviewView(){
     +(profile.role==='security'?action('previous-qa',copy('موافقة الجودة السابقة','Previous QA approval')):'')+(release.prior?action('prior',copy('البناء السابق','Previous build')):'')
     +(release.canReject?action('reject',copy('إرجاع مع السبب','Return with reason')):'')
     +(release.canApprove?action('approve',profile.role==='security'?copy('اعتماد البناء','Approve build'):copy('تسجيل الموافقة','Record approval'),'class="primary"'):'')
-    +'</div></div></section>'+findingsView()+'<section class="panel"><h2>'+copy('اتجاه النتائج عبر الزمن','Results over time')+'</h2><p class="muted">'+copy('لا يتوفر سجل أحداث مؤرخ كافٍ لرسم الاتجاه.','There is not enough dated event history to plot a trend.')+'</p></section>';
+    +'</div></div></section>'+findingsView()+exceptionPanel()+'<section class="panel"><h2>'+copy('اتجاه النتائج عبر الزمن','Results over time')+'</h2><p class="muted">'+copy('لا يتوفر سجل أحداث مؤرخ كافٍ لرسم الاتجاه.','There is not enough dated event history to plot a trend.')+'</p></section>';
 }

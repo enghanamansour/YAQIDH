@@ -151,3 +151,29 @@ def test_the_demo_mode_still_works_unchanged(monkeypatch):
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     assert "portal-133" in mod.RELEASES  # the seeded demo data is still there
+
+
+def test_the_security_reviewer_accepts_a_medium_finding_in_the_dashboard_but_never_a_high_one(world):
+    from src.schema import Severity
+    from tests.test_service import finding
+
+    stack, dash, _ = world
+    stack.sec.findings = [finding("F-1", Severity.HIGH).model_copy(update={"reported_as": "medium"}),
+                          finding("F-2", Severity.HIGH).model_copy(update={"reported_as": "high"})]
+    open_pr(stack)
+    Browser(dash).login("qa").call("POST", "/api/releases/r1/decision", {"decision": "approve", "reason": "fine", "commit": "aaaaaaa"})
+    sec = Browser(dash).login("security")
+    view = sec.call("GET", "/api/releases/r1")[1]
+    assert view["live"] is True and {f["fingerprint"] for f in view["findings"]} == {"F-1", "F-2"}
+
+    path = "/api/releases/r1/exception"
+    assert sec.call("POST", path, {"fingerprint": "F-1", "justification": "short"})[0] == 400  # a written reason is required
+    assert Browser(dash).login("qa").call("POST", path, {"fingerprint": "F-1", "justification": "a long enough reason"})[0] == 403
+    assert sec.call("POST", path, {"fingerprint": "F-2", "justification": "a long enough reason"})[0] == 409  # high: never
+    assert stack.service.store.get("r1").stage(__import__("src.schema", fromlist=["StageName"]).StageName.SECURITY).findings[1].exception is None
+
+    status, after = sec.call("POST", path, {"fingerprint": "F-1", "justification": "isolated, fix scheduled next sprint"})
+    assert status == 200
+    f1 = next(f for f in after["findings"] if f["fingerprint"] == "F-1")
+    assert f1["status"] == "excepted" and f1["exception"]["approved_by"] == "security"  # recorded under the account, not typed
+    assert next(f for f in after["findings"] if f["fingerprint"] == "F-2")["status"] == "open"

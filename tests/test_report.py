@@ -66,7 +66,7 @@ def test_the_report_carries_the_decisions_the_gate_and_a_timeline(tmp_path):
     assert set(report["gates"]) == {"staging", "main"} and report["gates"]["main"]["allowed"] is False
     events = [e["event"] for e in report["timeline"]]
     assert events.index("scan") < events.index("rescan") < events.index("human_decision")
-    assert report["notes"] == ["elapsed_time", "scan_resolution", "db_origin"]
+    assert report["notes"][:3] == ["elapsed_time", "scan_resolution", "db_origin"] and "low_awareness" in report["notes"]
 
 
 def test_a_release_with_no_history_still_gives_a_report():
@@ -87,3 +87,10 @@ def test_the_report_is_served_by_the_api(tmp_path, monkeypatch):
     assert ok.status_code == 200 and ok.json()["summary"]["closed"] == 1
     assert client.get("/releases/nope/report", headers=H).status_code == 404
     assert client.get("/releases/r1/report").status_code == 401  # the door is locked like every other route
+
+
+def test_the_report_counts_by_the_level_the_tool_gave_and_by_owasp_category():
+    from src.report import OWASP_BY_CWE, _count
+
+    assert _count([{"reported_as": "HIGH"}, {"reported_as": "high"}, {"reported_as": ""}], "reported_as") == {"high": 2, "unknown": 1}
+    assert OWASP_BY_CWE["CWE-89"].startswith("A03") and OWASP_BY_CWE["CWE-798"].startswith("A07")

@@ -22,7 +22,31 @@ from src.schema import Evidence, Finding, FindingStatus, Severity, StageName
 
 TIMELINE_EVENTS = {"commit_received", "scan", "rescan", "policy_decision", "human_decision", "exception", "scan_not_run",
                    "security_waiting", "github_published"}
-NOTES = ["elapsed_time", "scan_resolution", "db_origin"]  # the dashboard turns these codes into sentences
+NOTES = ["elapsed_time", "scan_resolution", "db_origin", "low_awareness", "severity_source",
+         "owasp_source"]  # the dashboard turns these codes into sentences
+
+# OWASP Top 10 (2021) category by CWE. A fixed table of the common ones, not a guess: a finding without a known CWE
+# has no category, except a library finding (it has a component), which is "Vulnerable and Outdated Components".
+OWASP_BY_CWE = {
+    "CWE-89": "A03 Injection", "CWE-79": "A03 Injection", "CWE-798": "A07 Identification and Authentication Failures",
+    "CWE-287": "A07 Identification and Authentication Failures", "CWE-209": "A04 Insecure Design",
+    "CWE-352": "A01 Broken Access Control", "CWE-22": "A01 Broken Access Control", "CWE-200": "A01 Broken Access Control",
+    "CWE-1104": "A06 Vulnerable and Outdated Components",
+}
+
+
+def _owasp(f: Finding) -> str:
+    if f.cwe.upper() in OWASP_BY_CWE:
+        return OWASP_BY_CWE[f.cwe.upper()]
+    return "A06 Vulnerable and Outdated Components" if f.component else ""
+
+
+def _count(rows: list[dict], key: str) -> dict:
+    out: dict[str, int] = {}
+    for r in rows:
+        name = (r[key] or "unknown").lower() if isinstance(r[key], str) else "unknown"
+        out[name] = out.get(name, 0) + 1
+    return out
 
 
 def _time(value: str | None) -> datetime | None:
@@ -52,7 +76,7 @@ def _finding_row(f: Finding, stage: str, first_scan: datetime | None, rescans: l
         "seconds_to_close": _seconds(first, closed_at),
         "seconds_open": _seconds(first, end) if closed_at is None else None,
         "rounds": rounds,
-        "explained": bool(f.explanation),
+        "explained": bool(f.explanation), "owasp": _owasp(f),
     }
 
 
@@ -98,6 +122,10 @@ def build_report(evidence: Evidence, history: list[dict]) -> dict:
         "status": status.model_dump(mode="json"), "gates": gates,
         "summary": {
             "findings": len(findings),
+            "by_reported": _count(findings, "reported_as"),  # the level the TOOL gave (critical, high, medium, low)
+            "by_tool": _count(findings, "tool"),
+            "by_owasp": _count([{**r, "owasp": r["owasp"] or "none"} for r in findings], "owasp"),
+            "closed_percent": round(100 * sum(r["closed_at"] is not None for r in findings) / len(findings)) if findings else None,
             "open_blocking": sum(r["severity"] == Severity.HIGH.value for r in open_),
             "open_low": sum(r["severity"] == Severity.LOW.value for r in open_),
             "closed": sum(r["closed_at"] is not None for r in findings),

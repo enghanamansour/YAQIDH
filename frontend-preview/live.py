@@ -102,6 +102,11 @@ class LiveBackend:
         return self.status(key) == f"awaiting_{role}_approval"
 
     # --- deciding ---
+    def grant_exception(self, key: str, stage: str, fingerprint: str, justification: str, by: str) -> None:
+        """The reviewer accepts a finding the tool rated MEDIUM. The API refuses anything else (high is never excepted)."""
+        self._call("POST", f"/releases/{key}/stages/{stage}/exceptions",
+                   {"fingerprint": fingerprint, "justification": justification, "approved_by": by})
+
     def decide(self, key: str, role: str, choice: str, reason: str, by: str) -> None:
         self._call("POST", f"/releases/{key}/stages/{role}/{choice}", {"by": by, "reason": reason})
 
