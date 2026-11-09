@@ -246,8 +246,16 @@ html{scroll-behavior:smooth}
 .v-edge .lp-art{position:absolute;inset-block:0;inset-inline-end:-8%;width:min(640px,66vw);aspect-ratio:auto;z-index:-1;-webkit-mask-image:linear-gradient(to right,#000 35%,transparent 96%);mask-image:linear-gradient(to right,#000 35%,transparent 96%)}
 [dir=ltr] .v-edge .lp-art{-webkit-mask-image:linear-gradient(to left,#000 35%,transparent 96%);mask-image:linear-gradient(to left,#000 35%,transparent 96%)}
 .v-edge .lp-art .lp-mark{width:76%;opacity:.55}.v-edge .lp-art .lp-ring{inset:0;margin:auto;width:92%;height:auto;aspect-ratio:1}.v-edge .lp-art .lp-ring.b{width:70%}
-@media(max-width:860px){.v-side .lp-hero-inner{grid-template-columns:1fr}.v-side .lp-art{order:-1;width:min(280px,66%)}.v-side .lp-copy{justify-items:center;text-align:center}.v-side .lp-cta{justify-content:center}}
+@media(max-width:700px){.v-side .lp-hero-inner{grid-template-columns:1fr}.v-side .lp-art{order:-1;width:min(280px,66%)}.v-side .lp-copy{justify-items:center;text-align:center}.v-side .lp-cta{justify-content:center}}
 
 /* clean: no logo in the hero (it is in the header), only the animated rings and glow behind big centered text */
 .v-clean .lp-art{position:absolute;inset:0;width:100%;aspect-ratio:auto;z-index:-1}.v-clean .lp-art .lp-mark{display:none}.v-clean .lp-art::before{inset:14%}
 .v-clean .lp-art .lp-ring{inset:0;margin:auto;width:min(760px,104vw);height:auto;aspect-ratio:1}.v-clean .lp-art .lp-ring.b{width:min(560px,80vw)}
+
+/* side layout (default): bigger, clearer text */
+.lp-l{display:block}
+.v-side .lp-hero-inner{grid-template-columns:minmax(0,1.35fr) minmax(0,.65fr);max-width:1240px;gap:clamp(18px,4vw,56px)}
+.landing2 .v-side h1{font-size:clamp(40px,6.8vw,96px);line-height:1.16}
+.v-side .lp-sub{font-size:clamp(18px,2.1vw,26px);line-height:1.85;max-width:760px;color:color-mix(in srgb,var(--text) 80%,transparent)}
+.v-side .lp-tag{font-size:15px;padding:7px 18px}.v-side .lp-cta .action{padding:14px 34px;font-size:18px}
+.v-side .lp-art{width:min(360px,100%)}
