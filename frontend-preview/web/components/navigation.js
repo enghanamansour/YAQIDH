@@ -1,5 +1,5 @@
 function animatedLogo(){
-  return '<span class="animated-logo"><img class="logo-body" alt="'+copy('يقظ','YAQIDH')+'" src="'+logo()+'"><svg class="logo-loop" viewBox="0 0 48 48" aria-hidden="true" focusable="false"><g><path d="M8.5 28.1 A16 16 0 0 1 32 10.1" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round"/><path d="M38 14.5 L27.2 14.8 L32.8 5.6 Z" fill="currentColor"/></g><g transform="rotate(180 24 24)"><path d="M8.5 28.1 A16 16 0 0 1 32 10.1" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round"/><path d="M38 14.5 L27.2 14.8 L32.8 5.6 Z" fill="currentColor"/></g></svg></span>';
+  return '<span class="animated-logo"><img class="logo-body" alt="'+copy('يقظ','YAQIDH')+'" src="'+logo()+'"><img class="logo-loop" alt="" aria-hidden="true" src="'+logo()+'"></span>';
 }
 function header(){
   const ar=document.documentElement.lang==='ar', theme=document.documentElement.dataset.theme;
