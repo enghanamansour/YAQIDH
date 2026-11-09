@@ -19,6 +19,7 @@ from pydantic import BaseModel, Field
 from src.gate import check_gate
 from src.github_sync import release_id_for
 from src.history import HistoryLog
+from src.report import build_report
 from src.schema import Finding
 from src.tools.base import ToolError
 from src.verifier import VerifierError
@@ -178,6 +179,12 @@ def create_app(
     def get_status(release_id: str) -> dict:
         release_or_404(release_id)
         return workflow.status(release_id).model_dump(mode="json")
+
+    @app.get("/releases/{release_id}/report", dependencies=auth)
+    def get_report(release_id: str) -> dict:
+        """The developer's report: findings, severity, rounds and the time each took to close. Plain code over the evidence and history."""
+        evidence = release_or_404(release_id)
+        return build_report(evidence, history.entries(release_id))
 
     @app.get("/releases/{release_id}/findings", dependencies=auth)
     def get_findings(release_id: str, stage: Literal["qa", "security"]) -> list[dict]:

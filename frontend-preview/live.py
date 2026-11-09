@@ -32,6 +32,16 @@ class LiveBackend:
         self.owners = tuple(owners)
         self._evidence: dict[str, dict] = {}
         self._status: dict[str, dict] = {}
+        self._report: dict[str, dict | None] = {}
+
+    def report(self, key: str):
+        """The developer's report for one release, worked out by the API. None if the API cannot give it."""
+        if key not in self._report:
+            try:
+                self._report[key] = self._call("GET", f"/releases/{key}/report")
+            except LiveError:
+                self._report[key] = None
+        return self._report[key]
 
     def _call(self, method: str, path: str, body: dict | None = None):
         request = urllib.request.Request(
@@ -55,6 +65,7 @@ class LiveBackend:
         """Rebuilds the dashboard's release tables from the API. Called once per request."""
         self._evidence.clear()
         self._status.clear()
+        self._report.clear()
         releases.clear(), runs.clear(), dates.clear()
         try:
             listed = self._call("GET", "/releases")

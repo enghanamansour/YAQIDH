@@ -19,7 +19,7 @@ function developerView(){
   const requests=[...new Map(assigned.map(item=>[item.pr,item])).values()];
   const counts=['pass','fail',null].map(id=>({state:id==='pass'?'completed':id==='fail'?'error':'pending',count:dated.filter(item=>item.outcome===id).length}));
   const rows=matched().map(f=>'<tr><td>'+safe(findingName(f))+'<br><small>'+mon(f.location)+'</small></td><td>'+findingState(f)+'</td><td>'+action('finding',copy('فتح الدليل','Open evidence'),'data-id="'+safe(f.fingerprint)+'"')+'</td></tr>').join('');
-  return '<div class="developer-workspace">'+developerPriority()
+  return '<div class="developer-workspace">'+developerPriority()+developerReport()
     +'<section class="panel filters"><label>'+copy('طلب الدمج والبناء','Pull request and build')+'<select id="release-select">'+profile.releases.map(item=>'<option value="'+safe(item.id)+'" '+(item.id===release.id?'selected':'')+'>'+safe(requestName(item.pr))+' · '+safe(buildName(item.build))+'</option>').join('')+'</select></label>'
     +adminSelect('finding-filter',copy('حالة المعالجة','Remediation status'),findingFilter,[['open',copy('قيد التنفيذ','In progress')],['fixed',copy('مغلقة','Closed')],['excepted',copy('مستثناة','Excepted')]])
     +action('sample-issue',copy('تعديل معاد','Returned change'))+action('sample-ready',copy('تعديل عولج','Remediated change'))+action('decisions',copy('عرض قرار المراجع','View reviewer decision'))+'</section>'+chipRow([['finding',findingFilter,copy('حالة المعالجة','Remediation status')],['developer-outcome',developerOutcome,copy('نتائج الأبنية','Build outcomes')],['developer-day',developerDay,copy('اليوم','Day')+' · '+developerDay]],'clear')

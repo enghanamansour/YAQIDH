@@ -159,3 +159,8 @@ html{scroll-behavior:smooth}
   }
 }
 @keyframes logo-loop{to{transform:rotate(1turn)}}
+.report-table th,.report-table td{padding:6px 10px;text-align:start;vertical-align:top}
+.report-notes{color:var(--muted);font-size:12px;line-height:1.7;text-align:start;padding-inline-start:18px}
+.report-tile small{color:var(--muted)}
+.report h3{margin:18px 0 6px;text-align:start}
+.report .muted{text-align:start}
