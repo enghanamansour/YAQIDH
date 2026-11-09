@@ -75,8 +75,9 @@ STATIC = {
     "/pages/dashboard/index.js": "pages/dashboard/index.js",
     "/app.js": "app.js", "/style.css": "style.css",
           "/assets/yaqidh-dark-transparent.png": "assets/yaqidh-dark-transparent.png",
+          **{f"/assets/fonts/{p.name}": f"assets/fonts/{p.name}" for p in (ROOT / "web/assets/fonts").glob("*.woff2")},
           "/assets/yaqidh-light-transparent.png": "assets/yaqidh-light-transparent.png"}
-MIME = {".js": "text/javascript", ".css": "text/css", ".png": "image/png", ".html": "text/html"}
+MIME = {".js": "text/javascript", ".css": "text/css", ".png": "image/png", ".html": "text/html", ".woff2": "font/woff2", ".svg": "image/svg+xml"}
 
 def seed(store, policy):
     old = [
