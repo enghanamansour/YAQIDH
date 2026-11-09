@@ -21,8 +21,7 @@ function landing(){
     +'<div class="actions lp-cta"><a class="action primary" href="'+go+'">'+goLabel+'</a><a class="action" href="#about">'+copy('كيف يعمل','How it works')+'</a></div></div>'
     +'<div class="lp-art" aria-hidden="true">'+ring(190,'a')+ring(150,'b')+''+animatedLogo()+'</div></div></section>'
 
-    +'<section class="lp-section" id="problem"><span class="lp-eyebrow">'+copy('المشكلة','The problem')+'</span><h2>'+copy('من لفّات لا تنتهي إلى إطلاق أسرع','From endless rounds to a faster release')+'</h2>'
-    +'<p class="lp-lead">'+copy('كل مراجعة أمنية تعني دورة جديدة من الانتظار.','Every security review means a new round of waiting.')+'</p>'
+    +'<section class="lp-section" id="problem"><span class="lp-eyebrow">'+copy('المشكلة','The problem')+'</span><h2>'+copy('كل مراجعة أمنية تعني دورة جديدة من الانتظار.','Every security review means a new round of waiting.')+'</h2>'
     +'<div class="lp-two"><article class="lp-col lp-bad"><h3 class="lp-col-title">'+copy('بدون يَقِـــظ','Without Yaqidh')+'</h3>'
     +seq('bad',[[ICON.shield,copy('فريق الأمن السيبراني','Cybersecurity team')],[ICON.code,copy('المطوّر','Developer')]],[
       ['to-start',copy('يُرسل المنتج إلى فريق الأمن السيبراني','The product is sent to the cybersecurity team')],
@@ -35,7 +34,8 @@ function landing(){
     +seq('good',[[ICON.loop,copy('يَقِـــظ','Yaqidh')],[ICON.code,copy('المطوّر','Developer')]],[
       ['to-start',copy('يُرسل المطوّر تعديله، فيُفحص تلقائيًا','The developer sends a change and it is checked automatically')],
       ['to-end',copy('يكتشف المشكلات الأمنية ويحللها ويشرحها للمطوّر','Finds and analyzes security issues and explains them to the developer')],
-      ['to-start',copy('يُصلح المطوّر، فيُعاد الفحص تلقائيًا للتحقق من المعالجة','The developer fixes it and the check re-runs automatically to verify')]],
+      ['to-start',copy('يُصلح المطوّر، فيُعاد الفحص تلقائيًا للتحقق','The developer fixes it and the check re-runs automatically to verify')],
+      ['to-end',copy('تُغلق المشكلات المعالجة، وتتجهز النتائج للمراجعة','Fixed problems are closed and the results are ready for review')]],
       '<div class="seq-final"><span class="seq-chip">'+ICON.shield+copy('يجهّز النتائج للفريق الأمني لاتخاذ القرار النهائي','Prepares the results for the security team to make the final decision')+'</span></div>')
     +'<p class="muted">'+copy('فحوصات مؤتمتة، مراجعات أكثر وضوحًا، وطريق أسرع نحو الإطلاق الآمن.','Automated checks, clearer reviews, and a faster path to a safe release.')+'</p></article></div></section>'
 
@@ -43,7 +43,8 @@ function landing(){
     +journey.map(([title,text],i)=>'<li><i>'+(i+1)+'</i><b>'+title+'</b><small>'+text+'</small></li>').join('')+'</ol>'
     +'</section>'
 
-    +'<section class="lp-section" id="features"><span class="lp-eyebrow">'+copy('المميزات','Features')+'</span><h2>'+copy('كل اللي يحتاجه فريقك قبل الإطلاق','Everything your team needs before a release')+'</h2><div class="lp-three"><article class="lp-card"><span class="lp-n">01</span><h3>'+copy('فحص تلقائي لكل طلب دمج','Automatic checks on every pull request')+'</h3><p class="muted">'+copy('Playwright وSemgrep وTrivy يفحصون الموقع والكود والمكتبات بدون تدخل.','Playwright, Semgrep and Trivy check the site, the code and the libraries with no manual work.')+'</p></article><article class="lp-card"><span class="lp-n">02</span><h3>'+copy('شرح بلغة بسيطة','Plain-language explanations')+'</h3><p class="muted">'+copy('الذكاء الاصطناعي يشرح كل مشكلة واتجاه إصلاحها، ولا يصلح ولا يوافق.','The AI explains each problem and the direction of the fix; it never fixes or approves.')+'</p></article><article class="lp-card"><span class="lp-n">03</span><h3>'+copy('إعادة فحص وتأكيد الإغلاق','Re-checks that confirm closure')+'</h3><p class="muted">'+copy('بعد كل تعديل يعيد الفحص، والمدقّق يتأكد إن المشكلة انقفلت فعلًا.','After every change it re-checks, and the verifier confirms the problem is really closed.')+'</p></article><article class="lp-card"><span class="lp-n">04</span><h3>'+copy('قرار ثابت وواضح','A fixed, clear decision')+'</h3><p class="muted">'+copy('محرك السياسة يقرر نجح أو فشل، ونفس المدخلات تعطي دائمًا نفس القرار.','The policy engine decides pass or fail, and the same input always gives the same decision.')+'</p></article><article class="lp-card"><span class="lp-n">05</span><h3>'+copy('موافقتان بشريتان','Two human approvals')+'</h3><p class="muted">'+copy('مراجع الجودة ثم مراجع الأمن، وكل قرار باسم صاحبه وسببه.','The QA reviewer then the security reviewer, each decision with a name and a reason.')+'</p></article><article class="lp-card"><span class="lp-n">06</span><h3>'+copy('بوابة دمج وسجل أمين','A merge gate and an honest record')+'</h3><p class="muted">'+copy('البوابة مقفولة على الـ commit وتظهر على GitHub، والسجل لا يُعدَّل بصمت.','The gate is locked to the commit and shows on GitHub, and the record cannot be edited silently.')+'</p></article></div></section>'
+    +'<section class="lp-section" id="roles"><span class="lp-eyebrow">'+copy('الأدوار','Roles')+'</span></section>'
+    +'<section class="lp-section" id="features"><span class="lp-eyebrow">'+copy('المميزات','Features')+'</span></section>'
 
     +'<section class="lp-final"><h2>'+copy('جاهز تجرّب؟','Ready to try it?')+'</h2><div class="actions"><a class="action primary" href="'+go+'">'+goLabel+'</a></div></section>'
     +'<footer class="lp-foot">'+copy('يَقِـــظ · الجاهزية الأمنية للإصدارات','Yaqidh · security readiness for releases')+'</footer></main>';

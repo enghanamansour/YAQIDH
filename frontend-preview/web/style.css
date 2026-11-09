@@ -337,3 +337,8 @@ a.action.hdr-login{background:var(--grad);border:0;color:#fff;border-radius:999p
 .seq-chip svg{width:22px;height:22px;fill:none;stroke:var(--brand);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .lp-col .muted{max-width:440px}
 @media(prefers-reduced-motion:reduce){.seq-rows li{animation:none;opacity:1}.seq-lap span{animation:none}.seq-lap span:first-child{opacity:1}}
+
+/* the two problem columns line up row by row */
+.lp-two{align-items:start}.lp-col{grid-template-rows:auto auto auto;align-content:start}
+.seq-rows li{min-height:68px;align-content:center}.seq-lap,.seq-final{min-height:46px;display:grid;place-items:center}
+.lp-col>.muted{min-height:5.8em}
