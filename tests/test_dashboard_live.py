@@ -1,0 +1,153 @@
+"""The dashboard in live mode, against the real Yaqidh API over HTTP (both run in threads, no network outside this machine)."""
+
+import http.client
+import importlib.util
+import json
+import socket
+import sys
+import threading
+import time
+from pathlib import Path
+
+import pytest
+import uvicorn
+
+from src.api.app import create_app
+from tests.test_http_api import H, Stack  # noqa: F401
+
+PREVIEW = Path(__file__).resolve().parents[1] / "frontend-preview"
+C1 = "a" * 40
+
+
+def free_port():
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        return s.getsockname()[1]
+
+
+@pytest.fixture
+def world(tmp_path, monkeypatch):
+    monkeypatch.setenv("API_TOKEN", "secret")
+    stack = Stack(tmp_path)
+    api_port = free_port()
+    api = uvicorn.Server(uvicorn.Config(create_app(stack.service, stack.history, stack.agent), host="127.0.0.1",
+                                        port=api_port, log_level="error"))
+    threading.Thread(target=api.run, daemon=True).start()
+    for _ in range(100):
+        if api.started:
+            break
+        time.sleep(0.05)
+
+    monkeypatch.setattr(sys, "argv", ["server.py", "--live"])
+    monkeypatch.syspath_prepend(str(PREVIEW))
+    spec = importlib.util.spec_from_file_location("dashboard_server", PREVIEW / "server.py")
+    server_mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(server_mod)
+    import live as live_mod
+
+    backend = live_mod.LiveBackend(f"http://127.0.0.1:{api_port}", "secret", server_mod.Evidence, owners=["developer"])
+    policy = server_mod.load_policy(Path(__file__).resolve().parents[1] / "config" / "policy.yaml")
+    dash = server_mod.DemoServer(("127.0.0.1", 0), live_mod.LiveStore(backend), {}, policy, backend)
+    threading.Thread(target=dash.serve_forever, daemon=True).start()
+    yield stack, dash, api_port
+    dash.shutdown()
+    dash.server_close()
+    api.should_exit = True
+    sys.modules.pop("live", None)
+
+
+class Browser:
+    def __init__(self, dash):
+        self.port, self.cookie = dash.server_port, None
+
+    def call(self, method, path, body=None):
+        conn = http.client.HTTPConnection("127.0.0.1", self.port)
+        headers = {"Origin": f"http://127.0.0.1:{self.port}", "Content-Type": "application/json"}
+        if self.cookie:
+            headers["Cookie"] = self.cookie
+        conn.request(method, path, json.dumps(body) if body is not None else None, headers)
+        resp = conn.getresponse()
+        data = resp.read()
+        if resp.getheader("Set-Cookie") and "Max-Age=0" not in resp.getheader("Set-Cookie"):
+            self.cookie = resp.getheader("Set-Cookie").split(";")[0]
+        return resp.status, (json.loads(data) if data else None)
+
+    def login(self, account):
+        assert self.call("POST", "/api/login", {"account": account, "password": "YaqidhDemo-2026"})[0] == 200
+        return self
+
+
+def open_pr(stack):
+    """What GitHub + the agent do: a pull request arrives, QA is scanned and passes."""
+    stack.service.set_head_commit("r1", C1)
+    stack.service.set_pull_request("r1", "o/n", 42, author="developer", branch="feature/42")
+    stack.service.run_scan("r1", "qa")
+    stack.service.evaluate_policy("r1", "qa")
+
+
+def test_the_dashboard_shows_the_real_release_to_the_right_people(world):
+    stack, dash, _ = world
+    open_pr(stack)
+    status, board = Browser(dash).login("qa").call("GET", "/api/dashboard")
+    row = next(r for r in board["releases"] if r["id"] == "r1")
+    assert status == 200 and row["pr"] == 42 and row["commit"] == "aaaaaaa" and row["active"] == "qa"
+    assert row["outcome"] == "pass" and row["pendingReview"] is True
+    # the release belongs to developer; security has nothing to review yet
+    assert [r["id"] for r in Browser(dash).login("security").call("GET", "/api/dashboard")[1]["releases"]] == []
+    assert Browser(dash).login("security").call("GET", "/api/releases/r1")[0] == 403
+    dev = Browser(dash).login("developer").call("GET", "/api/releases/r1")[1]
+    assert dev["canApprove"] is False and dev["branch"] == "feature/42"
+
+
+def test_a_qa_approval_in_the_dashboard_reaches_the_api_and_starts_the_security_stage(world):
+    stack, dash, _ = world
+    open_pr(stack)
+    qa = Browser(dash).login("qa")
+    view = qa.call("GET", "/api/releases/r1")[1]
+    assert view["canApprove"] and view["outcome"]["result"] == "pass"
+    status, after = qa.call("POST", "/api/releases/r1/decision", {"decision": "approve", "reason": "checked it", "commit": view["commit"]})
+    assert status == 200 and after["canApprove"] is False
+    decision = stack.service.store.get("r1").human_decisions[-1]
+    assert (decision.stage.value, decision.decision, decision.by) == ("qa", "approve", "qa")  # recorded in the API, by the account
+    sec = Browser(dash).login("security").call("GET", "/api/releases/r1")[1]
+    assert sec["stage"] == "security" and sec["outcome"]["result"] == "fail" and sec["blockerIds"]
+    assert sec["canApprove"] is False  # policy failed, nothing to approve
+
+
+def test_the_dashboard_cannot_approve_what_the_api_says_is_not_ready(world):
+    stack, dash, _ = world
+    open_pr(stack)
+    qa = Browser(dash).login("qa")
+    assert qa.call("POST", "/api/releases/r1/decision", {"decision": "approve", "reason": "x" * 5, "commit": "wrong00"})[0] == 409
+    assert qa.call("POST", "/api/releases/r1/decision", {"decision": "approve", "reason": "ab", "commit": "aaaaaaa"})[0] == 400
+    assert stack.service.store.get("r1").human_decisions == []
+    qa.call("POST", "/api/releases/r1/decision", {"decision": "approve", "reason": "fine", "commit": "aaaaaaa"})
+    again = qa.call("POST", "/api/releases/r1/decision", {"decision": "approve", "reason": "fine", "commit": "aaaaaaa"})
+    assert again[0] == 403  # QA is no longer the active stage for this release
+
+
+def test_a_rejection_goes_to_the_api_and_the_developer_sees_the_reason(world):
+    stack, dash, _ = world
+    open_pr(stack)
+    qa = Browser(dash).login("qa")
+    assert qa.call("POST", "/api/releases/r1/decision", {"decision": "reject", "reason": "please recheck login", "commit": "aaaaaaa"})[0] == 200
+    dev = Browser(dash).login("developer").call("GET", "/api/dashboard")[1]["releases"][0]
+    assert dev["returnReason"] == "please recheck login"
+    assert stack.service.store.get("r1").human_decisions[-1].decision == "reject"
+
+
+def test_when_the_api_is_down_the_dashboard_shows_nothing_instead_of_stale_data(world):
+    stack, dash, _ = world
+    open_pr(stack)
+    dash.live.base_url = "http://127.0.0.1:9"  # nothing listens here
+    status, board = Browser(dash).login("qa").call("GET", "/api/dashboard")
+    assert status == 200 and board["releases"] == []
+
+
+def test_the_demo_mode_still_works_unchanged(monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["server.py"])
+    monkeypatch.setattr(sys, "path", list(sys.path))  # the demo adds its own backend copy to the path; undo that afterwards
+    spec = importlib.util.spec_from_file_location("dashboard_demo", PREVIEW / "server.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    assert "portal-133" in mod.RELEASES  # the seeded demo data is still there

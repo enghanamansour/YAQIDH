@@ -2,6 +2,7 @@
 import argparse
 import hashlib
 import hmac
+import os
 import re
 import json
 import secrets
@@ -15,7 +16,9 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 ROOT = Path(__file__).resolve().parent
-sys.path.insert(0, str(ROOT / "backend"))
+# Live mode uses the real project code in the repository root; the demo uses the copy in ./backend.
+LIVE = "--live" in sys.argv
+sys.path.insert(0, str(ROOT.parent if LIVE else ROOT / "backend"))
 from src.policy import evaluate_policy, load_policy
 from src.schema import Evidence, Finding, HumanDecision, StageRecord
 from src.storage import EvidenceStore
@@ -131,7 +134,8 @@ def clean_finding(finding):
 class DemoServer(ThreadingHTTPServer):
     daemon_threads = True
 
-    def __init__(self, address, store, verification, policy):
+    def __init__(self, address, store, verification, policy, live=None):
+        self.live = live  # set in live mode: releases come from the Yaqidh API
         self.store = store
         self.verification = verification
         self.policy = policy
@@ -141,11 +145,12 @@ class DemoServer(ThreadingHTTPServer):
         salt = secrets.token_bytes(16)
         self.requests = {"demo-reviewer": {"role": "qa", "salt": salt,
             "digest": hashlib.pbkdf2_hmac("sha256", PASSWORD.encode(), salt, 200_000)}}
-        self.threads = {"deadline-128": {"id": "deadline-128", "release": "portal-128", "build": 128,
+        self.threads = {} if live else {"deadline-128": {"id": "deadline-128", "release": "portal-128", "build": 128,
             "subject": "deadline-demo", "members": ["security", "company-admin"], "finding": "semgrep-demo-001",
             "deadline": {"original": "2026-11-10", "requested": "2026-11-12", "status": "pending", "reason": "deadline-reason-demo"},
             "messages": [{"by": "company-admin", "role": "company-admin", "text": "deadline-message-demo", "at": "2026-11-08T09:00:00+00:00"}]}}
-        self.threads["qa-return-133"] = {"id": "qa-return-133", "release": "portal-133", "build": 133,
+        if not live:
+          self.threads["qa-return-133"] = {"id": "qa-return-133", "release": "portal-133", "build": 133,
             "subject": "developer-inbox-demo", "members": ["qa", "developer"], "finding": "playwright-demo-001",
             "messages": [{"by": "qa", "role": "qa", "text": "developer-message-demo", "at": "2026-11-08T10:00:00+00:00"}]}
         self.lock = threading.RLock()
@@ -183,6 +188,10 @@ class Handler(BaseHTTPRequestHandler):
         account = self.server.sessions.get(sid)
         return sid, account if account and ACCOUNTS[account]["active"] else None
 
+    def refresh_live(self):
+        if self.server.live:
+            self.server.live.refresh(RELEASES, RUNS, DEMO_RUN_DATES)
+
     def visible(self, account, key):
         meta = RELEASES.get(key)
         if not meta or meta["project"] not in ACCOUNTS[account]["projects"]:
@@ -207,6 +216,7 @@ class Handler(BaseHTTPRequestHandler):
         completed = bool(runs) and all(run["state"] == "completed" for run in runs)
         approved = bool(decisions) and decisions[-1]["decision"] == "approve"
         previous_qa = qa[-1] if qa else None
+        live = self.server.live
         return {
             "id": key, **{k: v for k, v in meta.items() if k != "owner"}, "demo": True,
             "stage": stage_name, "outcome": outcome, "runs": runs,
@@ -217,9 +227,13 @@ class Handler(BaseHTTPRequestHandler):
             "decisions": decisions, "previousQA": previous_qa if role == "security" else None,
             "verification": self.server.verification if key == "portal-129" and stage_name == "security" else None,
             "prior": {"id": "portal-128", "build": 128, "commit": "a3f82c1"} if key == "portal-129" and stage_name == "security" else None,
-            "canApprove": role == stage_name == meta["active"] and completed and not approved and outcome is not None
-                and outcome["result"] == "pass" and (role != "security" or bool(previous_qa and previous_qa["decision"] == "approve")),
-            "canReject": role == stage_name == meta["active"] and bool(outcome) and not approved,
+            # In live mode the Yaqidh API decides when a release is waiting for this person (it also knows that an
+            # approval only covers the scan it was made on); in the demo the local rules below apply.
+            "canApprove": (role == stage_name == meta["active"] and live.can_decide(key, role)) if live else (
+                role == stage_name == meta["active"] and completed and not approved and outcome is not None
+                and outcome["result"] == "pass" and (role != "security" or bool(previous_qa and previous_qa["decision"] == "approve"))),
+            "canReject": (role == stage_name == meta["active"] and live.can_decide(key, role)) if live else (
+                role == stage_name == meta["active"] and bool(outcome) and not approved),
         }
 
     def do_GET(self):
@@ -239,6 +253,7 @@ class Handler(BaseHTTPRequestHandler):
         if path.startswith("/api/admin/"):
             return self.fail(404, "not_found")
         with self.server.lock:
+            self.refresh_live()
             _, account = self.auth()
             if not account:
                 return self.fail(401, "sign_in_required")
@@ -456,6 +471,7 @@ class Handler(BaseHTTPRequestHandler):
         except (ValueError, UnicodeError):
             return self.fail(400, "invalid_input")
         with self.server.lock:
+            self.refresh_live()
             sid, account = self.auth()
             if path == "/api/signup":
                 return self.request_account(data)
@@ -493,6 +509,14 @@ class Handler(BaseHTTPRequestHandler):
                 return self.fail(400, "invalid_input")
             if data.get("commit") != view["commit"] or not view["canApprove" if choice == "approve" else "canReject"]:
                 return self.fail(409, "decision_unavailable")
+            if self.server.live:
+                from live import LiveError
+                try:
+                    self.server.live.decide(key, role, choice, reason.strip(), account)
+                except LiveError as e:
+                    return self.fail(409 if e.status in (409, 422) else 502, "decision_unavailable")
+                self.refresh_live()
+                return self.json(200, self.release_view(account, key))
             evidence = self.server.store.get(key)
             evidence.human_decisions.append(HumanDecision(stage=role, decision=choice, by=account, reason=reason.strip()))
             self.server.store.save(evidence)
@@ -501,7 +525,19 @@ class Handler(BaseHTTPRequestHandler):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, default=8765)
+    parser.add_argument("--live", action="store_true", help="read releases from the Yaqidh API instead of demo data")
+    parser.add_argument("--api-url", help="the Yaqidh API address (or YAQIDH_API_URL); the token is YAQIDH_API_TOKEN")
     args = parser.parse_args()
+    if args.live:
+        import live as live_module
+        if args.api_url:
+            os.environ["YAQIDH_API_URL"] = args.api_url
+        policy = load_policy(ROOT.parent / "config/policy.yaml")
+        backend = live_module.from_env(Evidence, [n for n, a in ACCOUNTS.items() if a["role"] == "developer"])
+        with DemoServer(("127.0.0.1", args.port), live_module.LiveStore(backend), {}, policy, backend) as server:
+            print(f"YAQIDH dashboard (live, API {backend.base_url}): http://127.0.0.1:{server.server_port}/dashboard", flush=True)
+            server.serve_forever()
+        return
     policy = load_policy(ROOT / "backend/config/policy.yaml")
     with tempfile.TemporaryDirectory(prefix="yaqidh-demo-") as directory:
         store = EvidenceStore(Path(directory))

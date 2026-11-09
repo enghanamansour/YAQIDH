@@ -237,6 +237,8 @@ def create_app(
             repo = payload["repository"]["full_name"]
             number = int(payload["number"])
             sha = payload["pull_request"]["head"]["sha"]
+            author = str((payload["pull_request"].get("user") or {}).get("login", ""))
+            branch = str(payload["pull_request"]["head"].get("ref", ""))
         except (ValueError, KeyError, TypeError):
             raise HTTPException(422, "not a pull_request event we understand")
         if action not in ("opened", "reopened", "synchronize"):
@@ -244,7 +246,7 @@ def create_app(
         release_id = release_id_for(repo, number)
         event = "pull_request_opened" if action in ("opened", "reopened") else "push"
         try:
-            service.set_pull_request(release_id, repo, number)
+            service.set_pull_request(release_id, repo, number, author, branch)
             service.set_head_commit(release_id, sha)
         except (ServiceError, ValueError) as e:
             raise HTTPException(422, str(e))

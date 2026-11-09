@@ -22,7 +22,9 @@ src/
   phases/                   status.py (where a release stands), workflow.py (human gates)
   gate.py, history.py       commit-bound merge gate; append-only hash-chained log
   api/                      app.py (FastAPI), main.py (uvicorn entry)
-  github_sync.py            PR comment + commit statuses
+  github_sync.py, github_mcp.py   PR comment (through the GitHub MCP server) + commit statuses
+frontend-preview/  the dashboard (from branch mohammed): server.py + web/; live.py reads our API
+scripts/ci_scan.py, .github/workflows/yaqidh.yml   the CI job that scans the PR and sends the results
 backend/       the team's FastAPI explainer/GitHub code (merged from branch hana); its Gate is superseded by src/gate.py
 qa_checks/     the Playwright security checks; demo_app/ the site that is tested
 tests/         mirrors src/
@@ -126,3 +128,11 @@ dropped from the conversation (the Groq free tier allows 8000 tokens per minute;
 `pull_request` opened/reopened/synchronize, starts the agent, then posts one comment that is edited in place, and two commit
 statuses, `yaqidh/staging` and `yaqidh/main`, taken from the same gate. Require those two statuses in the branch protection and GitHub
 itself refuses a merge the gate would refuse. A failed post is logged and never changes a decision. Tested with a fake GitHub only.
+
+
+## CI results, GitHub MCP and the dashboard
+
+- **CI sends the security results** (`SCAN_SOURCE=ci`): `.github/workflows/yaqidh.yml` runs `scripts/ci_scan.py` on the pull request's own code with our Semgrep/Trivy tools (so fingerprints are made where the code is) and POSTs to `/releases/{id}/scan-results`.
+  The server keeps them for the head commit; they are used when security's turn comes (after the QA approval) or at once if it is already its turn. Results for an old commit, from one tool only, or without versions are refused, and a closure/exception/explanation inside them is wiped. Workflow file not run on a real runner yet.
+- **GitHub MCP:** with `GITHUB_MCP=1` the PR comment is written through the official GitHub MCP server (`issue_read`, `add_issue_comment`, `update_issue_comment`); the agent has a `post_pr_comment` tool that takes only a release id, the text is built by our code. That server has no tool for commit statuses, so `yaqidh/staging` and `yaqidh/main` still use the direct API client. Tested against a stand-in server with the same tool names, not the real one.
+- **Dashboard live mode:** `python frontend-preview/server.py --live --api-url http://127.0.0.1:8000` (token in `YAQIDH_API_TOKEN`). Login, roles, discussions and admin are the dashboard's own (in memory); releases, findings, explanations and decisions come from our API, and approve/reject are POSTed to it with the logged-in account as the person. Without `--live` the seeded demo is unchanged. The dashboard's old copy of the backend in `frontend-preview/backend/` is only used by the demo.

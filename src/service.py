@@ -224,10 +224,11 @@ class ReleaseService:
                   justification=justification.strip())
         return self.evaluate_policy(release_id, stage)
 
-    def set_pull_request(self, release_id: str, repo: str, pr_number: int) -> None:
+    def set_pull_request(self, release_id: str, repo: str, pr_number: int, author: str = "", branch: str = "") -> None:
         with self._lock:
             evidence = self.store.get(release_id) if self.store.exists(release_id) else self.store.create(release_id)
             evidence.repo, evidence.pr_number = repo, pr_number
+            evidence.author, evidence.branch = author[:100], branch[:200]
             self.store.save(evidence)
 
     def set_head_commit(self, release_id: str, commit: str) -> dict:

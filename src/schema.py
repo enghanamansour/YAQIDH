@@ -128,6 +128,8 @@ class Evidence(BaseModel):
     # Which pull request this release is, so results can be posted back to it. Set from the GitHub event.
     repo: str = ""
     pr_number: int = 0
+    author: str = ""  # the GitHub login of whoever opened the pull request
+    branch: str = ""
     # Security scan results sent by CI for head_commit, used when SCAN_SOURCE=ci.
     pending_scan: PendingScan | None = None
 
