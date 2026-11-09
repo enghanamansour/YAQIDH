@@ -47,7 +47,7 @@ class ChatClient:
         self.sleep = sleep
         self.base_url = (base_url or os.environ.get("LLM_BASE_URL", "https://api.groq.com/openai/v1")).rstrip("/")
         self.api_key = api_key or os.environ.get("LLM_API_KEY", "")
-        self.model = model or os.environ.get("LLM_MODEL", "llama-3.3-70b-versatile")
+        self.model = model or os.environ.get("LLM_MODEL", "openai/gpt-oss-120b")
         self.client = client or httpx.Client(timeout=60)
         if not self.api_key:
             raise RuntimeError("LLM_API_KEY is not set")
@@ -197,7 +197,9 @@ class AgentLoop:
         for _ in range(self.max_steps):
             self._trim(messages)
             try:
-                message = self.chat.complete(messages, tools)
+                # The call is blocking (an HTTP request, and a sleep when the provider says "wait"). Run directly it
+                # froze the whole server for as long as 20 seconds: no webhook, gate or dashboard answered.
+                message = await asyncio.to_thread(self.chat.complete, messages, tools)
             except Exception as e:
                 run.stopped, run.final = "error", str(e)
                 return run

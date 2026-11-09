@@ -10,6 +10,7 @@ The agent can scan and explain through the MCP server but never calls this: appr
 from src.phases.status import ReleaseStatus, StatusReport, release_status
 from src.schema import StageName
 from src.service import ReleaseService, ServiceError
+from src.tools.base import ToolError
 
 QA, SECURITY = "qa", "security"
 
@@ -52,7 +53,12 @@ class Workflow:
         self._require(release_id, stage, "approve")
         self.service.add_human_decision(release_id, stage, "approve", by, reason)
         if stage == QA:
-            self._security_step(release_id)  # merge to staging is now allowed, security starts
+            try:
+                self._security_step(release_id)  # merge to staging is now allowed, security starts
+            except ToolError as e:
+                # SCAN_SOURCE=ci and the CI results have not arrived yet. The approval stands; security starts by
+                # itself when they arrive (apply_security_results). Before, this answered the reviewer with a 500.
+                self.service._log(release_id, "security_waiting", "system", reason=str(e)[:300])
         return self.status(release_id)
 
     def reject(self, release_id: str, stage: str, by: str, reason: str) -> StatusReport:

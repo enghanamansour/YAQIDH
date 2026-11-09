@@ -86,6 +86,15 @@ def create_app(
         if publisher is not None:
             await asyncio.to_thread(publisher.publish, release_id)
 
+    async def scan_for_commit(release_id: str) -> None:
+        """A new commit arrived: plain code runs the scans it needs, in order (QA first; security only once QA is
+        approved). The agent does not decide whether to scan: a model that was left to choose did not re-scan
+        after a push (6 of 6 tries), so the gate stayed closed. The agent only explains what the scans found."""
+        try:
+            await asyncio.to_thread(workflow.push, release_id)
+        except Exception as e:  # a failed scan must not stop the agent; the gate stays closed because nothing was scanned
+            history.append(release_id, "scan_not_run", "system", {"error": str(e)[:300]})
+
     async def run_agent(release_id: str, event: str) -> None:
         if agent_runner is None:
             await publish(release_id)
@@ -97,6 +106,8 @@ def create_app(
         try:
             while True:
                 rerun.discard(release_id)
+                if event in ("pull_request_opened", "push"):
+                    await scan_for_commit(release_id)
                 try:
                     result = await agent_runner(release_id, event)
                     summary = {"stopped": result.get("stopped"), "steps": result.get("steps"),
