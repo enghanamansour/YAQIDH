@@ -71,6 +71,7 @@ STATIC = {
     "/pages/admin.js": "pages/admin.js",
     "/pages/dashboard/developer.js": "pages/dashboard/developer.js",
     "/pages/dashboard/review.js": "pages/dashboard/review.js",
+    "/pages/dashboard/qa.js": "pages/dashboard/qa.js",
     "/pages/dashboard/index.js": "pages/dashboard/index.js",
     "/app.js": "app.js", "/style.css": "style.css",
           "/assets/yaqidh-dark-transparent.png": "assets/yaqidh-dark-transparent.png",
@@ -124,6 +125,45 @@ def seed(store, policy):
         stages = [qa] if RELEASES[key]["active"] == "qa" else [qa, security]
         store.save(Evidence(release_id=key, stages=stages, human_decisions=decisions))
     return {key: getattr(verification, key) for key in ("closed", "still_open", "new", "new_from_db_update", "reopened", "warnings")}
+
+# The QA checks in plain words (Arabic first, English second). A check with no finding passed.
+QA_CATALOG = {
+    "cart_requires_login": ("السلة تطلب تسجيل دخول", "The cart requires a login",
+                            "صفحات المستخدم الخاصة ما تنفتح لزائر ما سجّل دخول.", "Private pages do not open for a visitor who is not signed in."),
+    "wrong_password_is_rejected": ("كلمة المرور الخاطئة تُرفض", "A wrong password is rejected",
+                                   "الدخول بكلمة مرور غلط لازم يفشل.", "Signing in with a wrong password must fail."),
+    "security_headers_are_set": ("رؤوس الحماية موجودة", "Security headers are set",
+                                 "المتصفح يستلم تعليمات الحماية (مثل منع عرض الموقع داخل إطار).", "The browser receives protection instructions (such as no framing)."),
+    "search_resists_sql_injection": ("البحث يقاوم حقن SQL", "Search resists SQL injection",
+                                     "نص خطر في خانة البحث ما يغيّر استعلام قاعدة البيانات.", "Dangerous text in the search box cannot change the database query."),
+    "errors_do_not_leak_internals": ("الأخطاء ما تكشف تفاصيل داخلية", "Errors do not leak internals",
+                                     "صفحة الخطأ ما تعرض معلومات عن بنية التطبيق.", "The error page does not show how the application is built."),
+}
+
+
+def qa_checks(stage):
+    """Every QA check with its result, so the page can show what passed and not only what failed."""
+    if stage is None:
+        return []
+    scanned = bool(getattr(stage, "scanned_at", None) or stage.decision)
+    by_rule = {}
+    for f in stage.findings:
+        by_rule[f.rule] = f
+    items = []
+    for name, (title_ar, title_en, desc_ar, desc_en) in QA_CATALOG.items():
+        f = by_rule.pop(name, None)
+        state = "pending" if not scanned else "passed"
+        if f is not None:
+            closed = f.closure is not None and f.closure.result == "closed"
+            state = "fixed" if closed or f.status.value == "fixed" else "failed"
+        items.append({"id": name, "titleAr": title_ar, "titleEn": title_en, "descAr": desc_ar, "descEn": desc_en,
+                      "state": state, "finding": f.fingerprint if f is not None else None})
+    for rule, f in by_rule.items():  # any other check that produced a finding
+        closed = f.closure is not None and f.closure.result == "closed"
+        items.append({"id": rule, "titleAr": finding_title(f), "titleEn": finding_title(f), "descAr": f.detail or "", "descEn": f.detail or "",
+                      "state": "fixed" if closed or f.status.value == "fixed" else "failed", "finding": f.fingerprint})
+    return items
+
 
 def finding_title(finding):
     """A readable name for a real finding (the tools give rule ids like python.flask.security.audit.debug-enabled)."""
@@ -233,6 +273,7 @@ class Handler(BaseHTTPRequestHandler):
         live = self.server.live
         status = live.status_report(key) if live else None
         return {
+            "qaChecks": qa_checks(stage) if stage_name == "qa" else [],
             "gate": {"status": status["status"], "staging": status["can_merge_to_staging"], "main": status["can_merge_to_main"],
                      "reasons": status["reasons"]} if status else None,
             "id": key, **{k: v for k, v in meta.items() if k != "owner"}, "demo": True,

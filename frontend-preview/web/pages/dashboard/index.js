@@ -1,3 +1,3 @@
 function dashboardView(){
-  return profile.role==='developer'?developerView():reviewView();
+  return profile.role==='developer'?developerView():profile.role==='qa'?qaView():reviewView();
 }

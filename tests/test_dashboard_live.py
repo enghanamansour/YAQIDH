@@ -265,3 +265,40 @@ def test_a_review_request_answer_from_the_dashboard_reaches_the_api(world):
                                            "by": "security", "reason": "more time", "approved_deadline": "2026-11-20"})
     saved = stack.service.store.get("r1").review_request_decisions
     assert [(d.kind, d.status, d.by) for d in saved] == [("deadline", "approved", "security")]
+
+
+# --- the QA page shows every check, not only the failed ones ---
+
+def test_the_qa_view_lists_all_five_checks_with_their_result(world):
+    stack, dash, _ = world
+    stack.qa.findings = [stack.sec.findings[0].model_copy(update={"fingerprint": "F-q", "tool": "playwright",
+                                                                  "rule": "search_resists_sql_injection"})]
+    open_pr(stack)
+    view = Browser(dash).login("qa").call("GET", "/api/releases/r1")[1]
+    checks = {c["id"]: c for c in view["qaChecks"]}
+    assert len(checks) == 5
+    assert checks["search_resists_sql_injection"]["state"] == "failed" and checks["search_resists_sql_injection"]["finding"] == "F-q"
+    assert {c["state"] for k, c in checks.items() if k != "search_resists_sql_injection"} == {"passed"}
+    assert checks["cart_requires_login"]["titleAr"] and checks["cart_requires_login"]["descEn"]
+
+
+def test_a_fixed_check_is_shown_as_fixed(world):
+    from src.scanning import ScanResult
+
+    stack, dash, _ = world
+    stack.service.runners[StageName.QA] = lambda target: ScanResult(list(stack.qa.findings), {"playwright": "1"}, {"playwright"}, set())
+    stack.qa.findings = [stack.sec.findings[0].model_copy(update={"fingerprint": "F-q", "tool": "playwright", "rule": "cart_requires_login"})]
+    open_pr(stack)
+    stack.qa.findings = []
+    stack.service.set_head_commit("r1", "b" * 40)
+    stack.service.verify_fix("r1", "qa")
+    view = Browser(dash).login("qa").call("GET", "/api/releases/r1")[1]
+    assert {c["id"]: c["state"] for c in view["qaChecks"]}["cart_requires_login"] == "fixed"
+    assert sum(1 for c in view["qaChecks"] if c["state"] == "passed") == 4
+
+
+def test_the_pages_for_the_role_are_served(world):
+    stack, dash, _ = world
+    import urllib.request
+    for path in ("/pages/dashboard/qa.js", "/pages/dashboard/review.js", "/app.js", "/style.css"):
+        assert urllib.request.urlopen(f"http://127.0.0.1:{dash.server_port}{path}").status == 200

@@ -43,8 +43,8 @@ const versionName=id=>({
   trivy:toolName('trivy')
 }[id]||id);
 const versionValue=value=>['demo-rules','demo-db'].includes(value)?copy('نسخة تجريبية',value):value;
-const buildName=id=>copy('البناء رقم '+id,'Build #'+id);
-const requestName=id=>copy('طلب الدمج رقم '+id,'PR #'+id);
+const buildName=id=>copy('طلب الدمج #'+id,'PR #'+id);
+const requestName=id=>copy('طلب الدمج #'+id,'PR #'+id);
 const branchName=id=>id==='staging'?copy('فرع ما قبل الإطلاق','staging'):id;
 const findingName=f=>({
   'demo.sql-query':copy('استعلام يستخدم مدخلات الطلب','Query uses request input'),
@@ -119,7 +119,7 @@ let adminQuery='',adminActive='all';
 
 
 function outcomeText(){return release.outcome?(release.outcome.result==='pass'?copy('اجتاز','PASS'):copy('أخفق','FAIL')):release.runs.some(run=>run.state==='error')?copy('تعطل فحص مطلوب','Required check failed to run'):copy('بانتظار نتيجة صالحة','Awaiting a valid result')}
-function stageText(stage){return stage==='qa'?copy('مسار الجودة · المرحلة الأولى','QA pipeline · Stage 1'):copy('مسار الأمن · المرحلة الثانية','Security pipeline · Stage 2')}
+function stageText(stage){return stage==='qa'?copy('فحص الجودة','Quality check'):copy('الفحص الأمني','Security check')}
 function statusText(status){return ({
   open:copy('تحتاج معالجة','Needs remediation'),fixed:copy('مُصلحة','Fixed'),excepted:copy('مستثناة','Excepted'),
   completed:copy('مكتمل','Completed'),error:copy('تعطل','Failed to run'),
@@ -146,7 +146,7 @@ function render(){
   metricDetails.clear();
   const page=location.pathname;
   if(page==='/'){app.innerHTML=header()+landing();if(location.hash==='#about')document.getElementById('about').scrollIntoView();return}
-  const content=page==='/signup'?signup():!profile?login():page==='/communication'?communicationView():'<main>'+introduction()+(profile.role==='company-admin'?adminView():dashboardView())+'</main>';
+  const content=page==='/signup'?signup():!profile?login():page==='/communication'?communicationView():'<main>'+(profile.role==='qa'?'':introduction())+(profile.role==='company-admin'?adminView():dashboardView())+'</main>';
   app.innerHTML=header()+(profile?sidebar():'')+'<div class="'+(profile?'shell':'public-shell')+'">'+content+'</div>';
 }
 async function selectRelease(id){

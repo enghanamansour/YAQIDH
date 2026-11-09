@@ -9,9 +9,9 @@ function releaseHeader(){
   return '<section class="intro"><div><h2>'+stageText(release.stage)+'</h2><small>'+safe(projectName(release.project))+' · '+safe(requestName(release.pr))+' · '+safe(buildName(release.build))+' · '+safe(branchName(release.branch))+' · '+mon(release.commit)+'</small></div>'
     +'<label class="field">'+copy('البناء المصرّح به','Authorized build')+'<select id="release-select">'+options+'</select></label></section>'
     +statusPanel()
-    +'<section class="summary '+(release.outcome?.result==='fail'?'bad':release.outcome?.result==='pass'?'good':'wait')+'"><div><b>'+copy('نتيجة محرك القواعد','Policy outcome')+' · '+outcomeText()+'</b><p>'
+    +'<section class="summary '+(release.outcome?.result==='fail'?'bad':release.outcome?.result==='pass'?'good':'wait')+'"><div><b>'+copy('نتيجة الفحص','Check result')+' · '+outcomeText()+'</b><p>'
     +(release.outcome?.reasons.map(displayReason).join(' · ')||copy('تتوفر النتائج بعد اكتمال الفحوصات المطلوبة.','Results are available once required checks complete.'))+'</p></div>'
-    +'<div><small>'+copy('القرار البشري','Human decision')+'</small><p>'+decisionText()+'</p></div></section>';
+    +'<div><small>'+copy('قرارك','Your decision')+'</small><p>'+decisionText()+'</p></div></section>';
 }
 
 function findingsView(){
@@ -74,8 +74,8 @@ function reviewView(){
   const reviewLinks=pendingRequests.map(thread=>'<a class="action" href="/communication?thread='+encodeURIComponent(thread.id)+'">'
     +(thread.exceptionRequest?copy('مراجعة طلب استثناء','Review exception request'):copy('مراجعة طلب تمديد','Review extension request'))+'</a>').join('');
   return reviewQueue()+releaseHeader()+(profile.role==='qa'?qaReviewAlertsPanel():'')
-    +'<div class="metric-row">'+(profile.role==='security'?metric(copy('ملاحظات مانعة','Blocking findings'),release.outcome?blockers.length:'—',blockers.length?'bad':'',blockers,buildScope(release.outcome?.reasons.map(displayReason).join(' · ')||copy('بانتظار نتيجة محرك القواعد.','Awaiting a policy outcome.')),findingRecord):metric(copy('ملاحظات تنتظر إعادة الفحص','Findings awaiting recheck'),open.length,open.length?'wait':'',open,buildScope(copy('الملاحظات المطابقة التي تحتاج متابعة.','Matching findings that need follow-up.')),findingRecord))
-    +metric(copy('إغلاقات مثبتة','Verified closures'),closed.length,'good',closed,buildScope(copy('الإغلاقات المثبتة ضمن الفلاتر الحالية.','Verified closures within active filters.')),findingRecord)
+    +'<div class="metric-row">'+(profile.role==='security'?metric(copy('ملاحظات مانعة','Blocking findings'),release.outcome?blockers.length:'—',blockers.length?'bad':'',blockers,buildScope(release.outcome?.reasons.map(displayReason).join(' · ')||copy('بانتظار نتيجة محرك القواعد.','Awaiting a policy outcome.')),findingRecord):metric(copy('مشاكل مفتوحة','Open problems'),open.length,open.length?'wait':'',open,buildScope(copy('الملاحظات المطابقة التي تحتاج متابعة.','Matching findings that need follow-up.')),findingRecord))
+    +metric(copy('مشاكل انحلّت','Problems fixed'),closed.length,'good',closed,buildScope(copy('الإغلاقات المثبتة ضمن الفلاتر الحالية.','Verified closures within active filters.')),findingRecord)
     +metric(copy('تشغيلات مكتملة في السجل','Completed recorded runs'),visibleRuns.length?fraction(completed.length,visibleRuns.length):'—','',visibleRuns,buildScope(copy('المكتمل من التشغيلات المطابقة للأداة وحالة التشغيل.','Completed runs out of those matching tool and run-state filters.')),runRecord)
     +metric(copy('محادثات تنتظر الاطلاع','Unread conversations'),unread.length,'',unread,buildScope(copy('المحادثات غير المقروءة لهذا البناء.','Unread conversations for this build.')),thread=>'<a href="/communication?thread='+encodeURIComponent(thread.id)+'">'+safe(threadText(thread.subject))+'</a>')+'</div>'
     +'<section class="panel"><div class="section-head"><h2>'+copy('أدلة المرحلة والإجراءات','Stage evidence and actions')+'</h2><div class="actions">'
@@ -84,5 +84,5 @@ function reviewView(){
     +reviewLinks
     +(release.canReject?action('reject',copy('إرجاع مع السبب','Return with reason')):'')
     +(release.canApprove?action('approve',profile.role==='security'?copy('اعتماد البناء','Approve build'):copy('تسجيل الموافقة','Record approval'),'class="primary"'):'')
-    +'</div></div></section>'+findingsView()+'<section class="panel"><h2>'+copy('اتجاه النتائج عبر الزمن','Results over time')+'</h2>'+historyView()+'</section>';
+    +'</div></div></section>'+findingsView()+'<section class="panel"><h2>'+copy('السجل','History')+'</h2>'+historyView()+'</section>';
 }
