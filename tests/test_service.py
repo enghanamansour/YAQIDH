@@ -3,7 +3,9 @@ from pathlib import Path
 import pytest
 
 from src.scanning import NoRunner, ScanResult, dedupe
-from src.schema import Finding, FindingStatus, Severity, StageName
+from datetime import timedelta
+
+from src.schema import Decision, Finding, FindingStatus, HumanDecision, Severity, StageName, utcnow
 from src.service import ReleaseService, ServiceError
 from src.storage import EvidenceStore
 
@@ -32,9 +34,22 @@ def scanner():
     return FakeScanner([finding("F-1"), finding("F-2", Severity.LOW)])
 
 
+def seed_approved_qa(store, release_id="r1"):
+    """A release whose QA passed and was approved by a human, so the security stage may be scanned."""
+    evidence = store.create(release_id)
+    qa = evidence.stage(StageName.QA)
+    qa.tool_versions = {"playwright": "1"}
+    qa.scanned_at = utcnow() - timedelta(seconds=5)
+    qa.decision = Decision(result="pass", reasons=["no blocking findings"])
+    evidence.human_decisions.append(HumanDecision(stage=StageName.QA, decision="approve", by="Sara", reason=""))
+    store.save(evidence)
+
+
 @pytest.fixture
 def service(tmp_path, scanner):
-    return ReleaseService(EvidenceStore(tmp_path / "data"), POLICY, {StageName.SECURITY: scanner}, tmp_path)
+    svc = ReleaseService(EvidenceStore(tmp_path / "data"), POLICY, {StageName.SECURITY: scanner}, tmp_path)
+    seed_approved_qa(svc.store)
+    return svc
 
 
 # --- run_scan ---
@@ -56,8 +71,8 @@ def test_run_scan_twice_is_refused_so_history_is_not_overwritten(service):
 
 def test_stage_without_tools_fails_loudly_and_writes_nothing(service):
     with pytest.raises(NoRunner, match="no tools are registered for stage 'qa'"):
-        service.run_scan("r1", "qa")
-    assert not service.store.exists("r1")
+        service.run_scan("r2", "qa")
+    assert not service.store.exists("r2")
 
 
 def test_unknown_stage_is_rejected(service):
@@ -80,7 +95,6 @@ def test_evaluate_policy_stores_the_decision(service):
 
 
 def test_evaluate_policy_before_any_scan_is_refused(service):
-    service.store.create("r1")
     with pytest.raises(ServiceError, match="never scanned"):
         service.evaluate_policy("r1", "security")
 
@@ -113,7 +127,6 @@ def test_verify_fix_reports_new_findings(service, scanner):
 
 
 def test_verify_fix_without_a_first_scan_is_refused(service):
-    service.store.create("r1")
     with pytest.raises(ServiceError, match="never scanned"):
         service.verify_fix("r1", "security")
 
@@ -181,3 +194,34 @@ def test_qa_scan_stores_flaky_tests_and_the_tool_detail(tmp_path):
     assert stage.flaky_tests == ["also_wobbly", "wobbly"]
     assert stage.findings[0].detail == "expected X, got Y"
     assert svc.evaluate_policy("r1", "qa")["result"] == "fail"
+
+
+# --- the stages cannot be skipped, even by calling the tool directly ---
+
+def test_security_cannot_be_scanned_before_qa(tmp_path, scanner):
+    svc = ReleaseService(EvidenceStore(tmp_path / "d"), POLICY, {StageName.SECURITY: scanner}, tmp_path)
+    with pytest.raises(ServiceError, match="not_started"):
+        svc.run_scan("r1", "security")
+    assert scanner.calls == 0  # refused before any tool ran
+
+
+def test_security_cannot_be_scanned_while_qa_awaits_approval(tmp_path, scanner):
+    svc = ReleaseService(EvidenceStore(tmp_path / "d"), POLICY, {StageName.SECURITY: scanner}, tmp_path)
+    seed_approved_qa(svc.store)
+    evidence = svc.store.get("r1")
+    evidence.human_decisions.clear()
+    svc.store.save(evidence)
+    with pytest.raises(ServiceError, match="awaiting_qa_approval"):
+        svc.run_scan("r1", "security")
+    with pytest.raises(ServiceError, match="awaiting_qa_approval"):
+        svc.verify_fix("r1", "security")
+
+
+def test_security_cannot_be_scanned_after_a_qa_rejection(tmp_path, scanner):
+    svc = ReleaseService(EvidenceStore(tmp_path / "d"), POLICY, {StageName.SECURITY: scanner}, tmp_path)
+    seed_approved_qa(svc.store)
+    evidence = svc.store.get("r1")
+    evidence.human_decisions = [HumanDecision(stage=StageName.QA, decision="reject", by="Sara", reason="bad")]
+    svc.store.save(evidence)
+    with pytest.raises(ServiceError, match="qa_rejected"):
+        svc.run_scan("r1", "security")

@@ -64,6 +64,10 @@ class Finding(BaseModel):
     rule: str = ""
     # The tool's own message about the problem (e.g. the failed assertion). Raw tool output, not an AI text.
     detail: str = ""
+    # More of the tool's own output, used to explain the finding better. All optional and never part of the fingerprint.
+    fixed_version: str = ""  # dependency findings: the first version that fixes it, e.g. "0.12.3"
+    cwe: str = ""  # e.g. "CWE-89"
+    confidence: str = ""  # how sure the tool is: high, medium or low
     explanation: Explanation | None = None
     closure: Closure | None = None
     exception: ExceptionRecord | None = None
@@ -89,6 +93,8 @@ class StageRecord(BaseModel):
     flaky_tests: list[str] = Field(default_factory=list)
     # When the stage was last scanned. A human decision older than this scan does not cover the new results.
     scanned_at: datetime | None = None
+    # The commit the last scan was run on. The merge gate only trusts a scan of the commit that is about to merge.
+    scanned_commit: str = ""
 
 
 class HumanDecision(BaseModel):
@@ -97,12 +103,19 @@ class HumanDecision(BaseModel):
     by: str
     reason: str
     timestamp: datetime = Field(default_factory=utcnow)
+    # The commit that was current when the person decided.
+    commit: str = ""
 
 
 class Evidence(BaseModel):
     release_id: str
     stages: list[StageRecord] = Field(default_factory=list)
     human_decisions: list[HumanDecision] = Field(default_factory=list)
+    # The newest commit of the pull request, as GitHub reported it. Set by the system, never by the agent.
+    head_commit: str = ""
+    # Which pull request this release is, so results can be posted back to it. Set from the GitHub event.
+    repo: str = ""
+    pr_number: int = 0
 
     def stage(self, name: StageName) -> StageRecord:
         """Return the stage record, creating it on first use."""

@@ -8,7 +8,7 @@ from src.mcp_server import create_server
 from src.schema import StageName
 from src.service import ReleaseService
 from src.storage import EvidenceStore
-from tests.test_service import POLICY, FakeScanner, finding
+from tests.test_service import POLICY, FakeScanner, finding, seed_approved_qa
 
 pytestmark = pytest.mark.anyio
 
@@ -23,6 +23,7 @@ def anyio_backend():
 @pytest.fixture
 def server(tmp_path):
     service = ReleaseService(EvidenceStore(tmp_path / "d"), POLICY, {StageName.SECURITY: FakeScanner([finding("F-1")])}, Path(tmp_path))
+    seed_approved_qa(service.store)
     return create_server(service)
 
 
@@ -45,7 +46,7 @@ async def test_a_full_round_through_mcp(server):
         assert not is_error and json.loads(text)["result"] == "fail"
         assert not (await call(session, "append_evidence", release_id="r1", stage="security", fingerprint="F-1", text="why")) [0]
         _, text = await call(session, "get_evidence", release_id="r1")
-        stage = json.loads(text)["stages"][0]
+        stage = next(s for s in json.loads(text)["stages"] if s["name"] == "security")
         assert stage["findings"][0]["explanation"]["source"] == "Yaqidh"
         assert stage["decision"]["decided_by"] == "policy_engine"
 

@@ -8,6 +8,7 @@ import asyncio
 
 from mcp.server.fastmcp import FastMCP
 
+from src.history import HistoryLog
 from src.scanning import default_runners
 from src.service import ReleaseService
 from src.settings import get_settings
@@ -53,7 +54,8 @@ def create_server(service: ReleaseService) -> FastMCP:
 def main() -> None:
     settings = get_settings()
     service = ReleaseService(
-        EvidenceStore(settings.data_dir), settings.policy_path, default_runners(settings), settings.scan_target
+        EvidenceStore(settings.data_dir), settings.policy_path, default_runners(settings), settings.scan_target,
+        HistoryLog(settings.history_dir),
     )
     create_server(service).run()
 

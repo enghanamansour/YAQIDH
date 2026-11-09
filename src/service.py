@@ -8,6 +8,8 @@ write a closure, record an exception, or record a human decision.
 import threading
 from pathlib import Path
 
+from src.phases.status import ReleaseStatus, release_status
+from src.history import HistoryLog
 from src.policy import evaluate_policy, load_policy
 from src.scanning import NoRunner, Runner, ScanResult
 from src.schema import (
@@ -26,18 +28,35 @@ from src.verifier import Verification, verify
 
 MAX_EXPLANATION = 4000
 
+# Security may only be scanned once QA passed and a QA reviewer approved. Checked here, not only in the
+# workflow, so the agent cannot skip a stage by calling the tool directly.
+BEFORE_SECURITY = {
+    ReleaseStatus.NOT_STARTED,
+    ReleaseStatus.QA_BLOCKED,
+    ReleaseStatus.AWAITING_QA_APPROVAL,
+    ReleaseStatus.QA_REJECTED,
+}
+
 
 class ServiceError(Exception):
     """The request is not allowed or makes no sense. Never turned into a silent success."""
 
 
 class ReleaseService:
-    def __init__(self, store: EvidenceStore, policy_path: Path, runners: dict[StageName, Runner], target: Path):
+    def __init__(
+        self, store: EvidenceStore, policy_path: Path, runners: dict[StageName, Runner], target: Path,
+        history: HistoryLog | None = None,
+    ):
         self.store = store
+        self.history = history
         self.policy_path = Path(policy_path)
         self.runners = runners
         self.target = Path(target)
         self._lock = threading.Lock()  # one writer at a time, so two calls never overwrite each other
+
+    def _log(self, release_id: str, event: str, actor: str, **data) -> None:
+        if self.history is not None:
+            self.history.append(release_id, event, actor, data)
 
     def _runner(self, stage: StageName) -> Runner:
         runner = self.runners.get(stage)
@@ -58,6 +77,7 @@ class ReleaseService:
         runner = self._runner(name)
         with self._lock:
             evidence = self.store.get(release_id) if self.store.exists(release_id) else self.store.create(release_id)
+            self._check_order(evidence, name)
             record = evidence.stage(name)
             if record.tool_versions:
                 raise ServiceError(f"stage '{stage}' of {release_id} was already scanned, use verify_fix to re-scan")
@@ -67,8 +87,11 @@ class ReleaseService:
             record.components = sorted(result.components)
             record.flaky_tests = sorted(result.flaky)
             record.scanned_at = utcnow()
+            record.scanned_commit = evidence.head_commit
             record.decision = None
             self.store.save(evidence)
+        self._log(release_id, "scan", "agent", stage=stage, commit=record.scanned_commit, findings=len(result.findings),
+                  tool_versions=result.versions, flaky_tests=record.flaky_tests)
         return {"release_id": release_id, "stage": stage, "findings": len(result.findings), "tool_versions": result.versions}
 
     def verify_fix(self, release_id: str, stage: str) -> dict:
@@ -77,6 +100,7 @@ class ReleaseService:
         runner = self._runner(name)
         with self._lock:
             evidence = self.store.get(release_id)
+            self._check_order(evidence, name)
             record = evidence.stage(name)
             if not record.tool_versions:
                 raise ServiceError(f"stage '{stage}' of {release_id} was never scanned, use run_scan first")
@@ -94,9 +118,11 @@ class ReleaseService:
             record.components = sorted(result.components)
             record.flaky_tests = sorted(result.flaky)
             record.scanned_at = utcnow()
+            record.scanned_commit = evidence.head_commit
             record.decision = None  # the old decision is stale after a re-scan, it must be asked for again
             self.store.save(evidence)
         out = verification.model_dump(mode="json", exclude={"findings"})
+        self._log(release_id, "rescan", "agent", stage=stage, commit=record.scanned_commit, **out)
         return {"release_id": release_id, "stage": stage, **out}
 
     def get_findings(self, release_id: str, stage: str) -> list[dict]:
@@ -115,6 +141,7 @@ class ReleaseService:
             decision: Decision = evaluate_policy(record.findings, policy)
             record.decision = decision
             self.store.save(evidence)
+        self._log(release_id, "policy_decision", "policy_engine", stage=stage, result=decision.result, reasons=decision.reasons)
         return decision.model_dump(mode="json")
 
     def append_evidence(self, release_id: str, stage: str, fingerprint: str, text: str) -> dict:
@@ -130,7 +157,15 @@ class ReleaseService:
             finding = self._find(evidence, name, fingerprint)
             finding.explanation = Explanation(text=text)
             self.store.save(evidence)
+        self._log(release_id, "explanation", "agent", stage=stage, fingerprint=fingerprint, source="Yaqidh", text=text)
         return {"release_id": release_id, "stage": stage, "fingerprint": fingerprint, "source": "Yaqidh"}
+
+    @staticmethod
+    def _check_order(evidence: Evidence, name: StageName) -> None:
+        if name == StageName.SECURITY:
+            status = release_status(evidence).status
+            if status in BEFORE_SECURITY:
+                raise ServiceError(f"security cannot be scanned yet: the release is '{status.value}', QA must pass and be approved first")
 
     @staticmethod
     def _find(evidence: Evidence, name: StageName, fingerprint: str) -> Finding:
@@ -155,9 +190,11 @@ class ReleaseService:
         with self._lock:
             evidence = self.store.get(release_id)
             evidence.human_decisions.append(
-                HumanDecision(stage=name, decision=decision, by=by.strip(), reason=reason.strip())
+                HumanDecision(stage=name, decision=decision, by=by.strip(), reason=reason.strip(), commit=evidence.head_commit)
             )
             self.store.save(evidence)
+        self._log(release_id, "human_decision", by.strip(), stage=stage, decision=decision, reason=reason.strip(),
+                  commit=evidence.head_commit)
         return {"release_id": release_id, "stage": stage, "decision": decision, "by": by.strip()}
 
     def grant_exception(
@@ -175,4 +212,26 @@ class ReleaseService:
             finding.status = FindingStatus.EXCEPTED
             finding.exception = ExceptionRecord(justification=justification.strip(), approved_by=approved_by.strip())
             self.store.save(evidence)
+        self._log(release_id, "exception", approved_by.strip(), stage=stage, fingerprint=fingerprint,
+                  justification=justification.strip())
         return self.evaluate_policy(release_id, stage)
+
+    def set_pull_request(self, release_id: str, repo: str, pr_number: int) -> None:
+        with self._lock:
+            evidence = self.store.get(release_id) if self.store.exists(release_id) else self.store.create(release_id)
+            evidence.repo, evidence.pr_number = repo, pr_number
+            self.store.save(evidence)
+
+    def set_head_commit(self, release_id: str, commit: str) -> dict:
+        """The system (not the agent) records the newest commit of the pull request. It starts the release if new."""
+        commit = commit.strip()
+        if not commit or len(commit) > 64:
+            raise ServiceError("a commit id is required")
+        with self._lock:
+            evidence = self.store.get(release_id) if self.store.exists(release_id) else self.store.create(release_id)
+            changed = evidence.head_commit != commit
+            evidence.head_commit = commit
+            self.store.save(evidence)
+        if changed:
+            self._log(release_id, "commit_received", "system", commit=commit)
+        return {"release_id": release_id, "head_commit": commit, "changed": changed}

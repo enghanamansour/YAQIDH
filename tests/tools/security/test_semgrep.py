@@ -117,16 +117,18 @@ def vulnerable_findings(tool, fixtures):
 
 @needs_real_scan
 def test_real_scan_finds_planted_vulnerabilities(vulnerable_findings):
-    rules = {f.rule for f in vulnerable_findings}
-    assert SQLI in rules
-    assert DEBUG in rules
+    # Rules that flag the same line are merged into one finding, so a rule may be named in the detail only.
+    rules = {f.rule for f in vulnerable_findings} | {f.detail for f in vulnerable_findings}
+    assert any(SQLI in r for r in rules)
+    assert any(DEBUG in r for r in rules)
 
 
 @needs_real_scan
 def test_real_scan_severities(vulnerable_findings):
-    by_rule = {f.rule: f.severity for f in vulnerable_findings}
-    assert by_rule[SQLI] == Severity.HIGH
-    assert by_rule[DEBUG] == Severity.HIGH
+    sqli = next(f for f in vulnerable_findings if f.rule == SQLI or SQLI in f.detail)
+    debug = next(f for f in vulnerable_findings if f.rule == DEBUG or DEBUG in f.detail)
+    assert sqli.severity == Severity.HIGH
+    assert debug.severity == Severity.HIGH
 
 
 @needs_real_scan

@@ -10,19 +10,22 @@ It never decides: pass/fail and finding status come only from plain code
 ```
 config/        policy.yaml (pass/fail rules), semgrep-rules/ (official, fetched, gitignored)
 scripts/       fetch_semgrep_rules.sh
-data/releases/ evidence JSON per release (gitignored)
+data/          releases/ (evidence JSON per release) and history/ (hash-chained event log); both gitignored
 src/
-  settings.py  reads .env
-  schema.py    data shapes: Finding, Evidence, Decision
-  storage.py   saves and loads the evidence file
-  policy.py    decides pass/fail
-  tools/       base.py, fingerprint.py, security/semgrep.py + trivy.py, qa/ (Playwright, planned)
-  verifier.py  checks a finding was closed
-  phases/      qa_phase.py, security_phase.py (planned)
-  mcp_server.py, agent/, github.py, api.py   (planned)
+  settings.py, envfile.py   settings; the one reader of .env (also used by backend/)
+  schema.py, storage.py     data shapes and the evidence file
+  policy.py, verifier.py    pass/fail and "is it closed" (plain code)
+  tools/                    semgrep, trivy, playwright (qa)
+  service.py, scanning.py   the operations the agent may use; the runners per stage
+  mcp_server.py             the six tools (the agent's only door)
+  agent/                    loop.py (tool-calling loop), prompt.py, skills.py + skills/ (7 SKILL.md)
+  phases/                   status.py (where a release stands), workflow.py (human gates)
+  gate.py, history.py       commit-bound merge gate; append-only hash-chained log
+  api/                      app.py (FastAPI), main.py (uvicorn entry)
+  github_sync.py            PR comment + commit statuses
+backend/       the team's FastAPI explainer/GitHub code (merged from branch hana); its Gate is superseded by src/gate.py
+qa_checks/     the Playwright security checks; demo_app/ the site that is tested
 tests/         mirrors src/
-demo_app/      small project with a planted vulnerability (later)
-dashboard/     UI (later)
 ```
 
 Rule: `policy`, `verifier`, `tools` and `storage` never import from `agent/`.
@@ -50,7 +53,7 @@ pytest
 
 ## Status
 
-Phases 0-5 done (skeleton, schema and storage, Semgrep, Trivy, policy engine, verifier). Next: Playwright (QA tool).
+Phases 0-11 are built and tested (269 tests in `tests/`, 69 in `backend/tests/`). Not done yet: the full demo cycle (12), the dashboard (13), and a live run against a real GitHub repository.
 
 ## Internal MCP server (phase 7)
 
@@ -90,3 +93,36 @@ browser against the running app. `src/tools/qa/app_server.py` starts the app on 
 - A QA approval stays valid across QA re-runs that still pass.
 - Approvals, rejections and exceptions are human-only and are not in the MCP server. A rejection needs a reason.
 - An exception needs a justification and an approver, and the policy still decides if it counts (medium only).
+
+
+## The agent (phase 9)
+
+`python -m src.agent <release_id> [pull_request_opened|push|approved]` plays a GitHub event. `src/agent/loop.py` is a
+tool-calling loop: the model (any OpenAI-compatible endpoint; Groq `openai/gpt-oss-120b` was used) chooses which tool to call.
+Safety is in the tools, not the loop: the MCP server has no tool that decides, closes, approves or merges.
+The code adds: an allow-list, argument checks against each tool's schema, a step limit, "words only" (no backticks) and
+"never explain the same finding twice" checks on `append_evidence`, small batches of findings per request, and old steps
+dropped from the conversation (the Groq free tier allows 8000 tokens per minute; a 429 is waited out).
+
+- `run_scan` / `verify_fix` for the security stage are refused until QA passed and a QA reviewer approved, checked inside
+  `service.py` so the model cannot skip a stage.
+- Skills (`src/agent/skills/<name>/SKILL.md`, header with `name` and `description`) are written from the OWASP Cheat Sheets.
+  The model lists them and reads the one that fits; an invented name is refused. Adding a folder adds a skill.
+- Findings now carry `fixed_version` (Trivy), `cwe` and `confidence` (Semgrep). Rules that flag the same line are merged into one finding.
+- `LLM_MODEL=llama-3.3-70b-versatile` is no longer available on the free Groq tier: set `LLM_MODEL=openai/gpt-oss-120b` in `.env`.
+
+## The API, the gate and the history (phase 10)
+
+`uvicorn src.api.main:app` (needs `API_TOKEN`; every route except `/health` needs the `X-API-Token` header; with no token configured nothing is allowed).
+
+- `POST /releases/{id}/events` starts the agent. `GET /releases`, `/releases/{id}`, `/status`, `/findings?stage=`, `/history`, `/history/verify` are for the dashboard.
+- `POST /releases/{id}/stages/{qa|security}/approve|reject|exceptions` are the people's decisions (a rejection needs a reason; an exception needs a justification and an approver).
+- `GET /gate?release_id=&commit=&target=staging|main`: allowed only if the commit is the newest one, the needed stages were scanned on exactly that commit, and the status (policy + human approvals) allows it. A push after an approval closes the gate until the new commit is scanned.
+- History (`data/history/<id>.jsonl`): every event, scan, policy decision, explanation and human decision, each line hashed with the one before it. `/history/verify` shows where the chain breaks. This detects edits; it does not stop someone who rewrites the whole file.
+
+## GitHub (phase 11)
+
+`POST /github/webhook` accepts only events signed with `GITHUB_WEBHOOK_SECRET` (no secret configured = refuse all). It handles
+`pull_request` opened/reopened/synchronize, starts the agent, then posts one comment that is edited in place, and two commit
+statuses, `yaqidh/staging` and `yaqidh/main`, taken from the same gate. Require those two statuses in the branch protection and GitHub
+itself refuses a merge the gate would refuse. A failed post is logged and never changes a decision. Tested with a fake GitHub only.

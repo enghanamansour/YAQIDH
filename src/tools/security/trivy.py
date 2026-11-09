@@ -45,6 +45,9 @@ def parse_output(data: dict) -> list[Finding]:
                 component=snippet,
                 location=target,
                 rule=rule,
+                detail=str(vuln.get("Title", ""))[:500],
+                fixed_version=str(vuln.get("FixedVersion", "")),
+                cwe=", ".join(vuln.get("CweIDs") or []),
             )
         for secret in result.get("Secrets") or []:
             rule = secret["RuleID"]
@@ -57,6 +60,7 @@ def parse_output(data: dict) -> list[Finding]:
                 reported_as=_reported_as(raw),
                 location=f"{target}:{secret['StartLine']}",
                 rule=rule,
+                detail=str(secret.get("Title", ""))[:500],
             )
     # Sorted so the same input always yields the same list, which keeps decisions deterministic.
     return sorted(findings.values(), key=lambda f: (f.location, f.fingerprint))

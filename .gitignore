@@ -5,6 +5,8 @@ __pycache__/
 .pytest_cache/
 data/releases/*
 !data/releases/.gitkeep
+data/history/
+reports/
 
 # Hana's hash-chained evidence log
 data/evidence.jsonl

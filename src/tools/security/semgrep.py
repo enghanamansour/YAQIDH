@@ -38,6 +38,13 @@ def _rule_id(check_id: str) -> str:
     return parts[-1]
 
 
+def _cwe_ids(metadata: dict) -> str:
+    """Semgrep gives "CWE-89: Improper Neutralization..." (a string or a list). Keep the ids only."""
+    raw = metadata.get("cwe") or []
+    items = [raw] if isinstance(raw, str) else raw
+    return ", ".join(str(i).split(":")[0].strip() for i in items if i)
+
+
 def parse_output(data: dict, target: Path) -> list[Finding]:
     """Turn Semgrep's JSON into Findings. Pure function, so it is testable without running Semgrep."""
     if data.get("errors"):
@@ -61,9 +68,36 @@ def parse_output(data: dict, target: Path) -> list[Finding]:
             reported_as=REPORTED_AS.get(result["extra"]["severity"], "unknown"),
             location=f"{rel}:{start}",
             rule=rule,
+            detail=str(result["extra"].get("message", ""))[:500],
+            cwe=_cwe_ids(result["extra"].get("metadata") or {}),
+            confidence=str((result["extra"].get("metadata") or {}).get("confidence", "")).lower(),
         )
     # Sorted so the same code always yields the same list, which keeps decisions deterministic.
-    return sorted(findings.values(), key=lambda f: (f.location, f.fingerprint))
+    return merge_same_line(sorted(findings.values(), key=lambda f: (f.location, f.fingerprint)))
+
+
+def merge_same_line(findings: list[Finding]) -> list[Finding]:
+    """Several rules often flag the same line for the same problem. They become one finding.
+
+    The most severe one is kept (then the first by rule name, so the choice is always the same), and the
+    other rules are named in its detail, so nothing is hidden. Merging never lowers a severity.
+    """
+    groups: dict[str, list[Finding]] = {}
+    for f in findings:
+        groups.setdefault(f.location, []).append(f)
+    merged = []
+    for group in groups.values():
+        group.sort(key=lambda f: (f.severity != Severity.HIGH, f.rule))
+        main, others = group[0], group[1:]
+        if others:
+            names = ", ".join(sorted({o.rule for o in others if o.rule != main.rule}))
+            cwes = sorted({c for f in group for c in f.cwe.split(", ") if c})
+            main = main.model_copy(update={
+                "detail": (main.detail + f" Also flagged at the same line by: {names}.").strip()[:900],
+                "cwe": ", ".join(cwes),
+            })
+        merged.append(main)
+    return sorted(merged, key=lambda f: (f.location, f.fingerprint))
 
 
 class SemgrepTool:

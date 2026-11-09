@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     llm_base_url: str = ""
     llm_model: str = ""
     data_dir: Path = Path("data/releases")
+    history_dir: Path = Path("data/history")
     policy_path: Path = Path("config/policy.yaml")
     # What the scanners look at. Set here, never by the agent, so it cannot point a scan somewhere else.
     scan_target: Path = Path("demo_app")
