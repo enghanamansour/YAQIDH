@@ -112,7 +112,7 @@ def create_app(
                     await scan_for_commit(release_id)
                 try:
                     result = await agent_runner(release_id, event)
-                    summary = {"stopped": result.get("stopped"), "steps": result.get("steps"),
+                    summary = {"stopped": result.get("stopped"), "steps": result.get("steps"), "tokens": result.get("tokens", 0),
                                "tools": dict(Counter(c["tool"] for c in result.get("calls", [])))}
                     if result.get("stopped") == "error":  # say WHY, not only that it stopped
                         summary["error"] = str(result.get("final", ""))[:300]

@@ -50,6 +50,7 @@ class ChatClient:
         self.api_key = api_key or os.environ.get("LLM_API_KEY", "")
         self.model = model or os.environ.get("LLM_MODEL", "openai/gpt-oss-120b")
         self.client = client or httpx.Client(timeout=60)
+        self.total_tokens = 0  # what this client has used so far, to see what a run costs
         if not self.api_key:
             raise RuntimeError("LLM_API_KEY is not set")
 
@@ -65,7 +66,9 @@ class ChatClient:
                 json=body,
             )
             if resp.status_code == 200:
-                return resp.json()["choices"][0]["message"]
+                body_json = resp.json()
+                self.total_tokens += (body_json.get("usage") or {}).get("total_tokens", 0)
+                return body_json["choices"][0]["message"]
             last = f"{resp.status_code}: {resp.text[:300]}"
             if resp.status_code == 429:  # free tiers limit tokens per minute: wait as long as the server says
                 wait = re.search(r"try again in ([\d.]+)s", resp.text)
@@ -81,6 +84,7 @@ class Run:
     steps: int = 0
     final: str = ""
     calls: list[dict] = field(default_factory=list)
+    tokens: int = 0  # tokens the model calls used, when the client reports them
 
 
 def _openai_tool(name: str, description: str, schema: dict) -> dict:
@@ -237,9 +241,16 @@ class AgentLoop:
         status, reasons = await self._state(release_id)
         messages = [
             {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": task_message(release_id, event, status, reasons)},
+            {"role": "user", "content": task_message(release_id, event, status, reasons, self.skills.list())},
         ]
         run = Run()
+        start_tokens = getattr(self.chat, "total_tokens", 0)
+        try:
+            return await self._loop(run, messages, tools, start_tokens)
+        finally:
+            run.tokens = getattr(self.chat, "total_tokens", 0) - start_tokens
+
+    async def _loop(self, run: Run, messages: list[dict], tools: list[dict], start_tokens: int) -> Run:
         for _ in range(self.max_steps):
             self._trim(messages)
             try:
