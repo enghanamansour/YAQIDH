@@ -90,6 +90,17 @@ class LiveBackend:
     def can_decide(self, key: str, role: str) -> bool:
         return self.status(key) == f"awaiting_{role}_approval"
 
+    def history(self, key: str) -> dict:
+        """The release's event log and whether its hash chain is intact (fetched only for the detail view)."""
+        try:
+            entries = self._call("GET", f"/releases/{key}/history")
+            verified = self._call("GET", f"/releases/{key}/history/verify")
+        except LiveError:
+            return {"entries": [], "verified": {"ok": False, "reason": "the history could not be read"}}
+        slim = [{"seq": e["seq"], "time": e["time"], "event": e["event"], "actor": e["actor"],
+                 "data": {k: v for k, v in e["data"].items() if k not in ("text", "tool_versions", "reasons")}} for e in entries]
+        return {"entries": slim, "verified": verified}
+
     # --- deciding ---
     def decide(self, key: str, role: str, choice: str, reason: str, by: str) -> None:
         self._call("POST", f"/releases/{key}/stages/{role}/{choice}", {"by": by, "reason": reason})

@@ -289,6 +289,8 @@ class Handler(BaseHTTPRequestHandler):
                 if not self.visible(account, key):
                     return self.fail(403, "forbidden")
                 view = self.release_view(account, key)
+                if self.server.live:
+                    view["log"] = self.server.live.history(key)
                 if len(parts) == 3:
                     return self.json(200, view)
                 if parts[3] == "evidence":

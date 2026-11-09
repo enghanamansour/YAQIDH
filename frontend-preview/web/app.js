@@ -167,6 +167,36 @@ function openRuns(){
   const records=release.runs.map(r=>'<p>'+safe(toolName(r.tool))+' · '+badge(statusText(r.state),r.state==='completed'?'good':'bad')+' · '+copy('سجل تشغيل تجريبي','Demo run record')+'</p>').join('');
   modal(copy('تشغيلات الأدوات','Tool runs'),records||'<p>'+copy('لا توجد سجلات تشغيل لهذه المرحلة.','No run records for this stage.')+'</p>');
 }
+const eventName=id=>({
+  commit_received:copy('وصل commit جديد','New commit received'),event:copy('حدث من GitHub','GitHub event'),
+  scan:copy('فحص','Scan'),rescan:copy('إعادة فحص','Re-scan'),policy_decision:copy('قرار السياسة','Policy decision'),
+  explanation:copy('شرح من يقظ','Explanation by YAQIDH'),human_decision:copy('قرار بشري','Human decision'),
+  exception:copy('استثناء','Exception'),agent_run:copy('تشغيل الوكيل','Agent run'),gate_checked:copy('فحص البوابة','Gate check'),
+  scan_results_received:copy('وصلت نتائج CI','CI results received'),github_published:copy('نشر على GitHub','Posted to GitHub'),
+  github_post_failed:copy('فشل النشر على GitHub','GitHub post failed'),scan_results_not_applied:copy('نتائج CI لم تُطبّق','CI results not applied')
+}[id]||id);
+function eventDetail(e){
+  const d=e.data||{};
+  if(e.event==='scan')return (d.stage||'')+' · '+copy('ملاحظات','findings')+' '+d.findings;
+  if(e.event==='rescan')return (d.stage||'')+' · '+copy('انقفل','closed')+' '+(d.closed||[]).length+' · '+copy('لسا مفتوح','still open')+' '+(d.still_open||[]).length+' · '+copy('جديد','new')+' '+(d.new||[]).length;
+  if(e.event==='policy_decision')return (d.stage||'')+' · '+(d.result==='pass'?copy('اجتاز','PASS'):copy('أخفق','FAIL'));
+  if(e.event==='human_decision')return (d.stage||'')+' · '+statusText(d.decision)+(d.reason?' · '+d.reason:'');
+  if(e.event==='explanation')return (d.stage||'')+' · '+(d.fingerprint||'');
+  if(e.event==='agent_run')return (d.stopped||'')+' · '+copy('خطوات','steps')+' '+(d.steps??'');
+  return d.commit?String(d.commit).slice(0,7):(d.error||'');
+}
+function historyTrend(){
+  const scans=((release.log||{}).entries||[]).filter(e=>e.event==='scan'||e.event==='rescan');
+  return scans.map((e,i)=>{const d=e.data||{};const n=e.event==='scan'?d.findings:(d.still_open||[]).length+(d.new||[]).length;return '<p>'+copy('الفحص','Scan')+' '+(i+1)+' · '+safe(d.stage||'')+': <b>'+n+'</b> '+copy('ملاحظة مفتوحة','open findings')+' <small>'+mon(String(d.commit||'').slice(0,7)||'—')+'</small></p>'}).join('');
+}
+function historyView(){
+  const log=release.log;
+  if(!log)return '<p class="muted">'+copy('لا يتوفر سجل أحداث مؤرخ كافٍ لرسم الاتجاه.','There is not enough dated event history to plot a trend.')+'</p>';
+  const ok=log.verified&&log.verified.ok;
+  const badgeHtml=ok?badge(copy('سلسلة السجل سليمة','History chain intact')+' · '+log.verified.entries,'good'):badge(copy('السلسلة مكسورة','History chain broken')+(log.verified&&log.verified.broken_at?' · #'+log.verified.broken_at:''),'bad');
+  const rows=log.entries.slice().reverse().map(e=>'<tr><td>'+mon(String(e.time).slice(0,16).replace('T',' '))+'</td><td>'+safe(eventName(e.event))+'</td><td>'+safe(e.actor)+'</td><td>'+safe(eventDetail(e))+'</td></tr>').join('');
+  return '<p>'+badgeHtml+'</p>'+historyTrend()+(rows?'<div class="table-wrap"><table><thead><tr><th>'+copy('الوقت','Time')+'</th><th>'+copy('الحدث','Event')+'</th><th>'+copy('من','By')+'</th><th>'+copy('التفاصيل','Details')+'</th></tr></thead><tbody>'+rows+'</tbody></table></div>':'');
+}
 function decisionList(){
   return release.decisions.map(d=>'<p><b>'+statusText(d.decision)+'</b> · '+safe(accountName(demoText(d.by)))+' · '+mon(d.timestamp.slice(0,16))+'<br>'+safe(demoText(d.reason))+'</p>').join('')||'<p>'+copy('لا يوجد قرار مسجّل.','No decision recorded.')+'</p>';
 }
@@ -180,6 +210,10 @@ function findingModal(id){
     +detail(copy('خطورة يقظ / التصنيف الأصلي','YAQIDH severity / original rating'),safe(severityName(f.severity)+' / '+severityName(f.reported_as)))
     +detail(copy('القاعدة والموقع','Rule and location'),mon(f.rule)+' · '+mon(f.location))
     +detail(copy('المكوّن وإصداره','Component and version'),mon(f.component||'—'))
+    +(f.fixed_version?detail(copy('النسخة المصلحة','Fixed version'),mon(f.fixed_version)):'')
+    +(f.cwe?detail(copy('التصنيف (CWE)','CWE'),mon(f.cwe)):'')
+    +(f.confidence?detail(copy('ثقة الأداة','Tool confidence'),safe(({high:copy('عالية','High'),medium:copy('متوسطة','Medium'),low:copy('منخفضة (قد تكون إنذارًا كاذبًا)','Low (may be a false alarm)')}[f.confidence])||f.confidence)):'')
+    +(f.detail&&!f.explanation?detail(copy('ملاحظة الأداة','Tool message'),safe(f.detail)):'')
     +detail(copy('حالة الملاحظة','Finding status'),safe(statusText(f.status)))
     +detail(copy('إعادة التحقق','Reverification'),safe(history||(f.closure?findingState(f):copy('لا يوجد دليل إعادة فحص','No rescan evidence'))))
     +detail(copy('قبل / بعد','Before / after'),release.prior&&history?mon('#'+release.prior.build+' → #'+release.build):'—')+'</div>'

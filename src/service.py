@@ -6,6 +6,7 @@ write a closure, record an exception, or record a human decision.
 """
 
 import threading
+from contextlib import contextmanager
 from pathlib import Path
 
 from src.phases.status import ReleaseStatus, release_status
@@ -55,6 +56,12 @@ class ReleaseService:
         self.target = Path(target)
         self._lock = threading.Lock()  # one writer at a time, so two calls never overwrite each other
 
+    @contextmanager
+    def _locked(self, release_id: str):
+        """One writer at a time for this release: across threads here, and across processes through the store's file lock."""
+        with self._lock, self.store.locked(release_id):
+            yield
+
     def _log(self, release_id: str, event: str, actor: str, **data) -> None:
         if self.history is not None:
             self.history.append(release_id, event, actor, data)
@@ -83,7 +90,7 @@ class ReleaseService:
         """First scan of a stage. A second scan would overwrite history, so it is refused (use verify_fix)."""
         name = self._stage(stage)
         runner = self._runner(name)
-        with self._lock:
+        with self._locked(release_id):
             evidence = self.store.get(release_id) if self.store.exists(release_id) else self.store.create(release_id)
             self._check_order(evidence, name)
             record = evidence.stage(name)
@@ -106,7 +113,7 @@ class ReleaseService:
         """Re-scan and let the verifier compare with the earlier scan. Only the verifier writes closures."""
         name = self._stage(stage)
         runner = self._runner(name)
-        with self._lock:
+        with self._locked(release_id):
             evidence = self.store.get(release_id)
             self._check_order(evidence, name)
             record = evidence.stage(name)
@@ -141,7 +148,7 @@ class ReleaseService:
     def evaluate_policy(self, release_id: str, stage: str) -> dict:
         name = self._stage(stage)
         policy = load_policy(self.policy_path)  # read on every call, so an edited policy takes effect at once
-        with self._lock:
+        with self._locked(release_id):
             evidence = self.store.get(release_id)
             record = evidence.stage(name)
             if not record.tool_versions:
@@ -160,7 +167,7 @@ class ReleaseService:
             raise ServiceError("explanation text is empty")
         if len(text) > MAX_EXPLANATION:
             raise ServiceError(f"explanation is longer than {MAX_EXPLANATION} characters")
-        with self._lock:
+        with self._locked(release_id):
             evidence = self.store.get(release_id)
             finding = self._find(evidence, name, fingerprint)
             finding.explanation = Explanation(text=text)
@@ -195,7 +202,7 @@ class ReleaseService:
             raise ServiceError("a human decision needs the name of the person who made it")
         if decision == "reject" and not reason.strip():
             raise ServiceError("a rejection needs a reason, so the developer knows what to fix")
-        with self._lock:
+        with self._locked(release_id):
             evidence = self.store.get(release_id)
             evidence.human_decisions.append(
                 HumanDecision(stage=name, decision=decision, by=by.strip(), reason=reason.strip(), commit=evidence.head_commit)
@@ -212,7 +219,7 @@ class ReleaseService:
         name = self._stage(stage)
         if not justification.strip() or not approved_by.strip():
             raise ServiceError("an exception needs a justification and the name of the approving person")
-        with self._lock:
+        with self._locked(release_id):
             evidence = self.store.get(release_id)
             finding = self._find(evidence, name, fingerprint)
             if finding.status != FindingStatus.OPEN:
@@ -225,7 +232,7 @@ class ReleaseService:
         return self.evaluate_policy(release_id, stage)
 
     def set_pull_request(self, release_id: str, repo: str, pr_number: int, author: str = "", branch: str = "") -> None:
-        with self._lock:
+        with self._locked(release_id):
             evidence = self.store.get(release_id) if self.store.exists(release_id) else self.store.create(release_id)
             evidence.repo, evidence.pr_number = repo, pr_number
             evidence.author, evidence.branch = author[:100], branch[:200]
@@ -236,7 +243,7 @@ class ReleaseService:
         commit = commit.strip()
         if not commit or len(commit) > 64:
             raise ServiceError("a commit id is required")
-        with self._lock:
+        with self._locked(release_id):
             evidence = self.store.get(release_id) if self.store.exists(release_id) else self.store.create(release_id)
             changed = evidence.head_commit != commit
             evidence.head_commit = commit
@@ -260,7 +267,7 @@ class ReleaseService:
                                  "origin": "initial"})
             for f in findings
         ]
-        with self._lock:
+        with self._locked(release_id):
             if not self.store.exists(release_id):
                 raise ServiceError(f"no release {release_id}: the pull request event must arrive first")
             evidence = self.store.get(release_id)

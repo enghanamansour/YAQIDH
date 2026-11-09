@@ -151,3 +151,31 @@ def test_the_demo_mode_still_works_unchanged(monkeypatch):
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     assert "portal-133" in mod.RELEASES  # the seeded demo data is still there
+
+
+def test_the_release_view_carries_the_history_and_the_new_finding_fields(world):
+    stack, dash, _ = world
+    stack.sec.findings = [stack.sec.findings[0].model_copy(update={"fixed_version": "2.0.1", "cwe": "CWE-400", "confidence": "low"})]
+    open_pr(stack)
+    stack.service.add_human_decision("r1", "qa", "approve", "Sara", "")
+    stack.service.run_scan("r1", "security")
+    sec = Browser(dash).login("security").call("GET", "/api/releases/r1")[1]
+    f = sec["findings"][0]
+    assert (f["fixed_version"], f["cwe"], f["confidence"]) == ("2.0.1", "CWE-400", "low")
+    log = sec["log"]
+    assert log["verified"]["ok"] is True and log["verified"]["entries"] == len(log["entries"])
+    assert [e["event"] for e in log["entries"]][:2] == ["commit_received", "scan"]
+    assert all("text" not in e["data"] for e in log["entries"])  # long texts stay out of the dashboard payload
+
+
+def test_a_tampered_history_is_shown_as_broken(world, tmp_path):
+    stack, dash, _ = world
+    open_pr(stack)
+    path = stack.history.directory / "r1.jsonl"
+    lines = path.read_text().splitlines()
+    first = json.loads(lines[0])
+    first["data"]["commit"] = "evil"
+    lines[0] = json.dumps(first)
+    path.write_text("\n".join(lines) + "\n")
+    view = Browser(dash).login("qa").call("GET", "/api/releases/r1")[1]
+    assert view["log"]["verified"]["ok"] is False and view["log"]["verified"]["broken_at"] == 1
