@@ -109,8 +109,9 @@ function changeAppearance(id){
   if(hadFocus)app.querySelector(buttonSelector)?.focus({preventScroll:true});
 }
 
+const liveWarning=()=>profile&&profile.liveError?'<section class="panel" role="alert"><b>'+copy('تعذّر قراءة البيانات الحقيقية','Could not read the real data')+'</b><p>'+safe(profile.liveError)+'</p></section>':'';
 function introduction(){
-  return '<section class="intro"><div><h1>'+roleNames(profile.role)+'</h1><small>'+copy('معاينة محلية · بيانات تشغيل ومستخدمون تجريبيون','Local preview · Demo runs and users')+'</small></div>'+badge(safe(accountName(profile.role)))+'</section>';
+  return liveWarning()+'<section class="intro"><div><h1>'+roleNames(profile.role)+'</h1><small>'+copy('معاينة محلية · بيانات تشغيل ومستخدمون تجريبيون','Local preview · Demo runs and users')+'</small></div>'+badge(safe(accountName(profile.role)))+'</section>';
 }
 let adminProject='all',adminRole='all',adminActive='all',adminStage='all';
 

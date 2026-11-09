@@ -190,3 +190,21 @@ def test_with_no_real_releases_every_number_is_zero_and_nothing_is_seeded(world)
         assert b.call("GET", "/api/threads")[1] == [], account
         if account == "company-admin":
             assert board["requests"] == []  # no demo "pending account request" either
+
+
+def test_a_wrong_api_token_is_reported_instead_of_showing_an_empty_dashboard(world):
+    stack, dash, _ = world
+    open_pr(stack)
+    dash.live.token = "not-the-real-token"
+    board = Browser(dash).login("qa").call("GET", "/api/dashboard")[1]
+    assert board["releases"] == [] and "token" in board["liveError"]
+    dash.live.token = "secret"
+    board = Browser(dash).login("qa").call("GET", "/api/dashboard")[1]
+    assert board["liveError"] == "" and len(board["releases"]) == 1
+
+
+def test_an_unreachable_api_is_reported_too(world):
+    stack, dash, _ = world
+    dash.live.base_url = "http://127.0.0.1:9"
+    board = Browser(dash).login("qa").call("GET", "/api/dashboard")[1]
+    assert board["releases"] == [] and "not reachable" in board["liveError"]

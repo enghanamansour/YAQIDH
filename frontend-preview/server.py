@@ -269,6 +269,7 @@ class Handler(BaseHTTPRequestHandler):
                             for name, data in ACCOUNTS.items() if not data.get("deleted")],
                         "audit": self.server.audit,
                         "requests": [{"name": name, "role": item["role"]} for name, item in self.server.requests.items()],
+                        "liveError": self.server.live.error if self.server.live else "",
                         "apiStatus": {"checkedAt": datetime.now(timezone.utc).isoformat(), "status": "responding"},
                         "runSummary": [{"release": key, "day": DEMO_RUN_DATES[key], "project": RELEASES[key]["project"], "stage": stage,
                             "tool": run["tool"], "state": run["state"]}
@@ -282,7 +283,8 @@ class Handler(BaseHTTPRequestHandler):
                             "active": meta["active"], "day": DEMO_RUN_DATES.get(key), "outcome": view["outcome"]["result"] if view["outcome"] else None,
                             "returnReason": view["decisions"][-1]["reason"] if role == "developer" and view["decisions"] and view["decisions"][-1]["decision"] == "reject" else None,
                             "pendingReview": view["canApprove"], "failedRuns": sum(run["state"] == "error" for run in view["runs"])})
-                return self.json(200, {"account": account, "role": role, "demo": True, "releases": releases})
+                return self.json(200, {"account": account, "role": role, "demo": True, "releases": releases,
+                    "liveError": self.server.live.error if self.server.live else ""})
             parts = path.strip("/").split("/")
             if len(parts) in {3, 4} and parts[:2] == ["api", "releases"]:
                 key = parts[2]

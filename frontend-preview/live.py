@@ -32,6 +32,7 @@ class LiveBackend:
         self.owners = tuple(owners)
         self._evidence: dict[str, dict] = {}
         self._status: dict[str, dict] = {}
+        self.error = ""  # why the last refresh failed ("" = fine), shown to the user instead of an empty page
 
     def _call(self, method: str, path: str, body: dict | None = None):
         request = urllib.request.Request(
@@ -56,10 +57,14 @@ class LiveBackend:
         self._evidence.clear()
         self._status.clear()
         releases.clear(), runs.clear(), dates.clear()
+        self.error = ""
         try:
             listed = self._call("GET", "/releases")
-        except LiveError:
-            return  # the API is down: the dashboard shows no releases instead of stale ones
+        except LiveError as e:  # the API is down or refuses us: show no releases (never stale ones) and say why
+            self.error = {401: "the dashboard's API token does not match the API's token (check API_TOKEN)",
+                          503: "the Yaqidh API is not reachable (is it running on the address given with --api-url?)"}.get(
+                e.status, f"the Yaqidh API answered with an error ({e.status})")
+            return
         for number, row in enumerate(listed, start=1):
             key = row["release_id"]
             full = self._call("GET", f"/releases/{key}")
