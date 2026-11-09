@@ -130,6 +130,7 @@ def clean_finding(finding):
 
 class DemoServer(ThreadingHTTPServer):
     daemon_threads = True
+    request_queue_size = 32
 
     def __init__(self, address, store, verification, policy):
         self.store = store
@@ -311,6 +312,10 @@ class Handler(BaseHTTPRequestHandler):
             if not meta or not (self.visible(account, release) or (is_admin and meta["project"] in ACCOUNTS[account]["projects"])):
                 return self.fail(403, "forbidden")
             sender_role = ACCOUNTS[account]["role"]
+            if sender_role == "security" or (sender_role == "developer" and meta["active"] == "security"
+                    and (not data.get("original") or not data.get("requested")
+                         or data.get("finding") not in self.release_view(account, release)["blockerIds"])):
+                return self.fail(403, "forbidden")
             owner = meta["owner"]
             if sender_role == "developer":
                 members = [name for name, user in ACCOUNTS.items()
@@ -398,8 +403,6 @@ class Handler(BaseHTTPRequestHandler):
         name, password, role = (data.get(key) for key in ("account", "password", "role"))
         if not isinstance(name, str) or not re.fullmatch(r"[a-z][a-z0-9-]{2,31}", name) or not isinstance(password, str) or not 10 <= len(password) <= 128 or role not in ("developer", "qa", "security"):
             return self.fail(400, "invalid_input")
-        if data.get("invitation") != "YAQIDH-DEMO":
-            return self.fail(403, "invalid_invitation")
         if name in ACCOUNTS or name in self.server.requests:
             return self.fail(409, "account_exists")
         salt = secrets.token_bytes(16)
