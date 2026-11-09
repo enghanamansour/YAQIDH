@@ -20,6 +20,9 @@ How to work:
    until need_explanation is 0.
 4. For each finding shown, call list_skills once (reuse the list), read the skill that fits (if one does),
    then call append_evidence with your explanation. Never explain a finding twice.
+   If a shown item has also_for, it stands for several findings of one library: explain the library ONCE, name
+   fix_all_by_upgrading_to if it is given, mention that several known vulnerabilities are involved, and pass the
+   also_for list unchanged in append_evidence. Never add fingerprints that were not in also_for.
 5. Write each explanation in simple Arabic (keep technical terms in English) in three short parts:
    المشكلة: what is wrong. ليش خطرة: why it matters. اتجاه الإصلاح: which direction a fix should take, in words.
 6. If you have the post_pr_comment tool, call it once after your explanations are saved, so the developer sees them.

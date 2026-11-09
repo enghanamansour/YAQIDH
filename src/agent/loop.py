@@ -37,7 +37,8 @@ POST_COMMENT_TOOL = {
 MAX_STEPS = 60
 MAX_RESULT_CHARS = 8000
 BATCH = 5  # how many unexplained findings the model sees per get_findings call, to keep each request small
-KEEP_STEPS = 3  # only the latest tool steps stay in the conversation, so each request stays small
+MAX_GROUP = 12  # how many CVEs of one library are listed to the model
+KEEP_STEPS = 3 # only the latest tool steps stay in the conversation, so each request stays small
 
 
 class ChatClient:
@@ -52,13 +53,16 @@ class ChatClient:
         if not self.api_key:
             raise RuntimeError("LLM_API_KEY is not set")
 
-    def complete(self, messages: list[dict], tools: list[dict]) -> dict:
+    def complete(self, messages: list[dict], tools: list[dict] | None = None, model: str | None = None) -> dict:
         last = None
+        body = {"model": model or self.model, "temperature": 0, "messages": messages}
+        if tools:
+            body.update(tools=tools, tool_choice="auto")
         for _ in range(10):  # a malformed tool call or a rate limit usually passes on another try
             resp = self.client.post(
                 f"{self.base_url}/chat/completions",
                 headers={"Authorization": f"Bearer {self.api_key}"},
-                json={"model": self.model, "temperature": 0, "messages": messages, "tools": tools, "tool_choice": "auto"},
+                json=body,
             )
             if resp.status_code == 200:
                 return resp.json()["choices"][0]["message"]
@@ -85,9 +89,11 @@ def _openai_tool(name: str, description: str, schema: dict) -> dict:
 
 class AgentLoop:
     def __init__(self, session: ClientSession, chat, skills: Skills | None = None, max_steps: int = MAX_STEPS,
-                 post_comment=None):
-        """post_comment(release_id) posts the PR comment through the GitHub MCP server; without it the tool is not offered."""
+                 post_comment=None, dialect=None):
+        """post_comment(release_id) posts the PR comment through the GitHub MCP server; without it the tool is not offered.
+        dialect (DialectStep) rewrites each saved explanation in Saudi dialect; the original is kept if it is rejected."""
         self.post_comment = post_comment
+        self.dialect = dialect
         self.session = session
         self.chat = chat
         self.skills = skills or Skills()
@@ -139,6 +145,8 @@ class AgentLoop:
                 problem = await self._explanation_problem(args)
                 if problem:
                     return f"ERROR: {problem}"
+                if self.dialect is not None:
+                    args = {**args, "text": await asyncio.to_thread(self.dialect.rewrite, args["text"])}
             result = await self.session.call_tool(name, args)
         except SkillError as e:
             return f"ERROR: {e}"
@@ -150,12 +158,50 @@ class AgentLoop:
         return ("ERROR: " if result.isError else "") + text[:MAX_RESULT_CHARS]
 
     @staticmethod
-    def _findings_view(result) -> str:
-        """What the model sees: only open findings that still need an explanation, a few at a time."""
+    def _upgrade_target(versions: list[str]) -> str | None:
+        """The one version that fixes every CVE of a library: the highest of all the fixed versions listed."""
+        from packaging.version import InvalidVersion, Version
+
+        tokens = [t.strip() for v in versions for t in v.split(",") if t.strip()]
+        try:
+            return str(max(tokens, key=Version)) if tokens else None
+        except InvalidVersion:
+            return None
+
+    @classmethod
+    def _findings_view(cls, result) -> str:
+        """What the model sees: open findings that still need an explanation, a few at a time.
+
+        Findings of the same library (same component) are shown as ONE item with also_for listing the other
+        fingerprints, so the model explains the library once. Each CVE keeps its own fingerprint and status."""
         items = (result.structuredContent or {}).get("result", [])
         todo = [f for f in items if f["status"] == "open" and not f.get("explanation")]
         keys = ("fingerprint", "tool", "rule", "location", "severity", "reported_as", "component", "fixed_version", "cwe", "confidence")
-        shown = [{**{k: f[k] for k in keys if f.get(k)}, "detail": f.get("detail", "")[:300]} for f in todo[:BATCH]]
+        groups: dict[str, list[dict]] = {}
+        units: list[list[dict]] = []
+        for f in todo:
+            comp = f.get("component")
+            if comp and comp in groups:
+                groups[comp].append(f)
+            else:
+                unit = [f]
+                units.append(unit)
+                if comp:
+                    groups[comp] = unit
+        shown = []
+        for unit in units[:BATCH]:
+            unit = sorted(unit, key=lambda f: (f["severity"] != "high", f["rule"]))
+            main = unit[0]
+            entry = {**{k: main[k] for k in keys if main.get(k)}, "detail": main.get("detail", "")[:300]}
+            if len(unit) > 1:
+                entry["also_for"] = [f["fingerprint"] for f in unit[1:]]
+                entry["group"] = [
+                    {k: f[k] for k in ("rule", "severity", "fixed_version", "cwe") if f.get(k)} for f in unit[:MAX_GROUP]
+                ]
+                target = cls._upgrade_target([f["fixed_version"] for f in unit if f.get("fixed_version")])
+                if target:
+                    entry["fix_all_by_upgrading_to"] = target
+            shown.append(entry)
         return json.dumps(
             {"total_findings": len(items), "need_explanation": len(todo), "shown": shown,
              "note": "call get_findings again after explaining these to see the next ones"},
