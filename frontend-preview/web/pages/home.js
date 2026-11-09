@@ -1,6 +1,7 @@
 /* The landing page: what Yaqidh is, the problem it removes, how a request moves, and who decides what. */
 
 function landing(){
+  const variant=['bg','edge','emblem','side','clean'].includes(new URLSearchParams(location.search).get('hero'))?new URLSearchParams(location.search).get('hero'):'bg';
   const go=profile?(profile.role==='company-admin'?'/admin':'/dashboard'):'/login';
   const goLabel=profile?copy('فتح لوحة المتابعة','Open the dashboard'):copy('تسجيل الدخول','Sign in');
   const journey=[
@@ -30,7 +31,7 @@ function landing(){
   ];
   const ring=(r,cls)=>'<svg class="lp-ring '+cls+'" viewBox="0 0 400 400" aria-hidden="true"><circle cx="200" cy="200" r="'+r+'"/></svg>';
   return '<main class="landing2">'
-    +'<section class="lp-hero"><div class="lp-bg" aria-hidden="true"><div class="lp-grid"></div></div>'
+    +'<section class="lp-hero v-'+variant+'"><div class="lp-bg" aria-hidden="true"><div class="lp-grid"></div></div>'
     +'<div class="lp-hero-inner"><div class="lp-copy"><span class="lp-tag">'+copy('الجاهزية الأمنية للإصدارات','Security readiness for releases')+'</span>'
     +'<h1>'+copy('أمان <span class="grad">استباقي</span>، إطلاق أسرع.','<span class="grad">Proactive</span> security, faster releases.')+'</h1>'
     +'<p class="lp-sub">'+copy('يقظ يرافق منتجك قبل الإطلاق: يفحص، يشرح، ويعيد الفحص تلقائيًا، والقرار دايمًا بيد الفريق.','Yaqidh accompanies your product before release: it checks, explains and re-checks automatically, and the decision always stays with your team.')+'</p>'
