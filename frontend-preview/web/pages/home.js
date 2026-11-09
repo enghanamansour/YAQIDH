@@ -30,11 +30,12 @@ function landing(){
   ];
   const ring=(r,cls)=>'<svg class="lp-ring '+cls+'" viewBox="0 0 400 400" aria-hidden="true"><circle cx="200" cy="200" r="'+r+'"/></svg>';
   return '<main class="landing2">'
-    +'<section class="lp-hero"><div class="lp-bg" aria-hidden="true"><div class="lp-grid"></div>'+ring(190,'a')+ring(150,'b')+'<img class="lp-mark" alt="" src="'+logo()+'"></div>'
-    +'<div class="lp-hero-inner"><span class="lp-tag">'+copy('الجاهزية الأمنية للإصدارات','Security readiness for releases')+'</span>'
+    +'<section class="lp-hero"><div class="lp-bg" aria-hidden="true"><div class="lp-grid"></div></div>'
+    +'<div class="lp-hero-inner"><div class="lp-copy"><span class="lp-tag">'+copy('الجاهزية الأمنية للإصدارات','Security readiness for releases')+'</span>'
     +'<h1>'+copy('أمان <span class="grad">استباقي</span>، إطلاق أسرع.','<span class="grad">Proactive</span> security, faster releases.')+'</h1>'
     +'<p class="lp-sub">'+copy('يقظ يرافق منتجك قبل الإطلاق: يفحص، يشرح، ويعيد الفحص تلقائيًا، والقرار دايمًا بيد الفريق.','Yaqidh accompanies your product before release: it checks, explains and re-checks automatically, and the decision always stays with your team.')+'</p>'
-    +'<div class="actions lp-cta"><a class="action primary" href="'+go+'">'+goLabel+'</a><a class="action" href="#about">'+copy('كيف يعمل','How it works')+'</a></div></div></section>'
+    +'<div class="actions lp-cta"><a class="action primary" href="'+go+'">'+goLabel+'</a><a class="action" href="#about">'+copy('كيف يعمل','How it works')+'</a></div></div>'
+    +'<div class="lp-art" aria-hidden="true">'+ring(190,'a')+ring(150,'b')+'<img class="lp-mark" alt="" src="'+logo()+'"></div></div></section>'
 
     +'<section class="lp-section" id="problem"><h2>'+copy('الدورة اللي تأخّر الإطلاق','The loop that delays every release')+'</h2>'
     +'<div class="lp-two"><article class="lp-card"><small>'+copy('بدون يقظ','Without Yaqidh')+'</small><h3>'+copy('لفّة بعد لفّة','Round after round')+'</h3>'
