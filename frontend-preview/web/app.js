@@ -143,8 +143,8 @@ function render(){
   hideMetricTip();
   metricDetails.clear();
   const page=location.pathname;
-  if(page==='/'){app.innerHTML=header()+landing();return}
-  const content=page==='/about'?aboutView():page==='/signup'?signup():!profile?login():page==='/communication'?communicationView():'<main>'+introduction()+(profile.role==='company-admin'?adminView():dashboardView())+'</main>';
+  if(page==='/'){app.innerHTML=header()+landing();if(location.hash==='#about')document.getElementById('about').scrollIntoView();return}
+  const content=page==='/signup'?signup():!profile?login():page==='/communication'?communicationView():'<main>'+introduction()+(profile.role==='company-admin'?adminView():dashboardView())+'</main>';
   app.innerHTML=header()+(profile?sidebar():'')+'<div class="'+(profile?'shell':'public-shell')+'">'+content+'</div>';
 }
 async function selectRelease(id){
@@ -154,6 +154,7 @@ async function selectRelease(id){
   release=next;tool='all';severity='all';findingFilter='all';runFilter='all';render();
 }
 async function load(){
+  if(location.pathname==='/about')history.replaceState(null,'','/#about');
   try{profile=await api('/api/dashboard')}catch(e){if(!['401','403'].includes(e.message))throw e;profile=null;if(!['/','/about','/login','/signup'].includes(location.pathname))history.replaceState(null,'','/login'+location.search)}
   if(profile&&['/login','/dashboard','/admin'].includes(location.pathname)){const destination=profile.role==='company-admin'?'/admin':'/dashboard';if(location.pathname!==destination)history.replaceState(null,'',destination+location.search)}
   threads=profile?await api('/api/threads'):[];
@@ -186,7 +187,7 @@ function findingModal(id){
     +(id==='playwright-demo-001'?'<p class="note">'+copy('المتوقع: يظهر تأكيد الطلب بعد الإرسال. الفعلي: لم يظهر التأكيد في عينة الاختبار.','Expected: order confirmation appears after submission. Actual: the confirmation was absent in the demo run.')+'</p>':'')
     +(f.closure?'<p>'+copy('وقت تحقق الإغلاق','Verification time')+' '+mon(f.closure.timestamp)+'</p>':'')
     +(f.exception?'<p class="note"><b>'+copy('استثناء مسجل','Recorded exception')+'</b><br>'+safe(demoText(f.exception.justification))+' · '+safe(demoText(f.exception.approved_by))+'</p>':'')
-    +'<p>'+action('new-thread',copy('ناقش هذه الملاحظة','Discuss this finding'),'data-id="'+safe(f.fingerprint)+'"')+'</p>'
+    +(profile.role==='security'||(profile.role==='developer'&&release.stage==='security'&&!release.blockerIds.includes(f.fingerprint))?'':'<p>'+action('new-thread',release.stage==='security'?copy('طلب تمديد المهلة','Request deadline extension'):copy('ناقش هذه الملاحظة','Discuss this finding'),'data-id="'+safe(f.fingerprint)+'"')+'</p>')
     +(f.explanation?'<p class="note"><b>'+copy('شرح يقظ','YAQIDH explanation')+'</b><br>'+safe(demoText(f.explanation.text))+'</p>':''));
 }
 async function handleAction(button){

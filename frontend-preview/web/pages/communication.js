@@ -27,9 +27,12 @@ function communicationView(){
 }
 
 function startThread(finding,releaseId=release.id){
+  const extensionOnly=profile.role==='developer'&&release.stage==='security';
+  const optional=extensionOnly?'':' '+copy('(اختياري)','(optional)');
+  const required=extensionOnly?' required':'';
   const destination=profile.role==='developer'?stageText(release.stage):copy('المطور المسند إليه التعديل','Assigned developer');
-  modal(copy('فتح نقاش مرتبط بالبناء','Start a build discussion'),
+  modal(extensionOnly?copy('طلب تمديد المهلة','Request deadline extension'):copy('فتح نقاش مرتبط بالبناء','Start a build discussion'),
     '<form id="thread-new" data-finding="'+safe(finding)+'" data-release="'+safe(releaseId)+'"><div class="note"><b>'+copy('المرسل','Sender')+'</b> '+safe(accountName(profile.account))+' · '+roleNames(profile.role)+'<br><b>'+copy('التوجيه التلقائي','Automatically routed to')+'</b> '+destination+'</div>'
     +'<label class="field">'+copy('موضوع النقاش','Subject')+'<input name="subject" required maxlength="100"></label>'
-    +'<label class="field">'+copy('الرسالة أو سبب طلب المهلة','Message or extension reason')+'<textarea name="message" required maxlength="1500"></textarea></label><div class="details-grid"><label class="field">'+copy('الموعد المعتمد (اختياري)','Approved deadline (optional)')+'<input type="date" name="original"></label><label class="field">'+copy('الموعد المطلوب (اختياري)','Requested deadline (optional)')+'<input type="date" name="requested"></label></div><button class="primary">'+copy('إرسال','Send')+'</button></form>');
+    +'<label class="field">'+copy('الرسالة أو سبب طلب المهلة','Message or extension reason')+'<textarea name="message" required maxlength="1500"></textarea></label><div class="details-grid"><label class="field">'+copy('الموعد المعتمد','Approved deadline')+optional+'<input type="date" name="original"'+required+'></label><label class="field">'+copy('الموعد المطلوب','Requested deadline')+optional+'<input type="date" name="requested"'+required+'></label></div><button class="primary">'+copy('إرسال','Send')+'</button></form>');
 }
