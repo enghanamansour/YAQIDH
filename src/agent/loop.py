@@ -197,7 +197,8 @@ class AgentLoop:
         for _ in range(self.max_steps):
             self._trim(messages)
             try:
-                message = self.chat.complete(messages, tools)
+                # the model call is blocking (and may wait out a rate limit), so it runs in a thread: the API stays responsive
+                message = await asyncio.to_thread(self.chat.complete, messages, tools)
             except Exception as e:
                 run.stopped, run.final = "error", str(e)
                 return run
