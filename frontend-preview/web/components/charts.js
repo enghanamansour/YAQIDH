@@ -3,7 +3,7 @@ function adminTimeline(runs,developer=false){
   const totalLabel=developer?copy('إجمالي الأبنية','Total builds'):copy('إجمالي التشغيلات','Total runs');
   const failureLabel=developer?copy('أبنية أخفقت','Failed builds'):copy('تشغيلات متعطلة','Failed runs');
   const actionName=developer?'developer-day':'admin-day';
-  const selectedDay=developer?developerDay:adminDay;
+  const selectedDay=developerDay;
   const days=[...new Set(runs.map(run=>run.day).filter(Boolean))].sort();
   if(!days.length)return '<section class="panel admin-trend"><h2>'+heading+'</h2><p class="muted">'+copy('لا توجد تشغيلات مؤرخة في النطاق المحدد.','No dated runs match the selected scope.')+'</p></section>';
   const totals=days.map(day=>runs.filter(run=>run.day===day).length);

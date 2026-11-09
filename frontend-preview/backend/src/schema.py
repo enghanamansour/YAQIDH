@@ -91,10 +91,25 @@ class HumanDecision(BaseModel):
     timestamp: datetime = Field(default_factory=utcnow)
 
 
+class ReviewRequestDecision(BaseModel):
+    request_id: str
+    commit: str
+    finding: str
+    kind: Literal["exception", "deadline"]
+    status: Literal["approved", "rejected"]
+    by: str
+    reason: str
+    original: str | None = None
+    requested: str | None = None
+    approved_deadline: str | None = None
+    timestamp: datetime = Field(default_factory=utcnow)
+
+
 class Evidence(BaseModel):
     release_id: str
     stages: list[StageRecord] = Field(default_factory=list)
     human_decisions: list[HumanDecision] = Field(default_factory=list)
+    review_request_decisions: list[ReviewRequestDecision] = Field(default_factory=list)
 
     def stage(self, name: StageName) -> StageRecord:
         """Return the stage record, creating it on first use."""

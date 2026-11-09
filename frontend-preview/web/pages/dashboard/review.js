@@ -32,6 +32,34 @@ function findingsView(){
     +[['high',high],['low',low]].map(([id,count])=>'<div class="bar-row '+(id==='high'?'bad':'good')+'"><span>'+action('bar',severityName(id),'data-id="'+id+'" aria-pressed="'+(severity===id)+'"')+'<b>'+count+'</b></span><progress value="'+count+'" max="'+Math.max(rows.length,1)+'"></progress></div>').join('')+'</section></div>';
 }
 
+function qaReviewAlerts(records){
+  return records.length?records.map(item=>'<article class="note"><b>'
+    +(item.kind==='exception'?copy('اعتمد الأمن استثناءً','Security approved an exception'):copy('اعتمد الأمن تمديد المهلة','Security approved an extension'))
+    +'</b><p>'+safe(buildName(item.build))+' · '+mon(item.commit)+' · '+safe(accountName(item.by))+'</p>'
+    +'<p>'+(item.approvedDeadline?copy('الموعد الجديد المعتمد','Approved new deadline')+' '+displayReviewDeadline(item.approvedDeadline)
+      :copy('لا يوجد موعد جديد معتمد لهذه الملاحظة.','No new deadline has been approved for this finding.'))+'</p></article>').join('')
+    :'<p>'+copy('لا توجد قرارات أمنية معتمدة ضمن نطاقك.','No approved security decisions in your scope.')+'</p>';
+}
+
+function qaReviewAlertsPanel(){
+  return '<section class="panel"><h2>'+copy('تنبيهات قرارات الأمن السيبراني','Security decision alerts')+'</h2><div id="qa-review-alerts" aria-live="polite">'+qaReviewAlerts(profile.reviewAlerts)+'</div></section>';
+}
+
+async function refreshQAReviewAlerts(){
+  const account=profile;
+  const panel=app.querySelector('#qa-review-alerts');
+  if(account?.role!=='qa'||!panel||document.hidden)return;
+  try{
+    const alerts=await api('/api/qa/review-alerts');
+    if(profile!==account||!panel.isConnected)return;
+    if(JSON.stringify(alerts)===JSON.stringify(account.reviewAlerts))return;
+    account.reviewAlerts=alerts;
+    panel.innerHTML=qaReviewAlerts(alerts);
+  }catch{
+    // Keep the last successful alert list until the next refresh.
+  }
+}
+
 function reviewView(){
   if(!release)return '<section class="panel">'+copy('لا يوجد بناء في نطاق الحساب','No builds in this account scope')+'</section>';
   const open=matched().filter(f=>findingGroup(f)==='open');
@@ -41,7 +69,11 @@ function reviewView(){
   const completed=visibleRuns.filter(r=>r.state==='completed');
   const unread=threads.filter(thread=>thread.release===release.id&&thread.unread);
 
-  return reviewQueue()+releaseHeader()
+  const pendingRequests=profile.role==='security'?threads.filter(thread=>thread.release===release.id
+    && (thread.exceptionRequest||thread.deadline)?.status==='pending'):[];
+  const reviewLinks=pendingRequests.map(thread=>'<a class="action" href="/communication?thread='+encodeURIComponent(thread.id)+'">'
+    +(thread.exceptionRequest?copy('مراجعة طلب استثناء','Review exception request'):copy('مراجعة طلب تمديد','Review extension request'))+'</a>').join('');
+  return reviewQueue()+releaseHeader()+(profile.role==='qa'?qaReviewAlertsPanel():'')
     +'<div class="metric-row">'+(profile.role==='security'?metric(copy('ملاحظات مانعة','Blocking findings'),release.outcome?blockers.length:'—',blockers.length?'bad':'',blockers,buildScope(release.outcome?.reasons.map(displayReason).join(' · ')||copy('بانتظار نتيجة محرك القواعد.','Awaiting a policy outcome.')),findingRecord):metric(copy('ملاحظات تنتظر إعادة الفحص','Findings awaiting recheck'),open.length,open.length?'wait':'',open,buildScope(copy('الملاحظات المطابقة التي تحتاج متابعة.','Matching findings that need follow-up.')),findingRecord))
     +metric(copy('إغلاقات مثبتة','Verified closures'),closed.length,'good',closed,buildScope(copy('الإغلاقات المثبتة ضمن الفلاتر الحالية.','Verified closures within active filters.')),findingRecord)
     +metric(copy('تشغيلات مكتملة في السجل','Completed recorded runs'),visibleRuns.length?fraction(completed.length,visibleRuns.length):'—','',visibleRuns,buildScope(copy('المكتمل من التشغيلات المطابقة للأداة وحالة التشغيل.','Completed runs out of those matching tool and run-state filters.')),runRecord)
@@ -49,6 +81,7 @@ function reviewView(){
     +'<section class="panel"><div class="section-head"><h2>'+copy('أدلة المرحلة والإجراءات','Stage evidence and actions')+'</h2><div class="actions">'
     +(profile.role==='qa'?action('new-thread',copy('فتح نقاش','Start discussion')):'')+action('runs',copy('سجل تشغيل الأدوات','Tool runs'))+action('evidence',copy('ملف الأدلة','Evidence'))+action('decisions',copy('سجل القرارات','Decision log'))
     +(profile.role==='security'?action('previous-qa',copy('موافقة الجودة السابقة','Previous QA approval')):'')+(release.prior?action('prior',copy('البناء السابق','Previous build')):'')
+    +reviewLinks
     +(release.canReject?action('reject',copy('إرجاع مع السبب','Return with reason')):'')
     +(release.canApprove?action('approve',profile.role==='security'?copy('اعتماد البناء','Approve build'):copy('تسجيل الموافقة','Record approval'),'class="primary"'):'')
     +'</div></div></section>'+findingsView()+'<section class="panel"><h2>'+copy('اتجاه النتائج عبر الزمن','Results over time')+'</h2><p class="muted">'+copy('لا يتوفر سجل أحداث مؤرخ كافٍ لرسم الاتجاه.','There is not enough dated event history to plot a trend.')+'</p></section>';

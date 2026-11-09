@@ -17,7 +17,7 @@ from urllib.parse import urlsplit
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT / "backend"))
 from src.policy import evaluate_policy, load_policy
-from src.schema import Evidence, Finding, HumanDecision, StageRecord
+from src.schema import Evidence, ExceptionRecord, Finding, HumanDecision, ReviewRequestDecision, StageRecord
 from src.storage import EvidenceStore
 from src.verifier import verify
 
@@ -87,7 +87,10 @@ def seed(store, policy):
                 rule="DEMO-ADVISORY-02", status="excepted",
                 exception={"justification": "Isolated demo dependency pending replacement.", "approved_by": "Demo reviewer"}),
     ]
-    current = [finding.model_copy(deep=True) for finding in old if finding.tool == "trivy"]
+    old.append(Finding(fingerprint="trivy-demo-003", tool="trivy", severity="high",
+        reported_as="medium", location="requirements.txt", component="demo-support==1.0",
+        rule="DEMO-ADVISORY-03"))
+    current = [finding.model_copy(deep=True) for finding in old if finding.tool == "trivy" and finding.fingerprint != "trivy-demo-003"]
     verification = verify(old, current, tools_run={"semgrep", "trivy"})
     for key in RELEASES:
         qa = StageRecord(name="qa")
@@ -139,13 +142,10 @@ class DemoServer(ThreadingHTTPServer):
         self.sessions = {}
         self.read = {}
         self.audit = []
-        salt = secrets.token_bytes(16)
-        self.requests = {"demo-reviewer": {"role": "qa", "salt": salt,
-            "digest": hashlib.pbkdf2_hmac("sha256", PASSWORD.encode(), salt, 200_000)}}
         self.threads = {"deadline-128": {"id": "deadline-128", "release": "portal-128", "build": 128,
-            "subject": "deadline-demo", "members": ["security", "company-admin"], "finding": "semgrep-demo-001",
+            "subject": "deadline-demo", "commit": "a3f82c1", "members": ["security", "developer"], "finding": "semgrep-demo-001",
             "deadline": {"original": "2026-11-10", "requested": "2026-11-12", "status": "pending", "reason": "deadline-reason-demo"},
-            "messages": [{"by": "company-admin", "role": "company-admin", "text": "deadline-message-demo", "at": "2026-11-08T09:00:00+00:00"}]}}
+            "messages": [{"by": "security", "role": "security", "text": "deadline-message-demo", "at": "2026-11-08T09:00:00+00:00"}]}}
         self.threads["qa-return-133"] = {"id": "qa-return-133", "release": "portal-133", "build": 133,
             "subject": "developer-inbox-demo", "members": ["qa", "developer"], "finding": "playwright-demo-001",
             "messages": [{"by": "qa", "role": "qa", "text": "developer-message-demo", "at": "2026-11-08T10:00:00+00:00"}]}
@@ -220,6 +220,12 @@ class Handler(BaseHTTPRequestHandler):
             "prior": {"id": "portal-128", "build": 128, "commit": "a3f82c1"} if key == "portal-129" and stage_name == "security" else None,
             "canApprove": role == stage_name == meta["active"] and completed and not approved and outcome is not None
                 and outcome["result"] == "pass" and (role != "security" or bool(previous_qa and previous_qa["decision"] == "approve")),
+            "exceptionEligible": [finding.fingerprint for finding in stage.findings
+                if stage_name == "security" and finding.status.value == "open"
+                and (not self.server.policy.exceptions.allowed_for
+                     or finding.reported_as in self.server.policy.exceptions.allowed_for)] if stage else [],
+            "requestDecisions": [item.model_dump(mode="json") for item in record.review_request_decisions]
+                if stage_name == "security" else [],
             "canReject": role == stage_name == meta["active"] and bool(outcome) and not approved,
         }
 
@@ -244,22 +250,18 @@ class Handler(BaseHTTPRequestHandler):
             if not account:
                 return self.fail(401, "sign_in_required")
             role = ACCOUNTS[account]["role"]
+            if path == "/api/qa/review-alerts":
+                if role != "qa":
+                    return self.fail(403, "forbidden")
+                return self.json(200, self.qa_review_alerts(account))
             if path == "/api/threads":
                 return self.json(200, self.thread_list(account))
             if path == "/api/dashboard":
                 if role == "company-admin":
-                    scope = set(ACCOUNTS[account]["projects"])
                     return self.json(200, {"account": account, "role": role, "demo": True,
-                        "projects": sorted(scope),
-                        "accounts": [{"name": name, "role": data["role"], "active": data["active"], "projects": sorted(scope.intersection(data["projects"]))}
+                        "accounts": [{"name": name, "role": data["role"], "active": data["active"]}
                             for name, data in ACCOUNTS.items() if not data.get("deleted")],
-                        "audit": self.server.audit,
-                        "requests": [{"name": name, "role": item["role"]} for name, item in self.server.requests.items()],
-                        "apiStatus": {"checkedAt": datetime.now(timezone.utc).isoformat(), "status": "responding"},
-                        "runSummary": [{"release": key, "day": DEMO_RUN_DATES[key], "project": RELEASES[key]["project"], "stage": stage,
-                            "tool": run["tool"], "state": run["state"]}
-                            for key, release in RUNS.items() if RELEASES[key]["project"] in scope
-                            for stage, runs in release.items() for run in runs]})
+                        "audit": self.server.audit})
                 releases = []
                 for key, meta in RELEASES.items():
                     if self.visible(account, key):
@@ -268,7 +270,8 @@ class Handler(BaseHTTPRequestHandler):
                             "active": meta["active"], "day": DEMO_RUN_DATES.get(key), "outcome": view["outcome"]["result"] if view["outcome"] else None,
                             "returnReason": view["decisions"][-1]["reason"] if role == "developer" and view["decisions"] and view["decisions"][-1]["decision"] == "reject" else None,
                             "pendingReview": view["canApprove"], "failedRuns": sum(run["state"] == "error" for run in view["runs"])})
-                return self.json(200, {"account": account, "role": role, "demo": True, "releases": releases})
+                return self.json(200, {"account": account, "role": role, "demo": True, "releases": releases,
+                    "reviewAlerts": self.qa_review_alerts(account) if role == "qa" else []})
             parts = path.strip("/").split("/")
             if len(parts) in {3, 4} and parts[:2] == ["api", "releases"]:
                 key = parts[2]
@@ -281,17 +284,88 @@ class Handler(BaseHTTPRequestHandler):
                     return self.json(200, view, [("Content-Disposition", f'attachment; filename="{key}-evidence.json"')])
             self.fail(404, "not_found")
 
+    def qa_review_alerts(self, account):
+        alerts = []
+        for key, meta in RELEASES.items():
+            if meta["active"] != "security" or not self.visible(account, key):
+                continue
+            approved = [item for item in self.server.store.get(key).review_request_decisions
+                if item.status == "approved" and item.commit == meta["commit"]]
+            deadlines = {item.finding: item for item in approved if item.kind == "deadline"}
+            for item in approved:
+                deadline = item if item.kind == "deadline" else deadlines.get(item.finding)
+                alerts.append({"id": item.request_id, "kind": item.kind, "build": meta["build"],
+                    "commit": item.commit, "by": item.by, "at": item.timestamp.isoformat(),
+                    "approvedDeadline": (deadline.approved_deadline or deadline.requested) if deadline else None})
+        return sorted(alerts, key=lambda alert: alert["at"], reverse=True)
+
+    def decide_review_request(self, account, thread, data):
+        if not thread or not self.thread_allowed(account, thread) or ACCOUNTS[account]["role"] != "security":
+            return self.fail(403, "forbidden")
+        key = thread.get("release")
+        if not key or not self.visible(account, key):
+            return self.fail(403, "forbidden")
+        kind = "exception" if "exceptionRequest" in thread else "deadline"
+        request = thread.get("exceptionRequest" if kind == "exception" else "deadline")
+        choice = data.get("decision")
+        if choice not in ("approve", "reject"):
+            return self.fail(400, "invalid_input")
+        meta = RELEASES[key]
+        if not request or request["status"] != "pending" or thread.get("commit") != meta["commit"]:
+            return self.fail(409, "decision_unavailable")
+        record = self.server.store.get(key)
+        stage = record.stage("security")
+        finding_id = thread.get("finding")
+        approved_deadline = None
+        if "approvedDeadline" in data and (kind != "deadline" or choice != "approve"):
+            return self.fail(400, "invalid_input")
+        if kind == "deadline" and choice == "approve":
+            approved_deadline = data.get("approvedDeadline", request["requested"])
+            if not isinstance(approved_deadline, str) or not re.fullmatch(r"\d{4}-\d{2}-\d{2}(T\d{2}:\d{2})?", approved_deadline):
+                return self.fail(400, "invalid_input")
+            previous = next((item.approved_deadline or item.requested for item in reversed(record.review_request_decisions)
+                if item.kind == "deadline" and item.status == "approved" and item.finding == (finding_id or "")
+                and item.commit == meta["commit"]), request["original"])
+            try:
+                if datetime.fromisoformat(approved_deadline) <= datetime.fromisoformat(previous):
+                    return self.fail(409, "decision_unavailable")
+            except ValueError:
+                return self.fail(400, "invalid_input")
+        if kind == "exception" and choice == "approve":
+            if finding_id not in self.release_view(account, key)["exceptionEligible"]:
+                return self.fail(409, "decision_unavailable")
+            finding = next(item for item in stage.findings if item.fingerprint == finding_id)
+            finding.status = "excepted"
+            finding.exception = ExceptionRecord(justification=request["reason"], approved_by=account)
+            stage.decision = evaluate_policy(stage.findings, self.server.policy)
+        status = "approved" if choice == "approve" else "rejected"
+        decision = ReviewRequestDecision(request_id=thread["id"], commit=meta["commit"], finding=finding_id or "",
+            kind=kind, status=status, by=account, reason=request["reason"],
+            original=request.get("original"), requested=request.get("requested"), approved_deadline=approved_deadline)
+        record.review_request_decisions.append(decision)
+        self.server.store.save(record)
+        request.update(status=status, by=account)
+        if approved_deadline:
+            request["approvedDeadline"] = approved_deadline
+        return self.json(200, {"status": status})
+
     def thread_allowed(self, account, thread):
-        return account in thread["members"] and RELEASES[thread["release"]]["project"] in ACCOUNTS[account]["projects"]
+        if account not in thread["members"]:
+            return False
+        if thread.get("kind") == "administrative":
+            return True
+        return ACCOUNTS[account]["role"] != "company-admin" and RELEASES[thread["release"]]["project"] in ACCOUNTS[account]["projects"]
 
     def thread_list(self, account):
         return [{**thread, "unread": any(message["by"] != account for message in
             thread["messages"][self.server.read.get((account, thread["id"]), 0):]),
-            "evidenceAllowed": self.visible(account, thread["release"])}
+            "evidenceAllowed": thread.get("kind") != "administrative" and self.visible(account, thread["release"])}
             for thread in self.server.threads.values() if self.thread_allowed(account, thread)]
 
     def post_thread(self, account, path, data):
         body = data.get("message", "")
+        if path.endswith("/review-decision"):
+            return self.decide_review_request(account, self.server.threads.get(path.split("/")[-2]), data)
         if path.endswith("/read"):
             key = path.split("/")[-2]
             thread = self.server.threads.get(key)
@@ -301,7 +375,19 @@ class Handler(BaseHTTPRequestHandler):
             return self.json(200, {"ok": True})
         if not isinstance(body, str) or not 1 <= len(body.strip()) <= 1500:
             return self.fail(400, "invalid_input")
-        if path == "/api/threads":
+        if path == "/api/threads" and "recipient" in data:
+            if ACCOUNTS[account]["role"] != "company-admin":
+                return self.fail(403, "forbidden")
+            recipient, subject = data.get("recipient"), data.get("subject")
+            if set(data) != {"recipient", "subject", "message"} or not isinstance(recipient, str) or not isinstance(subject, str) or not 1 <= len(subject.strip()) <= 100:
+                return self.fail(400, "invalid_input")
+            employee = ACCOUNTS.get(recipient)
+            if not employee or not employee["active"] or employee["role"] == "company-admin":
+                return self.fail(403, "forbidden")
+            key = secrets.token_hex(8)
+            self.server.threads[key] = thread = {"id": key, "kind": "administrative", "subject": subject.strip(),
+                "members": [account, recipient], "messages": []}
+        elif path == "/api/threads":
             release = data.get("release")
 
             subject = data.get("subject")
@@ -309,11 +395,19 @@ class Handler(BaseHTTPRequestHandler):
                 return self.fail(400, "invalid_input")
             meta = RELEASES.get(release)
             is_admin = ACCOUNTS[account]["role"] == "company-admin"
-            if not meta or not (self.visible(account, release) or (is_admin and meta["project"] in ACCOUNTS[account]["projects"])):
+            if is_admin or not meta or not self.visible(account, release):
                 return self.fail(403, "forbidden")
             sender_role = ACCOUNTS[account]["role"]
+            exception_request = data.get("requestType") == "exception"
+            if exception_request and (sender_role != "developer" or meta["active"] != "security"
+                    or data.get("finding") not in self.release_view(account, release)["exceptionEligible"]
+                    or data.get("original") or data.get("requested")):
+                return self.fail(403, "forbidden")
+            if exception_request and any(t.get("release") == release and t.get("finding") == data.get("finding")
+                    and t.get("exceptionRequest", {}).get("status") == "pending" for t in self.server.threads.values()):
+                return self.fail(409, "decision_unavailable")
             if sender_role == "security" or (sender_role == "developer" and meta["active"] == "security"
-                    and (not data.get("original") or not data.get("requested")
+                    and not exception_request and (not data.get("original") or not data.get("requested")
                          or data.get("finding") not in self.release_view(account, release)["blockerIds"])):
                 return self.fail(403, "forbidden")
             owner = meta["owner"]
@@ -328,7 +422,7 @@ class Handler(BaseHTTPRequestHandler):
             if not members:
                 return self.fail(409, "recipient_unavailable")
             finding = data.get("finding")
-            if finding and (is_admin or not any(item["fingerprint"] == finding for item in self.release_view(account, release)["findings"])):
+            if finding and not any(item["fingerprint"] == finding for item in self.release_view(account, release)["findings"]):
                 return self.fail(403, "forbidden")
             deadline = None
             original, requested = data.get("original"), data.get("requested")
@@ -343,9 +437,11 @@ class Handler(BaseHTTPRequestHandler):
                 deadline = {"original": original, "requested": requested, "status": "pending", "reason": body.strip()}
             key = secrets.token_hex(8)
             thread = {"id": key, "release": release, "build": RELEASES[release]["build"],
-                "subject": subject.strip(), "finding": finding or None, "members": [account, *members], "messages": []}
+                "subject": subject.strip(), "commit": meta["commit"], "finding": finding or None, "members": [account, *members], "messages": []}
             if deadline:
                 thread["deadline"] = deadline
+            if exception_request:
+                thread["exceptionRequest"] = {"status": "pending", "reason": body.strip()}
             self.server.threads[key] = thread
         else:
             key = path.split("/")[-1]
@@ -360,20 +456,15 @@ class Handler(BaseHTTPRequestHandler):
         target = data.get("account")
         role = data.get("role")
         active = data.get("active")
-        assigned = data.get("assigned")
         if ACCOUNTS[account]["role"] != "company-admin":
             return self.fail(403, "forbidden")
-        if not isinstance(target, str) or target not in ACCOUNTS or ACCOUNTS[target].get("deleted") or target == account or role not in ("developer", "qa", "security") or type(active) is not bool or type(assigned) is not bool:
+        if not isinstance(target, str) or target not in ACCOUNTS or ACCOUNTS[target].get("deleted") or target == account or role not in ("developer", "qa", "security") or type(active) is not bool:
             return self.fail(400, "invalid_input")
-        projects = data.get("projects", ["portal"] if assigned else [])
-        if not isinstance(projects, list) or any(not isinstance(project, str) or project not in ACCOUNTS[account]["projects"] for project in projects):
-            return self.fail(400, "invalid_input")
-        ACCOUNTS[target].update(role=role, active=active, projects=sorted(set(projects)))
-        assigned = bool(projects)
+        ACCOUNTS[target].update(role=role, active=active)
         for token, owner in list(self.server.sessions.items()):
             if owner == target:
                 del self.server.sessions[token]
-        self.server.audit.append({"by": account, "target": target, "role": role, "active": active, "assigned": assigned,
+        self.server.audit.append({"by": account, "target": target, "role": role, "active": active,
             "at": datetime.now(timezone.utc).isoformat()})
         return self.json(200, {"ok": True})
 
@@ -395,36 +486,20 @@ class Handler(BaseHTTPRequestHandler):
             if owner == target:
                 del self.server.sessions[token]
         self.server.audit.append({"by": account, "target": target, "role": user["role"], "active": False,
-            "assigned": False, "action": "deleted", "at": datetime.now(timezone.utc).isoformat()})
+            "action": "deleted", "at": datetime.now(timezone.utc).isoformat()})
         return self.json(200, {"ok": True})
 
 
-    def request_account(self, data):
+    def create_account(self, data):
         name, password, role = (data.get(key) for key in ("account", "password", "role"))
         if not isinstance(name, str) or not re.fullmatch(r"[a-z][a-z0-9-]{2,31}", name) or not isinstance(password, str) or not 10 <= len(password) <= 128 or role not in ("developer", "qa", "security"):
             return self.fail(400, "invalid_input")
-        if name in ACCOUNTS or name in self.server.requests:
+        if name in ACCOUNTS:
             return self.fail(409, "account_exists")
         salt = secrets.token_bytes(16)
         digest = hashlib.pbkdf2_hmac("sha256", password.encode(), salt, 200_000)
-        self.server.requests[name] = {"role": role, "salt": salt, "digest": digest}
-        return self.json(201, {"status": "pending"})
-
-    def resolve_request(self, account, data):
-        if ACCOUNTS[account]["role"] != "company-admin":
-            return self.fail(403, "forbidden")
-        name, decision = data.get("account"), data.get("decision")
-        if not isinstance(name, str) or decision not in ("approve", "reject"):
-            return self.fail(400, "invalid_input")
-        item = self.server.requests.get(name)
-        if not item:
-            return self.fail(404, "not_found")
-        if decision == "approve":
-            ACCOUNTS[name] = {**item, "projects": ["portal"], "active": True}
-        del self.server.requests[name]
-        self.server.audit.append({"by": account, "target": name, "role": item["role"], "active": decision == "approve",
-            "assigned": decision == "approve", "at": datetime.now(timezone.utc).isoformat()})
-        return self.json(200, {"ok": True})
+        ACCOUNTS[name] = {"role": role, "salt": salt, "digest": digest, "projects": [], "active": True}
+        return self.json(201, {"status": "active"})
 
     def password_matches(self, name, password):
         if not isinstance(name, str) or name not in ACCOUNTS or not isinstance(password, str) or len(password) > 128:
@@ -461,7 +536,7 @@ class Handler(BaseHTTPRequestHandler):
         with self.server.lock:
             sid, account = self.auth()
             if path == "/api/signup":
-                return self.request_account(data)
+                return self.create_account(data)
             if path == "/api/login":
                 name, password = data.get("account"), data.get("password")
                 if not self.password_matches(name, password):
@@ -475,8 +550,6 @@ class Handler(BaseHTTPRequestHandler):
             if path == "/api/logout":
                 self.server.sessions.pop(sid, None)
                 return self.json(200, {"ok": True}, [("Set-Cookie", "yaqidh_session=; Path=/; Max-Age=0; HttpOnly; SameSite=Strict")])
-            if path == "/api/company/requests":
-                return self.resolve_request(account, data)
             if path == "/api/company/accounts/delete":
                 return self.delete_account(account, data)
             if path == "/api/company/accounts":
