@@ -23,8 +23,21 @@ function landing(){
 
     +'<section class="lp-section" id="problem"><span class="lp-eyebrow">'+copy('المشكلة','The problem')+'</span><h2>'+copy('من لفّات لا تنتهي إلى إطلاق أسرع','From endless rounds to a faster release')+'</h2>'
     +'<p class="lp-lead">'+copy('كل مراجعة أمنية تعني دورة جديدة من الانتظار.','Every security review means a new round of waiting.')+'</p>'
-    +'<div class="lp-two"><article class="lp-col lp-bad"><h3 class="lp-col-title">'+copy('بدون يَقِـــظ','Without Yaqidh')+'</h3><ol class="lp-line"><li><i>1</i>'+copy('يُرسل المنتج إلى فريق الأمن السيبراني.','The product is sent to the cybersecurity team.')+'</li><li><i>2</i>'+copy('يبدأ الفريق بفحص المنتج.','The team starts checking the product.')+'</li><li><i>3</i>'+copy('تُكتشف ثغرات تتطلب المعالجة.','Vulnerabilities that need fixing are found.')+'</li><li><i>4</i>'+copy('يعود المنتج إلى المطوّر لإصلاح الثغرات.','The product goes back to the developer to fix them.')+'</li><li><i>5</i>'+copy('يُعاد المنتج إلى الفريق الأمني للتحقق من نجاح الإصلاحات.','The product returns to the security team to verify the fixes.')+'</li></ol><p class="muted">'+copy('وقت أطول في المراجعات، وجهد متكرر بين فريقي التطوير والأمن السيبراني، وتأخير في إطلاق المنتج.','More time in reviews, repeated effort between the development and cybersecurity teams, and a delayed product release.')+'</p></article>'
-    +'<article class="lp-col lp-good"><h3 class="lp-col-title"><span class="grad">'+copy('مع يَقِـــظ','With Yaqidh')+'</span></h3><ol class="lp-line"><li><i>1</i>'+copy('يفحص التعديلات تلقائيًا.','Checks changes automatically.')+'</li><li><i>2</i>'+copy('يكتشف المشكلات الأمنية ويحللها.','Finds and analyzes security issues.')+'</li><li><i>3</i>'+copy('يشرح الثغرات للمطوّر.','Explains the vulnerabilities to the developer.')+'</li><li><i>4</i>'+copy('يعيد الفحص تلقائيًا بعد الإصلاحات للتحقق من معالجتها.','Re-checks automatically after fixes to verify they were resolved.')+'</li><li><i>5</i>'+copy('يجهّز النتائج للفريق الأمني لاتخاذ القرار النهائي.','Prepares the results for the security team to make the final decision.')+'</li></ol><p class="muted">'+copy('فحوصات مؤتمتة، مراجعات أكثر وضوحًا، وطريق أسرع نحو الإطلاق الآمن.','Automated checks, clearer reviews, and a faster path to a safe release.')+'</p></article></div></section>'
+    +'<div class="lp-two"><article class="lp-col lp-bad"><h3 class="lp-col-title">'+copy('بدون يَقِـــظ','Without Yaqidh')+'</h3>'
+    +seq('bad',[[ICON.shield,copy('فريق الأمن السيبراني','Cybersecurity team')],[ICON.code,copy('المطوّر','Developer')]],[
+      ['to-start',copy('يُرسل المنتج إلى فريق الأمن السيبراني','The product is sent to the cybersecurity team')],
+      ['to-end',copy('يفحصه الفريق وتُكتشف ثغرات، فيعود المنتج للمطوّر','The team checks it and finds vulnerabilities, so it returns to the developer')],
+      ['to-start',copy('يُصلح المطوّر ويُعاد المنتج للتحقق من نجاح الإصلاحات','The developer fixes it and it is sent back to verify the fixes')],
+      ['to-end',copy('وتُكتشف ثغرات أخرى... فتتكرر الدورة','Then other vulnerabilities appear... and the cycle repeats')]],
+      '<div class="seq-lap" aria-hidden="true"><span>↻ '+copy('لفّة 1','Round 1')+'</span><span>↻ '+copy('لفّة 2','Round 2')+'</span><span>↻ '+copy('لفّة 3','Round 3')+'</span></div>')
+    +'<p class="muted">'+copy('وقت أطول في المراجعات، وجهد متكرر بين فريقي التطوير والأمن السيبراني، وتأخير في إطلاق المنتج.','More time in reviews, repeated effort between the development and cybersecurity teams, and a delayed product release.')+'</p></article>'
+    +'<article class="lp-col lp-good"><h3 class="lp-col-title"><span class="grad">'+copy('مع يَقِـــظ','With Yaqidh')+'</span></h3>'
+    +seq('good',[[ICON.loop,copy('يَقِـــظ','Yaqidh')],[ICON.code,copy('المطوّر','Developer')]],[
+      ['to-start',copy('يُرسل المطوّر تعديله، فيُفحص تلقائيًا','The developer sends a change and it is checked automatically')],
+      ['to-end',copy('يكتشف المشكلات الأمنية ويحللها ويشرحها للمطوّر','Finds and analyzes security issues and explains them to the developer')],
+      ['to-start',copy('يُصلح المطوّر، فيُعاد الفحص تلقائيًا للتحقق من المعالجة','The developer fixes it and the check re-runs automatically to verify')]],
+      '<div class="seq-final"><span class="seq-chip">'+ICON.shield+copy('يجهّز النتائج للفريق الأمني لاتخاذ القرار النهائي','Prepares the results for the security team to make the final decision')+'</span></div>')
+    +'<p class="muted">'+copy('فحوصات مؤتمتة، مراجعات أكثر وضوحًا، وطريق أسرع نحو الإطلاق الآمن.','Automated checks, clearer reviews, and a faster path to a safe release.')+'</p></article></div></section>'
 
     +'<section class="lp-section" id="about"><span class="lp-eyebrow">'+copy('كيف يعمل','How it works')+'</span><h2>'+copy('كيف يمشي الطلب','How a request moves')+'</h2><ol class="lp-journey">'
     +journey.map(([title,text],i)=>'<li><i>'+(i+1)+'</i><b>'+title+'</b><small>'+text+'</small></li>').join('')+'</ol>'
@@ -48,4 +61,15 @@ function startTyping(){
   el.classList.add('typing');
   let i=0;
   const timer=setInterval(()=>{i++;el.textContent=full.slice(0,i);if(i>=full.length){clearInterval(timer);el.classList.remove('typing')}},36);
+}
+
+/* a sequence diagram: two actors and the arrows that go back and forth between them */
+const ICON={
+  shield:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 3v5c0 5-3.2 8.6-7 10-3.8-1.4-7-5-7-10V6z"/><path d="M9 12l2 2 4-4"/></svg>',
+  code:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 8l-4 4 4 4M16 8l4 4-4 4M13.5 6l-3 12"/></svg>',
+  loop:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.4-5.7M20 4v4h-4"/></svg>'
+};
+function seq(kind,actors,rows,tail){
+  return '<div class="seq '+kind+'"><div class="seq-head">'+actors.map(([icon,name])=>'<span class="seq-actor">'+icon+'<b>'+name+'</b></span>').join('')+'</div>'
+    +'<ol class="seq-rows">'+rows.map(([dir,text])=>'<li class="'+dir+'"><span class="seq-text">'+text+'</span><span class="seq-arrow"></span></li>').join('')+'</ol>'+tail+'</div>';
 }

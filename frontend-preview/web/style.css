@@ -318,3 +318,22 @@ a.action.hdr-login{background:var(--grad);border:0;color:#fff;border-radius:999p
 
 .lp-lead{font-size:clamp(18px,2vw,22px);margin-top:-16px;color:color-mix(in srgb,var(--text) 78%,transparent)}
 .lp-line li{align-items:center}
+
+/* ---- sequence diagram (problem section) ---- */
+.seq{width:min(440px,100%);display:grid;gap:16px}.seq.bad{--tone:var(--bad)}.seq.good{--tone:var(--brand)}
+.seq-head{display:grid;grid-template-columns:1fr 1fr}.seq-actor{display:grid;justify-items:center;gap:8px;font-size:15px}
+.seq-actor svg{width:52px;height:52px;padding:13px;border-radius:50%;border:1.5px solid var(--tone);background:color-mix(in srgb,var(--tone) 12%,var(--surface));fill:none;stroke:var(--tone);stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.seq-rows{list-style:none;margin:0;padding:6px 0;display:grid;gap:22px;position:relative}
+.seq-rows::before,.seq-rows::after{content:"";position:absolute;top:0;bottom:0;border-inline-start:1.5px dashed var(--line)}.seq-rows::before{inset-inline-start:25%}.seq-rows::after{inset-inline-start:75%}
+.seq-rows li{margin-inline:22%;display:grid;gap:8px;text-align:center;font-size:15px;line-height:1.6;opacity:.25;animation:seq-step 9s ease-in-out infinite}
+.seq-rows li:nth-child(2){animation-delay:1.8s}.seq-rows li:nth-child(3){animation-delay:3.6s}.seq-rows li:nth-child(4){animation-delay:5.4s}
+.seq-arrow{position:relative;display:block;height:2px;border-radius:2px;background:var(--tone)}
+.to-start .seq-arrow::after{content:"";position:absolute;inset-inline-start:-1px;top:-4px;border-block:5px solid transparent;border-inline-end:9px solid var(--tone)}
+.to-end .seq-arrow::after{content:"";position:absolute;inset-inline-end:-1px;top:-4px;border-block:5px solid transparent;border-inline-start:9px solid var(--tone)}
+@keyframes seq-step{0%{opacity:.25;transform:translateY(5px)}8%,70%{opacity:1;transform:none}90%,100%{opacity:.25}}
+.seq-lap{position:relative;height:34px;display:grid;place-items:center}.seq-lap span{position:absolute;padding:5px 18px;border-radius:999px;border:1px solid var(--bad);color:var(--bad);font-weight:600;opacity:0;animation:seq-lap 9s steps(1) infinite}
+.seq-lap span:nth-child(2){animation-delay:3s}.seq-lap span:nth-child(3){animation-delay:6s}@keyframes seq-lap{0%{opacity:1}33.3%,100%{opacity:0}}
+.seq-final{display:grid;place-items:center}.seq-chip{display:inline-flex;align-items:center;gap:10px;padding:9px 18px;border-radius:999px;border:1px solid var(--brand);background:color-mix(in srgb,var(--brand) 12%,var(--surface));font-size:15px;font-weight:600}
+.seq-chip svg{width:22px;height:22px;fill:none;stroke:var(--brand);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.lp-col .muted{max-width:440px}
+@media(prefers-reduced-motion:reduce){.seq-rows li{animation:none;opacity:1}.seq-lap span{animation:none}.seq-lap span:first-child{opacity:1}}
