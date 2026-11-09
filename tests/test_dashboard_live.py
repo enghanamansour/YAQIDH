@@ -179,3 +179,14 @@ def test_a_tampered_history_is_shown_as_broken(world, tmp_path):
     path.write_text("\n".join(lines) + "\n")
     view = Browser(dash).login("qa").call("GET", "/api/releases/r1")[1]
     assert view["log"]["verified"]["ok"] is False and view["log"]["verified"]["broken_at"] == 1
+
+
+def test_with_no_real_releases_every_number_is_zero_and_nothing_is_seeded(world):
+    stack, dash, _ = world
+    for account in ("developer", "qa", "security", "company-admin"):
+        b = Browser(dash).login(account)
+        board = b.call("GET", "/api/dashboard")[1]
+        assert board.get("releases", []) == [] and board.get("runSummary", []) == [], account
+        assert b.call("GET", "/api/threads")[1] == [], account
+        if account == "company-admin":
+            assert board["requests"] == []  # no demo "pending account request" either

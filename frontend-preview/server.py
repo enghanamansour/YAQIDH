@@ -143,7 +143,7 @@ class DemoServer(ThreadingHTTPServer):
         self.read = {}
         self.audit = []
         salt = secrets.token_bytes(16)
-        self.requests = {"demo-reviewer": {"role": "qa", "salt": salt,
+        self.requests = {} if live else {"demo-reviewer": {"role": "qa", "salt": salt,
             "digest": hashlib.pbkdf2_hmac("sha256", PASSWORD.encode(), salt, 200_000)}}
         self.threads = {} if live else {"deadline-128": {"id": "deadline-128", "release": "portal-128", "build": 128,
             "subject": "deadline-demo", "members": ["security", "company-admin"], "finding": "semgrep-demo-001",
@@ -535,6 +535,7 @@ def main():
         if args.api_url:
             os.environ["YAQIDH_API_URL"] = args.api_url
         policy = load_policy(ROOT.parent / "config/policy.yaml")
+        ACCOUNTS["company-admin"]["projects"] = ["portal"]  # the demo's second project ("research") does not exist in live mode
         backend = live_module.from_env(Evidence, [n for n, a in ACCOUNTS.items() if a["role"] == "developer"])
         with DemoServer(("127.0.0.1", args.port), live_module.LiveStore(backend), {}, policy, backend) as server:
             print(f"YAQIDH dashboard (live, API {backend.base_url}): http://127.0.0.1:{server.server_port}/dashboard", flush=True)
