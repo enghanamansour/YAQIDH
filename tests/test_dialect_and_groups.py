@@ -157,3 +157,16 @@ async def test_loop_stores_the_dialect_text_and_the_group(service, tmp_path):
     assert run.stopped == "done" and not run.calls[0]["error"]
     f = explained(service)
     assert "ينبني" in f["F-1"]["explanation"]["text"] and f["F-2"]["explanation"]["text"] == f["F-1"]["explanation"]["text"]
+
+
+async def test_an_explanation_with_an_egyptian_word_is_sent_back_to_the_model(service, tmp_path):
+    egyptian = ORIGINAL.replace("المهاجم يقدر", "المهاجم يقدر تاني")
+    chat = ScriptedChat(
+        call("append_evidence", release_id="r1", stage="security", fingerprint="F-5", text=egyptian),
+        say("done"),
+    )
+    async with connect(create_server(service)) as session:
+        run = await AgentLoop(session, chat, Skills(tmp_path / "none")).run("r1")
+    assert run.calls[0]["error"]
+    assert "Saudi" in chat.sent[1][0][-1]["content"]
+    assert explained(service)["F-5"]["explanation"] is None  # nothing was stored

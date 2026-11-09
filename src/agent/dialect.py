@@ -24,6 +24,15 @@ def parse(text: str) -> dict | None:
     return parts if all(parts.values()) else None
 
 
+def non_saudi_word(text: str) -> str | None:
+    """A clear Egyptian or Levantine marker word in the text, or None. A fixed list, so it cannot prove the text is Saudi."""
+    try:
+        _, module = _backend_modules()
+        return module._not_saudi_word(text)
+    except Exception:  # the check must never block an explanation by failing
+        return None
+
+
 def assemble(parts: dict) -> str:
     return "\n".join(f"{LABELS[k]}: {parts[k]}" for k in LABELS)
 

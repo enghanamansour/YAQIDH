@@ -241,7 +241,8 @@ def _has_word(text: str, stem: str) -> bool:
 # Clear markers of Egyptian / Levantine / Maghrebi speech. The model drifted into these
 # even when told to write Saudi, so an answer that uses one is not accepted as Saudi.
 _NOT_SAUDI = frozenset({"ده", "دي", "دا", "كده", "كدا", "هادي", "هاد", "مش", "عايز", "عايزة",
-                        "دلوقتي", "إنو", "انو", "أوي", "اوي"})
+                        "دلوقتي", "دلوقت", "إنو", "انو", "أوي", "اوي", "تاني", "تانية", "تانيه", "بتاع", "بتاعة",
+                        "بتاعت", "إزاي", "ازاي", "برضو", "برضه", "بقى", "بقا"})
 
 
 def _not_saudi_word(text: str) -> str | None:

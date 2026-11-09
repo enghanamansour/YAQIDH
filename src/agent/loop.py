@@ -16,6 +16,7 @@ import httpx
 from jsonschema import ValidationError, validate
 from mcp import ClientSession
 
+from src.agent.dialect import non_saudi_word
 from src.agent.prompt import SYSTEM_PROMPT, task_message
 from src.agent.skills import SkillError, Skills
 from src.phases.status import release_status
@@ -215,6 +216,10 @@ class AgentLoop:
     async def _explanation_problem(self, args: dict) -> str | None:
         if "`" in args["text"]:
             return "explanations are words only: no code, no commands, no backticks"
+        foreign = non_saudi_word(args["text"])
+        if foreign:
+            return (f"the word '{foreign}' is Egyptian or Levantine. Write the whole explanation again in Saudi "
+                    "dialect (for example ليش، وش، مثل، يمدي، ما)")
         found = await self.session.call_tool("get_findings", {"release_id": args["release_id"], "stage": args["stage"]})
         items = (found.structuredContent or {}).get("result", [])
         for f in items:
