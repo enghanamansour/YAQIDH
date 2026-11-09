@@ -364,3 +364,8 @@ a.action.hdr-login{background:var(--grad);border:0;color:#fff;border-radius:999p
 .sw-link .b::after{content:"";position:absolute;bottom:-1px;left:50%;translate:-50% 0;border-inline:5px solid transparent;border-top:9px solid var(--t)}
 @media(max-width:900px){.sw-head,.sw-link,.sw-body::before,.sw-body::after{display:none}.sw-body{display:grid;grid-template-columns:1fr;gap:14px}.sw-node.col1,.sw-node.col2,.sw-node.col3{grid-column:1;margin-inline:0}.sw-tag{display:block}}
 @media(prefers-reduced-motion:reduce){.sw-node{animation:none}}
+
+/* a step that stays in the same lane: a straight arrow down */
+.sw-link.l11{grid-column:1;margin-inline:0}.sw-link.l11 i{display:none}
+.sw-link.l11::before{inset:0 auto;inset-inline:auto;left:calc(50% - 1px);width:2px;height:100%;top:0}
+.sw-link.l11::after{content:"";position:absolute;bottom:-1px;left:50%;translate:-50% 0;border-inline:5px solid transparent;border-top:9px solid var(--t)}

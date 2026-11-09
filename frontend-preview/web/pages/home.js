@@ -5,12 +5,12 @@ function landing(){
   const go=profile?(profile.role==='company-admin'?'/admin':'/dashboard'):'/login';
   const goLabel=profile?copy('فتح لوحة المتابعة','Open the dashboard'):copy('تسجيل الدخول','Sign in');
   const journey=[
-    [copy('فتح الطلب','Pull request opened'),copy('المطوّر يرفع تعديله.','The developer pushes a change.')],
+    [copy('فتح الطلب','Pull request opened'),copy('المطوّر يرفع تعديله على GitHub.','The developer pushes a change to GitHub.')],
     [copy('فحص الجودة','Quality check'),copy('يفحص الجودة الأمنية للتطبيق عبر اختبارات تحاكي سيناريوهات الهجوم.','Checks the security quality of the application with tests that simulate attack scenarios.')],
     [copy('موافقة الجودة','QA approval'),copy('يراجع المختص نتائج الاختبارات ويقيّمها، ثم يقرر اعتماد التعديل أو إعادته للمطوّر مع توضيح الملاحظات.','A specialist reviews and assesses the test results, then approves the change or returns it to the developer with the findings explained.')],
     [copy('الفحص الأمني','Security check'),copy('يحلل الكود والمكتبات البرمجية لاكتشاف الثغرات الأمنية، ويشرح مخاطرها، ثم يعيد الفحص للتحقق من نجاح الإصلاحات.','Analyzes the code and libraries to find vulnerabilities, explains their risks, then re-checks to verify the fixes worked.')],
     [copy('موافقة الأمن','Security approval'),copy('يراجع المختص نتائج الفحص والثغرات المتبقية، ويقرر اعتماد التعديل أو إعادته لمعالجة المخاطر.','A specialist reviews the results and the remaining vulnerabilities, then approves the change or returns it to address the risks.')],
-    [copy('جاهز للدمج','Ready to merge'),copy('يُسمح بدمج التعديل بعد استيفاء متطلبات الفحص والاعتماد من قبل المختص. وأي تعديل جديد يستلزم إعادة الفحص قبل السماح بالدمج.','The change may be merged once the checks and the specialist approval are complete. Any new change needs a re-check before merging is allowed.')]
+    [copy('جاهز للإطــلاق','Ready to release'),copy('بعد الاعتماد النهائي من المختص، يُسمح بالإطلاق.','After the specialist\'s final approval, the release is allowed.')]
   ];
   const ring=(r,cls)=>'<svg class="lp-ring '+cls+'" viewBox="0 0 400 400" aria-hidden="true"><circle cx="200" cy="200" r="'+r+'"/></svg>';
   return '<main class="landing2">'
@@ -78,9 +78,9 @@ function seq(kind,actors,rows,tail){
 /* swimlanes: who does each step (the specialist, يَقِـــظ, or the developer) and how the request moves between them */
 ICON.person='<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c1-4 4-6 7-6s6 2 7 6"/></svg>';
 function swim(steps){
-  const lanes=['dev','auto','human','auto','human','auto'];
+  const lanes=['dev','auto','human','auto','human','human'];
   const col={human:'col1',auto:'col2',dev:'col3'};
-  const links=[['l23','to-start'],['l12','to-start'],['l12','to-end'],['l12','to-start'],['l12','to-end']];
+  const links=[['l23','to-start'],['l12','to-start'],['l12','to-end'],['l12','to-start'],['l11','down']];
   const head=[['human',ICON.person,copy('المختص','The specialist'),copy('قرار بشري','Human decision')],['auto',ICON.loop,copy('يَقِـــظ','Yaqidh'),copy('تلقائي','Automatic')],['dev',ICON.code,copy('المطوّر','The developer'),copy('يُصلح ويرفع','Fixes and pushes')]];
   const lane=l=>({human:copy('قرار بشري','Human decision'),auto:copy('تلقائي','Automatic'),dev:copy('المطوّر','Developer')})[l];
   let body='';
