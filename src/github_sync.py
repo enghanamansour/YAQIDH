@@ -45,6 +45,15 @@ def release_id_for(repo: str, pr: int) -> str:
     return safe[-64:].lstrip("-") or f"pr{pr}"
 
 
+def _safe(text: str) -> str:
+    """Text from a scanner or from the model goes into a PUBLIC comment: it must not ping people, link out or inject HTML."""
+    text = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    text = re.sub(r"@(?=[A-Za-z0-9_-])", "@\u200b", text)  # no @mentions (a zero-width space stops the ping)
+    text = text.replace("](", "] (")  # no [text](url) links
+    text = re.sub(r"(?i)\b(https?)://", "\\1\u200b://", text)  # bare links are not turned into links
+    return text.replace("`", "'")  # a stray backtick would break the code span around the rule name
+
+
 def _stage_section(record: StageRecord) -> list[str]:
     name = _STAGE_NAME[record.name]
     if record.scanned_at is None:
@@ -55,26 +64,26 @@ def _stage_section(record: StageRecord) -> list[str]:
     closed = [f for f in record.findings if f.status == FindingStatus.FIXED and f.closure and f.closure.result == "closed"]
     lines = [f"### {name}: {verdict}", f"_القرار من محرك السياسة، مو من الـ AI._ مفتوح: {len(open_)} | انقفل: {len(closed)}", ""]
     for f in sorted(open_, key=lambda f: (f.severity.value != "high", f.location)):
-        lines.append(f"#### [{f.severity.value.upper()}] `{f.rule}` — {f.location}")
+        lines.append(f"#### [{f.severity.value.upper()}] `{_safe(f.rule)}` — {_safe(f.location)}")
         meta = [f"البصمة: {f.fingerprint}"]
         if f.component:
-            meta.append(f"المكتبة: {f.component}")
+            meta.append(f"المكتبة: {_safe(f.component)}")
         if f.fixed_version:
-            meta.append(f"النسخة المصلحة: {f.fixed_version}")
+            meta.append(f"النسخة المصلحة: {_safe(f.fixed_version)}")
         if f.cwe:
-            meta.append(f"التصنيف: {f.cwe}")
+            meta.append(f"التصنيف: {_safe(f.cwe)}")
         lines.append(" | ".join(meta))
         if f.confidence == "low":
             lines.append("⚠️ الأداة نفسها غير متأكدة من هذي الملاحظة (ثقة منخفضة)، تأكد منها قبل ما تعدّل.")
         if f.explanation:
-            lines += ["", f"> **شرح يقظ (كتبه الـ AI، مو حقيقة مثبتة):**", *[f"> {line}" for line in f.explanation.text.splitlines()]]
+            lines += ["", f"> **شرح يقظ (كتبه الـ AI، مو حقيقة مثبتة):**", *[f"> {line}" for line in _safe(f.explanation.text).splitlines()]]
         elif f.detail:
-            lines.append(f"ملاحظة الأداة: {f.detail}")
+            lines.append(f"ملاحظة الأداة: {_safe(f.detail)}")
         lines.append("")
     if closed:
         lines += ["**انقفلت (تأكد منها الفحص المعاد):** " + ", ".join(f.fingerprint for f in closed), ""]
     if record.flaky_tests:
-        lines += ["**فحوصات متذبذبة (نجحت بعد إعادة المحاولة، مسجلة ومو ملاحظات):** " + ", ".join(record.flaky_tests), ""]
+        lines += ["**فحوصات متذبذبة (نجحت بعد إعادة المحاولة، مسجلة ومو ملاحظات):** " + _safe(", ".join(record.flaky_tests)), ""]
     return lines
 
 

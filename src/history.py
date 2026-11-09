@@ -9,9 +9,10 @@ This detects tampering; it does not prevent someone who rewrites the whole file 
 import hashlib
 import json
 import re
-import threading
 from datetime import datetime, timezone
 from pathlib import Path
+
+from src.lock import InterProcessLock
 
 _RELEASE_ID = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 GENESIS = "0" * 64
@@ -26,7 +27,7 @@ class HistoryLog:
     def __init__(self, directory: Path):
         self.directory = Path(directory)
         self.directory.mkdir(parents=True, exist_ok=True)
-        self._lock = threading.Lock()
+        self._lock = InterProcessLock(self.directory / ".lock")  # the API and the MCP server both append
 
     def _path(self, release_id: str) -> Path:
         if not _RELEASE_ID.match(release_id):

@@ -10,7 +10,7 @@ import hashlib
 import hmac
 import json
 import os
-from collections import Counter
+from collections import Counter, OrderedDict
 from typing import Awaitable, Callable, Literal
 
 from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException, Request
@@ -72,6 +72,7 @@ def create_app(
     workflow = Workflow(service)
     running: set[str] = set()  # releases whose agent is working right now
     rerun: set[str] = set()  # a newer event arrived while the agent was working
+    seen_deliveries: OrderedDict[str, None] = OrderedDict()  # recent webhook delivery ids, to ignore a redelivery
 
     def release_or_404(release_id: str):
         try:
@@ -230,6 +231,7 @@ def create_app(
         background: BackgroundTasks,
         x_hub_signature_256: str | None = Header(default=None),
         x_github_event: str | None = Header(default=None),
+        x_github_delivery: str | None = Header(default=None),
     ) -> dict:
         secret = os.environ.get("GITHUB_WEBHOOK_SECRET")
         if not secret:
@@ -254,6 +256,12 @@ def create_app(
             raise HTTPException(422, "not a pull_request event we understand")
         if action not in ("opened", "reopened", "synchronize"):
             return {"ignored": f"pull_request.{action}"}
+        if x_github_delivery:  # GitHub redelivers an event with the same delivery id: handle it once
+            if x_github_delivery in seen_deliveries:
+                return {"ignored": "duplicate delivery"}
+            seen_deliveries[x_github_delivery] = None
+            if len(seen_deliveries) > 1000:
+                seen_deliveries.popitem(last=False)
         release_id = release_id_for(repo, number)
         event = "pull_request_opened" if action in ("opened", "reopened") else "push"
         try:

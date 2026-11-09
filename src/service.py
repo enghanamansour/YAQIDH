@@ -5,11 +5,11 @@ for a decision, and add explanation text. It cannot: choose tools or targets, se
 write a closure, record an exception, or record a human decision.
 """
 
-import threading
 from pathlib import Path
 
 from src.phases.status import ReleaseStatus, release_status
 from src.history import HistoryLog
+from src.lock import InterProcessLock
 from src.policy import evaluate_policy, load_policy
 from src.scanning import CURRENT_RELEASE, NoRunner, Runner, ScanResult
 from src.schema import (
@@ -53,7 +53,8 @@ class ReleaseService:
         self.policy_path = Path(policy_path)
         self.runners = runners
         self.target = Path(target)
-        self._lock = threading.Lock()  # one writer at a time, so two calls never overwrite each other
+        # one writer at a time, in this process AND in the other one (the API and the MCP server share the files)
+        self._lock = InterProcessLock(self.store.data_dir / ".lock")
 
     def _log(self, release_id: str, event: str, actor: str, **data) -> None:
         if self.history is not None:
