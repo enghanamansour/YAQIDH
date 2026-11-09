@@ -254,14 +254,19 @@ class ReleaseService:
 
     def submit_scan_results(
         self, release_id: str, commit: str, findings: list[Finding], versions: dict[str, str],
-        tools_run: list[str], components: list[str], by: str = "ci",
+        tools_run: list[str], components: list[str], by: str = "ci", stage: str = "security", flaky: list[str] | None = None,
     ) -> dict:
-        """Store the security results a CI job sent for the newest commit. They are used when the stage's turn comes."""
-        missing = {"semgrep", "trivy"} - set(tools_run)
-        if missing:
-            raise ServiceError(f"the results must come from both tools; missing: {', '.join(sorted(missing))}")
-        if not {"semgrep-rules", "trivy", "trivy-db"} <= versions.keys():
-            raise ServiceError("the results must include the versions semgrep-rules, trivy and trivy-db")
+        """Store the results a CI job sent for the newest commit. They are used when the stage's turn comes."""
+        name = self._stage(stage)
+        if name == StageName.SECURITY:
+            missing = {"semgrep", "trivy"} - set(tools_run)
+            if missing:
+                raise ServiceError(f"the results must come from both tools; missing: {', '.join(sorted(missing))}")
+            if not {"semgrep-rules", "trivy", "trivy-db"} <= versions.keys():
+                raise ServiceError("the results must include the versions semgrep-rules, trivy and trivy-db")
+        else:
+            if "playwright" not in tools_run or "playwright" not in versions:
+                raise ServiceError("the QA results must come from playwright, with its version")
         clean = [
             f.model_copy(update={"status": FindingStatus.OPEN, "explanation": None, "closure": None, "exception": None,
                                  "origin": "initial"})
@@ -273,8 +278,12 @@ class ReleaseService:
             evidence = self.store.get(release_id)
             if commit != evidence.head_commit:
                 raise ServiceError(f"these results are for {commit[:8]}, but the newest commit is {evidence.head_commit[:8]}")
-            evidence.pending_scan = PendingScan(commit=commit, findings=clean, versions=versions,
-                                                tools_run=sorted(tools_run), components=sorted(components))
+            pending = PendingScan(commit=commit, findings=clean, versions=versions, tools_run=sorted(tools_run),
+                                  components=sorted(components), flaky=sorted(flaky or []))
+            if name == StageName.QA:
+                evidence.pending_qa_scan = pending
+            else:
+                evidence.pending_scan = pending
             self.store.save(evidence)
-        self._log(release_id, "scan_results_received", by, commit=commit, findings=len(clean), tool_versions=versions)
-        return {"release_id": release_id, "commit": commit, "findings": len(clean)}
+        self._log(release_id, "scan_results_received", by, stage=stage, commit=commit, findings=len(clean), tool_versions=versions)
+        return {"release_id": release_id, "stage": stage, "commit": commit, "findings": len(clean)}

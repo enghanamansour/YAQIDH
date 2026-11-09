@@ -50,10 +50,12 @@ class ScanSubmission(BaseModel):
     """Security results a CI job sends: findings already fingerprinted by our own tools, plus what ran and which versions."""
 
     commit: str = Field(min_length=4, max_length=64)
+    stage: Literal["qa", "security"] = "security"
     findings: list[Finding]
     versions: dict[str, str]
     tools_run: list[str]
     components: list[str] = []
+    flaky: list[str] = []
 
 
 def require_token(x_api_token: str | None = Header(default=None)) -> None:
@@ -132,15 +134,19 @@ def create_app(
     @app.post("/releases/{release_id}/scan-results", status_code=202, dependencies=auth)
     def receive_scan_results(release_id: str, body: ScanSubmission, background: BackgroundTasks) -> dict:
         try:
-            out = service.submit_scan_results(release_id, body.commit, body.findings, body.versions, body.tools_run, body.components)
+            out = service.submit_scan_results(release_id, body.commit, body.findings, body.versions, body.tools_run,
+                                              body.components, stage=body.stage, flaky=body.flaky)
         except ServiceError as e:
             raise HTTPException(409, str(e))
         except ValueError as e:
             raise HTTPException(422, str(e))
         applied, error = False, None
         try:  # if it is security's turn the results are used at once, otherwise they wait for it
-            workflow.apply_security_results(release_id)
-            applied = service.store.get(release_id).stage(StageName.SECURITY).scanned_commit == body.commit
+            if body.stage == "qa":
+                workflow.apply_qa_results(release_id)
+            else:
+                workflow.apply_security_results(release_id)
+            applied = service.store.get(release_id).stage(StageName(body.stage)).scanned_commit == body.commit
         except (ServiceError, VerifierError, ToolError) as e:
             error = str(e)[:300]
             history.append(release_id, "scan_results_not_applied", "system", {"error": error})

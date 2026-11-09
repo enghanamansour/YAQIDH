@@ -116,6 +116,7 @@ class PendingScan(BaseModel):
     versions: dict[str, str] = Field(default_factory=dict)
     tools_run: list[str] = Field(default_factory=list)
     components: list[str] = Field(default_factory=list)
+    flaky: list[str] = Field(default_factory=list)  # QA checks that failed once and passed on a retry
     received_at: datetime = Field(default_factory=utcnow)
 
 
@@ -132,6 +133,8 @@ class Evidence(BaseModel):
     branch: str = ""
     # Security scan results sent by CI for head_commit, used when SCAN_SOURCE=ci.
     pending_scan: PendingScan | None = None
+    # The same for the QA stage (the PR's own app was tested by Playwright in CI).
+    pending_qa_scan: PendingScan | None = None
 
     def stage(self, name: StageName) -> StageRecord:
         """Return the stage record, creating it on first use."""

@@ -73,17 +73,18 @@ class NoRunner(ToolError):
     pass
 
 
-def submitted_runner(store) -> Runner:
-    """Security results come from a CI job (it has the pull request's code), not from a scan on this machine."""
+def submitted_runner(store, stage: StageName = StageName.SECURITY) -> Runner:
+    """Results come from a CI job (it has the pull request's code), not from a scan on this machine."""
 
     def run(target: Path) -> ScanResult:
         evidence = store.get(CURRENT_RELEASE.get())
-        pending = evidence.pending_scan
+        pending = evidence.pending_qa_scan if stage == StageName.QA else evidence.pending_scan
         if pending is None or pending.commit != evidence.head_commit:
             raise ToolError(
-                f"waiting for the CI scan results of commit {evidence.head_commit[:8] or '(none yet)'}; nothing was scanned"
+                f"waiting for the CI {stage.value} results of commit {evidence.head_commit[:8] or '(none yet)'}; nothing was scanned"
             )
-        return ScanResult(list(pending.findings), dict(pending.versions), set(pending.tools_run), set(pending.components))
+        return ScanResult(list(pending.findings), dict(pending.versions), set(pending.tools_run),
+                          set(pending.components), list(pending.flaky))
 
     return run
 
@@ -91,5 +92,6 @@ def submitted_runner(store) -> Runner:
 def build_runners(settings: Settings, store) -> dict[StageName, Runner]:
     runners = default_runners(settings)
     if settings.scan_source == "ci":
-        runners[StageName.SECURITY] = submitted_runner(store)
+        runners[StageName.SECURITY] = submitted_runner(store, StageName.SECURITY)
+        runners[StageName.QA] = submitted_runner(store, StageName.QA)
     return runners
