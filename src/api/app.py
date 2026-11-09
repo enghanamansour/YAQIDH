@@ -114,6 +114,8 @@ def create_app(
                     result = await agent_runner(release_id, event)
                     summary = {"stopped": result.get("stopped"), "steps": result.get("steps"),
                                "tools": dict(Counter(c["tool"] for c in result.get("calls", [])))}
+                    if result.get("stopped") == "error":  # say WHY, not only that it stopped
+                        summary["error"] = str(result.get("final", ""))[:300]
                 except Exception as e:  # a failing agent must never take the API down
                     summary = {"stopped": "error", "error": str(e)[:300]}
                 history.append(release_id, "agent_run", "agent", {"event": event, **summary})
