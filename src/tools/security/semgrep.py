@@ -130,7 +130,8 @@ class SemgrepTool:
             raise ToolError("semgrep is not installed (uv pip install semgrep)")
         cmd = [exe, "--json", "--quiet", "--metrics=off", "--config", str(self.rules_path), str(target)]
         try:
-            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=self.timeout)
+            proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace",
+                                  stdin=subprocess.DEVNULL, timeout=self.timeout)
         except subprocess.TimeoutExpired as e:
             raise ToolError(f"semgrep timed out after {self.timeout}s") from e
         # Exit code 1 only means "findings exist" when --error is set; anything unparsable is a real failure.
