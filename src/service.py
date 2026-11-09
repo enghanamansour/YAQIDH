@@ -22,6 +22,7 @@ from src.schema import (
     FindingStatus,
     HumanDecision,
     PendingScan,
+    ReviewRequestDecision,
     StageName,
     utcnow,
 )
@@ -230,6 +231,20 @@ class ReleaseService:
         self._log(release_id, "exception", approved_by.strip(), stage=stage, fingerprint=fingerprint,
                   justification=justification.strip())
         return self.evaluate_policy(release_id, stage)
+
+    def add_review_request_decision(self, release_id: str, decision: ReviewRequestDecision) -> dict:
+        """Record a reviewer's answer to a developer's request. Human-only: it is not in the MCP server."""
+        if not decision.by.strip():
+            raise ServiceError("a decision needs the name of the person who made it")
+        with self._locked(release_id):
+            evidence = self.store.get(release_id)
+            if decision.commit != evidence.head_commit:
+                raise ServiceError(f"this answer is for {decision.commit[:8]}, but the newest commit is {evidence.head_commit[:8]}")
+            evidence.review_request_decisions.append(decision)
+            self.store.save(evidence)
+        self._log(release_id, "review_request", decision.by, kind=decision.kind, status=decision.status,
+                  finding=decision.finding, commit=decision.commit)
+        return {"release_id": release_id, "kind": decision.kind, "status": decision.status}
 
     def set_pull_request(self, release_id: str, repo: str, pr_number: int, author: str = "", branch: str = "") -> None:
         with self._locked(release_id):

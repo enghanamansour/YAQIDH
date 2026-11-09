@@ -19,7 +19,7 @@ from pydantic import BaseModel, Field
 from src.gate import check_gate
 from src.github_sync import release_id_for
 from src.history import HistoryLog
-from src.schema import Finding
+from src.schema import Finding, ReviewRequestDecision
 from src.tools.base import ToolError
 from src.verifier import VerifierError
 from src.phases.workflow import Workflow, WorkflowError
@@ -259,6 +259,14 @@ def create_app(
         history.append(release_id, "event", "github", {"event": event, "commit": sha, "action": action})
         background.add_task(run_agent, release_id, event)
         return {"accepted": True, "release_id": release_id, "event": event}
+
+    @app.post("/releases/{release_id}/review-requests", dependencies=auth)
+    def review_request(release_id: str, body: ReviewRequestDecision) -> dict:
+        release_or_404(release_id)
+        try:
+            return service.add_review_request_decision(release_id, body)
+        except ServiceError as e:
+            raise HTTPException(409, str(e))
 
     # --- GitHub asks if a commit may merge ---
     @app.get("/gate", dependencies=auth)

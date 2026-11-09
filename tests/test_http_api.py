@@ -175,3 +175,29 @@ def test_reading_endpoints(client, stack):
 def test_the_gate_for_an_unknown_release_is_closed(client):
     g = client.get("/gate", headers=H, params={"release_id": "ghost", "commit": C1, "target": "main"})
     assert g.status_code == 200 and g.json()["allowed"] is False and g.json()["reason"] == "no_release"
+
+
+# --- a reviewer's answer to a developer's request (exception or more time), recorded by a person ---
+
+def review_body(commit=C1, **over):
+    return {"request_id": "t1", "commit": commit, "finding": "F-1", "kind": "deadline", "status": "approved", "by": "Omar",
+            "reason": "needs more time", "original": "2026-11-10", "requested": "2026-11-12", "approved_deadline": "2026-11-12", **over}
+
+
+def test_a_review_request_answer_is_recorded_with_the_name_and_logged(client, stack):
+    open_pr(client)
+    r = client.post("/releases/r1/review-requests", headers=H, json=review_body())
+    assert r.status_code == 200 and r.json()["status"] == "approved"
+    saved = stack.service.store.get("r1").review_request_decisions
+    assert [(d.by, d.kind, d.status) for d in saved] == [("Omar", "deadline", "approved")]
+    assert "review_request" in [e["event"] for e in stack.history.entries("r1")]
+
+
+def test_an_answer_for_an_old_commit_or_without_a_name_is_refused(client, stack):
+    open_pr(client)
+    assert client.post("/releases/r1/review-requests", headers=H, json=review_body(commit="old11111")).status_code == 409
+    assert client.post("/releases/r1/review-requests", headers=H, json=review_body(by=" ")).status_code == 409
+    assert client.post("/releases/r1/review-requests", headers=H, json=review_body(kind="merge")).status_code == 422
+    assert client.post("/releases/nope/review-requests", headers=H, json=review_body()).status_code == 404
+    assert client.post("/releases/r1/review-requests", json=review_body()).status_code == 401
+    assert stack.service.store.get("r1").review_request_decisions == []

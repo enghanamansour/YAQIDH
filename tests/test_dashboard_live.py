@@ -189,7 +189,7 @@ def test_with_no_real_releases_every_number_is_zero_and_nothing_is_seeded(world)
         assert board.get("releases", []) == [] and board.get("runSummary", []) == [], account
         assert b.call("GET", "/api/threads")[1] == [], account
         if account == "company-admin":
-            assert board["requests"] == []  # no demo "pending account request" either
+            assert board.get("requests", []) == []  # no demo "pending account request" either
 
 
 def test_a_wrong_api_token_is_reported_instead_of_showing_an_empty_dashboard(world):

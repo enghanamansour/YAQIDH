@@ -111,6 +111,14 @@ class LiveBackend:
         self._call("POST", f"/releases/{key}/stages/{role}/{choice}", {"by": by, "reason": reason})
 
 
+    def grant_exception(self, key: str, fingerprint: str, justification: str, by: str) -> None:
+        self._call("POST", f"/releases/{key}/stages/security/exceptions",
+                   {"fingerprint": fingerprint, "justification": justification, "approved_by": by})
+
+    def record_review_request(self, key: str, decision: dict) -> None:
+        self._call("POST", f"/releases/{key}/review-requests", decision)
+
+
 class LiveStore:
     """Looks like the demo's EvidenceStore for reading; the evidence itself stays in the Yaqidh API."""
 

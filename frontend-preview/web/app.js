@@ -16,7 +16,7 @@ const demoText=value=>({
 const mon=value=>'<bdi class="mono">'+safe(value)+'</bdi>';
 
 const requestedSample=new URLSearchParams(location.search).get('sample');
-let profile=null,release=null,tool='all',severity='all',findingFilter='all',runFilter='all',adminDay='all',developerOutcome='all',developerDay='all';
+let profile=null,release=null,tool='all',severity='all',findingFilter='all',runFilter='all',developerOutcome='all',developerDay='all';
 let requestNumber=0;
 const roleNames=role=>({
   developer:copy('المطور','Developer'),
@@ -113,7 +113,7 @@ const liveWarning=()=>profile&&profile.liveError?'<section class="panel" role="a
 function introduction(){
   return liveWarning()+'<section class="intro"><div><h1>'+roleNames(profile.role)+'</h1><small>'+copy('معاينة محلية · بيانات تشغيل ومستخدمون تجريبيون','Local preview · Demo runs and users')+'</small></div>'+badge(safe(accountName(profile.role)))+'</section>';
 }
-let adminProject='all',adminRole='all',adminActive='all',adminStage='all';
+let adminQuery='',adminActive='all';
 
 
 
@@ -144,8 +144,8 @@ function render(){
   hideMetricTip();
   metricDetails.clear();
   const page=location.pathname;
-  if(page==='/'){app.innerHTML=header()+landing();return}
-  const content=page==='/about'?aboutView():page==='/signup'?signup():!profile?login():page==='/communication'?communicationView():'<main>'+introduction()+(profile.role==='company-admin'?adminView():dashboardView())+'</main>';
+  if(page==='/'){app.innerHTML=header()+landing();if(location.hash==='#about')document.getElementById('about').scrollIntoView();return}
+  const content=page==='/signup'?signup():!profile?login():page==='/communication'?communicationView():'<main>'+introduction()+(profile.role==='company-admin'?adminView():dashboardView())+'</main>';
   app.innerHTML=header()+(profile?sidebar():'')+'<div class="'+(profile?'shell':'public-shell')+'">'+content+'</div>';
 }
 async function selectRelease(id){
@@ -155,6 +155,7 @@ async function selectRelease(id){
   release=next;tool='all';severity='all';findingFilter='all';runFilter='all';render();
 }
 async function load(){
+  if(location.pathname==='/about')history.replaceState(null,'','/#about');
   try{profile=await api('/api/dashboard')}catch(e){if(!['401','403'].includes(e.message))throw e;profile=null;if(!['/','/about','/login','/signup'].includes(location.pathname))history.replaceState(null,'','/login'+location.search)}
   if(profile&&['/login','/dashboard','/admin'].includes(location.pathname)){const destination=profile.role==='company-admin'?'/admin':'/dashboard';if(location.pathname!==destination)history.replaceState(null,'',destination+location.search)}
   threads=profile?await api('/api/threads'):[];
@@ -221,7 +222,8 @@ function findingModal(id){
     +(id==='playwright-demo-001'?'<p class="note">'+copy('المتوقع: يظهر تأكيد الطلب بعد الإرسال. الفعلي: لم يظهر التأكيد في عينة الاختبار.','Expected: order confirmation appears after submission. Actual: the confirmation was absent in the demo run.')+'</p>':'')
     +(f.closure?'<p>'+copy('وقت تحقق الإغلاق','Verification time')+' '+mon(f.closure.timestamp)+'</p>':'')
     +(f.exception?'<p class="note"><b>'+copy('استثناء مسجل','Recorded exception')+'</b><br>'+safe(demoText(f.exception.justification))+' · '+safe(demoText(f.exception.approved_by))+'</p>':'')
-    +'<p>'+action('new-thread',copy('ناقش هذه الملاحظة','Discuss this finding'),'data-id="'+safe(f.fingerprint)+'"')+'</p>'
+    +(profile.role==='security'||(profile.role==='developer'&&release.stage==='security'&&!release.blockerIds.includes(f.fingerprint))?'':'<p>'+action('new-thread',release.stage==='security'?copy('طلب تمديد المهلة','Request deadline extension'):copy('ناقش هذه الملاحظة','Discuss this finding'),'data-id="'+safe(f.fingerprint)+'"')+'</p>')
+    +(profile.role==='developer'&&release.exceptionEligible.includes(f.fingerprint)?'<p>'+action('new-exception',copy('طلب استثناء أمني','Request security exception'),'data-id="'+safe(f.fingerprint)+'"')+'</p>':'')
     +(f.explanation?'<p class="note"><b>'+copy('شرح يقظ','YAQIDH explanation')+'</b><br>'+safe(demoText(f.explanation.text))+'</p>':''));
 }
 async function handleAction(button){
@@ -231,9 +233,7 @@ async function handleAction(button){
   if(id==='run-state'){runFilter=chartPick(button.dataset.id);refreshChart(button);return}
   if(id==='developer-outcome'){developerOutcome=developerOutcome===button.dataset.id?'all':button.dataset.id;refreshChart(button);return}
   if(id==='developer-day'){developerDay=developerDay===button.dataset.id?'all':button.dataset.id;refreshChart(button);return}
-  if(id==='admin-day'){adminDay=adminDay===button.dataset.id?'all':button.dataset.id;refreshChart(button);return}
-  if(id==='admin-clear'){adminDay=runFilter=adminProject=adminRole=adminActive=adminStage='all';render();return}
-  if(id==='remove-filter'){const key=button.dataset.id;if(key==='tool')tool='all';if(key==='severity')severity='all';if(key==='finding')findingFilter='all';if(key==='run')runFilter='all';if(key==='day')adminDay='all';if(key==='developer-outcome')developerOutcome='all';if(key==='developer-day')developerDay='all';render();return}
+  if(id==='remove-filter'){const key=button.dataset.id;if(key==='tool')tool='all';if(key==='severity')severity='all';if(key==='finding')findingFilter='all';if(key==='run')runFilter='all';if(key==='developer-outcome')developerOutcome='all';if(key==='developer-day')developerDay='all';render();return}
   if(['ar','en','light','dark'].includes(id)){changeAppearance(id);return}
   if(id==='logout'){await api('/api/logout',{});requestNumber++;profile=release=null;threads=[];selectedThread=null;history.replaceState(null,'','/');render();return}
   if(id==='thread'){
@@ -245,12 +245,23 @@ async function handleAction(button){
     await api('/api/threads/'+encodeURIComponent(key)+'/read',{});
     return;
   }
-  if(id==='account-approve'||id==='account-reject'){await api('/api/company/requests',{account:button.dataset.id,decision:id==='account-approve'?'approve':'reject'});await load();return}
   if(id==='delete-account')return confirmAccountDeletion(button.dataset.id);
-  if(id==='admin-message')return startThread('',button.dataset.id);
   if(id==='edit-account')return editAccount(button.dataset.id);
+  if(id==='clear-admin-search'){adminQuery='';render();app.querySelector('#admin-search input')?.focus();return}
+  if(id==='new-admin-thread')return startAdminThread();
+  if(id==='adjust-review-deadline')return adjustReviewDeadline(button.dataset.id);
+  if(id==='approve-review-request'||id==='reject-review-request'){
+    button.disabled=true;
+    try{
+      await api('/api/threads/'+encodeURIComponent(button.dataset.id)+'/review-decision',{decision:id==='approve-review-request'?'approve':'reject'});
+      threads=await api('/api/threads');
+      render();
+    }finally{button.disabled=false}
+    return;
+  }
   if(!release)return;
   if(id==='queue'||id==='returned-build'){if(dialog.open)dialog.close();await selectRelease(button.dataset.id);if(id==='returned-build')modal(copy('سبب الإرجاع','Return reason'),decisionList());return}
+  if(id==='new-exception')return startExceptionRequest(button.dataset.id);
   if(id==='new-thread')return startThread(button.dataset.id||'');
   if(id==='sample-approved')return selectRelease(sampleBuild('approved'));
   if(id==='sample-issue'||id==='sample-ready')return selectRelease(sampleBuild(id==='sample-issue'?'issue':'ready'));
@@ -332,7 +343,7 @@ document.addEventListener('keydown',event=>{
 app.addEventListener('change',event=>{
   const input=event.target;
   if(input.id==='demo-account'&&input.value)$('#sign-in input[name=account]').value=input.value;
-  if(['admin-project','admin-role','admin-active','admin-stage'].includes(input.id)){if(input.id==='admin-project')adminProject=input.value;else if(input.id==='admin-role')adminRole=input.value;else if(input.id==='admin-active')adminActive=input.value;else adminStage=input.value;render();$('#'+input.id)?.focus()}
+  if(input.id==='admin-active'){adminActive=input.value;render();$('#'+input.id)?.focus()}
   if(input.id==='release-select')selectRelease(input.value).catch(()=>notify(copy('تعذر فتح البناء','Build could not be loaded')));
   if(['tool-filter','severity-filter','finding-filter','run-filter'].includes(input.id)){
     if(input.id==='tool-filter')tool=input.value;else if(input.id==='severity-filter')severity=input.value;else if(input.id==='run-filter')runFilter=input.value;else findingFilter=input.value;
@@ -346,12 +357,24 @@ document.addEventListener('submit',async event=>{
   const submit=form.querySelector('button');
   submit.disabled=true;
   try{
-    if(form.id==='sign-up'){await api('/api/signup',data);form.reset();notify(copy('أُرسل طلبك إلى مسؤول الشركة للمراجعة.','Your request was submitted for company approval.'));return}
+    if(form.id==='admin-search'){adminQuery=data.query.trim();render();app.querySelector('#admin-search input')?.focus();return}
+    if(form.id==='sign-up'){await api('/api/signup',data);location.href='/login?account='+encodeURIComponent(data.account);return}
     if(form.id==='sign-in'){await api('/api/login',data);history.replaceState(null,'','/dashboard');await load()}
     if(form.id==='thread-reply'){await api('/api/threads/'+encodeURIComponent(form.dataset.id),data);threads=await api('/api/threads');render()}
+    if(form.id==='admin-thread-new'){const result=await api('/api/threads',data);location.href='/communication?thread='+encodeURIComponent(result.id)}
+    if(form.id==='exception-new'){
+      const result=await api('/api/threads',{...data,subject:copy('طلب استثناء أمني','Security exception request'),requestType:'exception',release:form.dataset.release,finding:form.dataset.finding});
+      location.href='/communication?thread='+encodeURIComponent(result.id);
+    }
     if(form.id==='thread-new'){const result=await api('/api/threads',{...data,release:form.dataset.release,finding:form.dataset.finding});location.href='/communication?thread='+encodeURIComponent(result.id)}
     if(form.id==='account-delete'){await api('/api/company/accounts/delete',{account:form.dataset.id});dialog.close();await load();notify(copy('حُذف الحساب من قائمة المستخدمين.','The account was removed from the user list.'))}
-    if(form.id==='account-edit'){await api('/api/company/accounts',{account:form.dataset.id,role:data.role,active:data.active==='on',assigned:new FormData(form).getAll('projects').length>0,projects:new FormData(form).getAll('projects')});dialog.close();await load()}
+    if(form.id==='account-edit'){await api('/api/company/accounts',{account:form.dataset.id,role:data.role,active:data.active==='on'});dialog.close();await load()}
+    if(form.id==='review-deadline-form'){
+      await api('/api/threads/'+encodeURIComponent(form.dataset.id)+'/review-decision',{decision:'approve',approvedDeadline:data.approvedDeadline});
+      threads=await api('/api/threads');
+      dialog.close();
+      render();
+    }
     if(form.id==='decision-form'){
       const key=form.dataset.release;
       const updated=await api('/api/releases/'+encodeURIComponent(key)+'/decision',{decision:form.dataset.choice,reason:data.reason,commit:form.dataset.commit});
@@ -366,3 +389,4 @@ document.addEventListener('submit',async event=>{
 setAppearance();
 render();
 load().catch(()=>notify(copy('تعذر تحميل الداشبورد','Dashboard could not be loaded')));
+setInterval(refreshQAReviewAlerts,10000);
