@@ -60,7 +60,8 @@ def parse_output(data: dict, target: Path) -> list[Finding]:
             rel = path.relative_to(target)
         except ValueError:
             rel = path
-        fp = fingerprint("semgrep", rule, str(rel), snippet)
+        rel = rel.as_posix()  # templates/base.html on every system: Windows would give templates\base.html and a different fingerprint
+        fp = fingerprint("semgrep", rule, rel, snippet)
         findings[fp] = Finding(
             fingerprint=fp,
             tool="semgrep",

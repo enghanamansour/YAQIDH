@@ -118,3 +118,27 @@ def test_the_lock_holds_between_processes(tmp_path):
     with ctx.Pool(4) as pool:
         pool.map(_increment, [(str(tmp_path / ".lock"), str(counter), 40)] * 4)
     assert int(counter.read_text()) == 160
+
+
+# ---- the same finding gets the same fingerprint on Windows and on macOS ----
+def test_a_semgrep_finding_has_the_same_fingerprint_whatever_the_path_separator(tmp_path):
+    from pathlib import PureWindowsPath
+
+    from src.tools.security.semgrep import parse_output
+
+    sub = tmp_path / "templates"
+    sub.mkdir()
+    (sub / "base.html").write_text("<form method=post></form>\n", encoding="utf-8")
+
+    def result(path):
+        return {"results": [{"check_id": "x.semgrep-rules.python.django.security.django-no-csrf-token", "path": str(path),
+                             "start": {"line": 1}, "end": {"line": 1},
+                             "extra": {"message": "m", "severity": "WARNING", "metadata": {}}}], "errors": []}
+
+    finding = parse_output(result(sub / "base.html"), tmp_path)[0]
+    assert "\\" not in finding.location and finding.location == "templates/base.html:1"
+    # what Windows would print for the same file must give the same fingerprint as the slash form
+    from src.tools.fingerprint import fingerprint
+
+    assert finding.fingerprint == fingerprint("semgrep", finding.rule, PureWindowsPath("templates", "base.html").as_posix(),
+                                              "<form method=post></form>")
