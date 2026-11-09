@@ -36,14 +36,16 @@ function landing(){
     +'<h1>'+copy('<span class="lp-l">أمان <span class="grad">استباقي</span>،</span> <span class="lp-l">إطلاق أسرع.</span>','<span class="lp-l"><span class="grad">Proactive</span> security,</span> <span class="lp-l">faster releases.</span>')+'</h1>'
     +'<p class="lp-sub">'+copy('يقظ يرافق منتجك قبل الإطلاق: يفحص، يشرح، ويعيد الفحص تلقائيًا، والقرار دايمًا بيد الفريق.','Yaqidh accompanies your product before release: it checks, explains and re-checks automatically, and the decision always stays with your team.')+'</p>'
     +'<div class="actions lp-cta"><a class="action primary" href="'+go+'">'+goLabel+'</a><a class="action" href="#about">'+copy('كيف يعمل','How it works')+'</a></div></div>'
-    +'<div class="lp-art" aria-hidden="true">'+ring(190,'a')+ring(150,'b')+'<img class="lp-mark" alt="" src="'+logo()+'"></div></div></section>'
+    +'<div class="lp-art" aria-hidden="true">'+ring(190,'a')+ring(150,'b')+''+animatedLogo()+'</div></div></section>'
 
-    +'<section class="lp-section" id="problem"><h2>'+copy('الدورة اللي تأخّر الإطلاق','The loop that delays every release')+'</h2>'
-    +'<div class="lp-two"><article class="lp-card"><small>'+copy('بدون يقظ','Without Yaqidh')+'</small><h3>'+copy('لفّة بعد لفّة','Round after round')+'</h3>'
-    +'<ol class="lp-flow"><li>'+copy('الأمن يرجّع الثغرات للمطوّرين','Security sends findings back to developers')+'</li><li>'+copy('المطوّرين يصلحونها','Developers fix them')+'</li><li>'+copy('الأمن يعيد الفحص','Security re-scans')+'</li><li>'+copy('وتتكرر لين تنقفل كلها','Repeat until all are closed')+'</li></ol>'
-    +'<p class="muted">'+copy('كل لفّة تستهلك وقت وجهد بشري وتأخّر الإطلاق.','Every round costs human time and effort, and delays the release.')+'</p></article>'
-    +'<article class="lp-card on"><small>'+copy('مع يقظ','With Yaqidh')+'</small><h3>'+copy('الدورة تمشي لحالها','The loop runs by itself')+'</h3>'
-    +'<ol class="lp-flow"><li>'+copy('يفحص تلقائيًا عند كل طلب دمج','Checks automatically on every pull request')+'</li><li>'+copy('يشرح كل مشكلة فورًا للمطوّر','Explains each problem to the developer at once')+'</li><li>'+copy('يعيد الفحص بعد كل تعديل ويتأكد إنها انقفلت','Re-checks after every change and confirms it is closed')+'</li><li>'+copy('الناس تتدخل للموافقة بس','People step in only to approve')+'</li></ol></article></div></section>'
+    +'<section class="lp-section" id="problem"><h2>'+copy('من لفّات لا تنتهي إلى إطلاق أسرع','From endless rounds to a faster release')+'</h2>'
+    +'<div class="lp-two"><article class="lp-card lp-bad"><small>'+copy('بدون يقظ','Without Yaqidh')+'</small>'
+    +'<div class="lp-cycle"><svg class="lp-cycle-ring" viewBox="0 0 200 200" aria-hidden="true"><circle cx="100" cy="100" r="78"/></svg><b class="lp-cycle-n">↻</b>'
+    +'<span class="c1">'+copy('الأمن يرجّع الثغرات','Security sends findings back')+'</span><span class="c2">'+copy('المطوّر يصلّح','Developer fixes')+'</span><span class="c3">'+copy('الأمن يعيد الفحص','Security re-scans')+'</span><span class="c4">'+copy('وتتكرر','Repeat')+'</span></div>'
+    +'<p class="muted">'+copy('كل لفّة وقت وجهد، وتأخير للإطلاق.','Every round costs time and effort, and delays the release.')+'</p></article>'
+    +'<article class="lp-card on"><small>'+copy('مع يقظ','With Yaqidh')+'</small>'
+    +'<ol class="lp-line"><li><i>✓</i>'+copy('يفحص تلقائيًا','Checks automatically')+'</li><li><i>✓</i>'+copy('يشرح فورًا','Explains at once')+'</li><li><i>✓</i>'+copy('يعيد الفحص بعد كل تعديل','Re-checks every change')+'</li><li><i>✓</i>'+copy('يتأكد إن المشكلة انقفلت','Confirms it is closed')+'</li></ol>'
+    +'<p class="muted">'+copy('الناس تتدخل للموافقة فقط.','People step in only to approve.')+'</p></article></div></section>'
 
     +'<section class="lp-section" id="about"><h2>'+copy('كيف يمشي الطلب','How a request moves')+'</h2><ol class="lp-journey">'
     +journey.map(([title,text],i)=>'<li><i>'+(i+1)+'</i><b>'+title+'</b><small>'+text+'</small></li>').join('')+'</ol>'
@@ -52,12 +54,26 @@ function landing(){
     +'<section class="lp-section"><h2>'+copy('من يفعل ماذا','Who does what')+'</h2><div class="lp-four">'
     +who.map(([n,title,text])=>'<article class="lp-card"><span class="lp-n">'+n+'</span><h3>'+title+'</h3><p class="muted">'+text+'</p></article>').join('')+'</div></section>'
 
-    +'<section class="lp-section"><h2>'+copy('لكل دور شاشته','A screen for every role')+'</h2><div class="lp-four">'
+    +'<section class="lp-section" id="roles"><h2>'+copy('لكل دور شاشته','A screen for every role')+'</h2><div class="lp-four">'
     +roles.map(([title,text])=>'<article class="lp-card"><h3>'+title+'</h3><p class="muted">'+text+'</p></article>').join('')+'</div></section>'
 
-    +'<section class="lp-section"><h2>'+copy('ليش تثق فيه','Why you can trust it')+'</h2><div class="lp-three">'
+    +'<section class="lp-section" id="trust"><h2>'+copy('ليش تثق فيه','Why you can trust it')+'</h2><div class="lp-three">'
     +trust.map(([title,text])=>'<article class="lp-card"><h3>'+title+'</h3><p class="muted">'+text+'</p></article>').join('')+'</div></section>'
 
     +'<section class="lp-final"><h2>'+copy('جاهز تجرّب؟','Ready to try it?')+'</h2><div class="actions"><a class="action primary" href="'+go+'">'+goLabel+'</a></div></section>'
     +'<footer class="lp-foot">'+copy('يقظ · الجاهزية الأمنية للإصدارات','Yaqidh · security readiness for releases')+'</footer></main>';
+}
+
+/* the subtitle is typed letter by letter, once per visit */
+function startTyping(){
+  const el=document.querySelector('.lp-sub');
+  if(!el||window.__yaqidhTyped)return;
+  window.__yaqidhTyped=true;
+  if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+  const full=el.textContent;
+  el.style.minHeight=el.offsetHeight+'px';
+  el.textContent='';
+  el.classList.add('typing');
+  let i=0;
+  const timer=setInterval(()=>{i++;el.textContent=full.slice(0,i);if(i>=full.length){clearInterval(timer);el.classList.remove('typing')}},36);
 }

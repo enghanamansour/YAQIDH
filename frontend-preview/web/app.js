@@ -145,7 +145,7 @@ function render(){
   hideMetricTip();
   metricDetails.clear();
   const page=location.pathname;
-  if(page==='/'){app.innerHTML=header()+landing();if(location.hash==='#about')document.getElementById('about').scrollIntoView();return}
+  if(page==='/'){app.innerHTML=header()+landing();startTyping();if(location.hash==='#about')document.getElementById('about').scrollIntoView();return}
   const content=page==='/signup'?signup():!profile?login():page==='/communication'?communicationView():'<main>'+(profile.role==='qa'?'':introduction())+(profile.role==='company-admin'?adminView():dashboardView())+'</main>';
   app.innerHTML=header()+(profile?sidebar():'')+'<div class="'+(profile?'shell':'public-shell')+'">'+content+'</div>';
 }
