@@ -85,4 +85,18 @@ async def run_loop_with_server(release_id: str, event: str = "pull_request_opene
     async with stdio_client(params) as (read, write):
         async with ClientSession(read, write) as session:
             await session.initialize()
-            return await AgentLoop(session, chat or ChatClient()).run(release_id, event)
+            return await AgentLoop(session, chat or ChatClient(), post_comment=_comment_poster()).run(release_id, event)
+
+
+def _comment_poster():
+    """The tool that posts the PR comment through the GitHub MCP server, only when that server is configured."""
+    from src.github_mcp import McpCommentPoster
+    from src.github_sync import post_release_comment
+    from src.settings import get_settings
+    from src.storage import EvidenceStore
+
+    poster = McpCommentPoster.from_env()
+    if poster is None:
+        return None
+    store = EvidenceStore(get_settings().data_dir)
+    return lambda release_id: post_release_comment(store, poster, release_id)

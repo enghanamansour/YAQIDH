@@ -1,0 +1,45 @@
+# Runs Semgrep and Trivy on the pull request's code and sends the results to Yaqidh.
+# Needs two repository secrets: YAQIDH_URL (https address of the Yaqidh API) and YAQIDH_TOKEN (its API_TOKEN).
+# NOT tested on a real GitHub runner yet (written and checked locally only).
+name: yaqidh-security-scan
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}   # the PR's own code, not the merge commit
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install the tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
+          ./scripts/fetch_semgrep_rules.sh
+          trivy fs --download-db-only
+
+      - name: Scan and send the results
+        env:
+          YAQIDH_URL: ${{ secrets.YAQIDH_URL }}
+          YAQIDH_TOKEN: ${{ secrets.YAQIDH_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: python scripts/ci_scan.py --target . --out yaqidh-results.json
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: yaqidh-results
+          path: yaqidh-results.json

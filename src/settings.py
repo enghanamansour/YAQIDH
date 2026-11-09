@@ -22,6 +22,8 @@ class Settings(BaseSettings):
     policy_path: Path = Path("config/policy.yaml")
     # What the scanners look at. Set here, never by the agent, so it cannot point a scan somewhere else.
     scan_target: Path = Path("demo_app")
+    # "local": this machine scans scan_target. "ci": a CI job scans the pull request and sends the results.
+    scan_source: str = "local"
     semgrep_rules_dir: Path = Path("config/semgrep-rules")
     github_token: str = ""
     notion_token: str = ""

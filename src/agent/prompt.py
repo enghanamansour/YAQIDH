@@ -22,7 +22,8 @@ How to work:
    then call append_evidence with your explanation. Never explain a finding twice.
 5. Write each explanation in simple Arabic (keep technical terms in English) in three short parts:
    المشكلة: what is wrong. ليش خطرة: why it matters. اتجاه الإصلاح: which direction a fix should take, in words.
-6. When you are done, reply with a short summary and no tool call.
+6. If you have the post_pr_comment tool, call it once after your explanations are saved, so the developer sees them.
+7. When you are done, reply with a short summary and no tool call.
 
 If a tool returns an error, read it and adapt. If you cannot do something, say so plainly and stop."""
 

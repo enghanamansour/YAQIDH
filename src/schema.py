@@ -107,6 +107,18 @@ class HumanDecision(BaseModel):
     commit: str = ""
 
 
+class PendingScan(BaseModel):
+    """Scan results a CI job sent for a commit, waiting until that stage's turn. Findings here are untrusted input:
+    they are reset to plain open findings when stored, so CI can never smuggle in a closure or an exception."""
+
+    commit: str
+    findings: list[Finding] = Field(default_factory=list)
+    versions: dict[str, str] = Field(default_factory=dict)
+    tools_run: list[str] = Field(default_factory=list)
+    components: list[str] = Field(default_factory=list)
+    received_at: datetime = Field(default_factory=utcnow)
+
+
 class Evidence(BaseModel):
     release_id: str
     stages: list[StageRecord] = Field(default_factory=list)
@@ -116,6 +128,8 @@ class Evidence(BaseModel):
     # Which pull request this release is, so results can be posted back to it. Set from the GitHub event.
     repo: str = ""
     pr_number: int = 0
+    # Security scan results sent by CI for head_commit, used when SCAN_SOURCE=ci.
+    pending_scan: PendingScan | None = None
 
     def stage(self, name: StageName) -> StageRecord:
         """Return the stage record, creating it on first use."""

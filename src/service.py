@@ -11,7 +11,7 @@ from pathlib import Path
 from src.phases.status import ReleaseStatus, release_status
 from src.history import HistoryLog
 from src.policy import evaluate_policy, load_policy
-from src.scanning import NoRunner, Runner, ScanResult
+from src.scanning import CURRENT_RELEASE, NoRunner, Runner, ScanResult
 from src.schema import (
     Decision,
     Evidence,
@@ -20,6 +20,7 @@ from src.schema import (
     Finding,
     FindingStatus,
     HumanDecision,
+    PendingScan,
     StageName,
     utcnow,
 )
@@ -58,6 +59,13 @@ class ReleaseService:
         if self.history is not None:
             self.history.append(release_id, event, actor, data)
 
+    def _run(self, runner: Runner, release_id: str) -> ScanResult:
+        token = CURRENT_RELEASE.set(release_id)
+        try:
+            return runner(self.target)
+        finally:
+            CURRENT_RELEASE.reset(token)
+
     def _runner(self, stage: StageName) -> Runner:
         runner = self.runners.get(stage)
         if runner is None:
@@ -81,7 +89,7 @@ class ReleaseService:
             record = evidence.stage(name)
             if record.tool_versions:
                 raise ServiceError(f"stage '{stage}' of {release_id} was already scanned, use verify_fix to re-scan")
-            result: ScanResult = runner(self.target)
+            result: ScanResult = self._run(runner, release_id)
             record.findings = result.findings
             record.tool_versions = result.versions
             record.components = sorted(result.components)
@@ -104,7 +112,7 @@ class ReleaseService:
             record = evidence.stage(name)
             if not record.tool_versions:
                 raise ServiceError(f"stage '{stage}' of {release_id} was never scanned, use run_scan first")
-            result = runner(self.target)
+            result = self._run(runner, release_id)
             verification: Verification = verify(
                 record.findings,
                 result.findings,
@@ -235,3 +243,30 @@ class ReleaseService:
         if changed:
             self._log(release_id, "commit_received", "system", commit=commit)
         return {"release_id": release_id, "head_commit": commit, "changed": changed}
+
+    def submit_scan_results(
+        self, release_id: str, commit: str, findings: list[Finding], versions: dict[str, str],
+        tools_run: list[str], components: list[str], by: str = "ci",
+    ) -> dict:
+        """Store the security results a CI job sent for the newest commit. They are used when the stage's turn comes."""
+        missing = {"semgrep", "trivy"} - set(tools_run)
+        if missing:
+            raise ServiceError(f"the results must come from both tools; missing: {', '.join(sorted(missing))}")
+        if not {"semgrep-rules", "trivy", "trivy-db"} <= versions.keys():
+            raise ServiceError("the results must include the versions semgrep-rules, trivy and trivy-db")
+        clean = [
+            f.model_copy(update={"status": FindingStatus.OPEN, "explanation": None, "closure": None, "exception": None,
+                                 "origin": "initial"})
+            for f in findings
+        ]
+        with self._lock:
+            if not self.store.exists(release_id):
+                raise ServiceError(f"no release {release_id}: the pull request event must arrive first")
+            evidence = self.store.get(release_id)
+            if commit != evidence.head_commit:
+                raise ServiceError(f"these results are for {commit[:8]}, but the newest commit is {evidence.head_commit[:8]}")
+            evidence.pending_scan = PendingScan(commit=commit, findings=clean, versions=versions,
+                                                tools_run=sorted(tools_run), components=sorted(components))
+            self.store.save(evidence)
+        self._log(release_id, "scan_results_received", by, commit=commit, findings=len(clean), tool_versions=versions)
+        return {"release_id": release_id, "commit": commit, "findings": len(clean)}

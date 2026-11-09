@@ -5,6 +5,7 @@ approves or merges. The code adds: a fixed list of allowed tools, argument check
 schema, a step limit, and a few rules on the one write the model has (its explanation text).
 """
 
+import asyncio
 import json
 import os
 import re
@@ -27,6 +28,11 @@ LOCAL_TOOLS = {
         "description": "Read one skill by name before explaining a finding that fits it.",
         "inputSchema": {"type": "object", "properties": {"name": {"type": "string"}}, "required": ["name"], "additionalProperties": False},
     },
+}
+POST_COMMENT_TOOL = {
+    "description": "Post (or update) the one summary comment on the release's pull request. The text is built from the "
+                   "evidence by the system; you cannot write it. Call it once at the end, after your explanations are saved.",
+    "inputSchema": {"type": "object", "properties": {"release_id": {"type": "string"}}, "required": ["release_id"], "additionalProperties": False},
 }
 MAX_STEPS = 60
 MAX_RESULT_CHARS = 8000
@@ -78,7 +84,10 @@ def _openai_tool(name: str, description: str, schema: dict) -> dict:
 
 
 class AgentLoop:
-    def __init__(self, session: ClientSession, chat, skills: Skills | None = None, max_steps: int = MAX_STEPS):
+    def __init__(self, session: ClientSession, chat, skills: Skills | None = None, max_steps: int = MAX_STEPS,
+                 post_comment=None):
+        """post_comment(release_id) posts the PR comment through the GitHub MCP server; without it the tool is not offered."""
+        self.post_comment = post_comment
         self.session = session
         self.chat = chat
         self.skills = skills or Skills()
@@ -91,7 +100,10 @@ class AgentLoop:
         for name in sorted(MCP_TOOLS & listed.keys()):
             self._schemas[name] = listed[name].inputSchema
             tools.append(_openai_tool(name, listed[name].description or "", listed[name].inputSchema))
-        for name, spec in LOCAL_TOOLS.items():
+        local = dict(LOCAL_TOOLS)
+        if self.post_comment is not None:
+            local["post_pr_comment"] = POST_COMMENT_TOOL
+        for name, spec in local.items():
             self._schemas[name] = spec["inputSchema"]
             tools.append(_openai_tool(name, spec["description"], spec["inputSchema"]))
         return tools
@@ -109,13 +121,16 @@ class AgentLoop:
 
     async def _execute(self, name: str, args: dict) -> str:
         """Runs one tool call the model asked for. Every problem comes back as text the model can read."""
-        if name not in MCP_TOOLS and name not in LOCAL_TOOLS:
-            return f"ERROR: '{name}' is not an allowed tool. Allowed: {', '.join(sorted(MCP_TOOLS | LOCAL_TOOLS.keys()))}"
+        allowed = MCP_TOOLS | LOCAL_TOOLS.keys() | ({"post_pr_comment"} if self.post_comment is not None else set())
+        if name not in allowed:
+            return f"ERROR: '{name}' is not an allowed tool. Allowed: {', '.join(sorted(allowed))}"
         try:
             validate(args, self._schemas[name])
         except ValidationError as e:
             return f"ERROR: bad arguments for {name}: {e.message}"
         try:
+            if name == "post_pr_comment":
+                return json.dumps(await asyncio.to_thread(self.post_comment, args["release_id"]), ensure_ascii=False)
             if name == "list_skills":
                 return json.dumps(self.skills.list(), ensure_ascii=False)
             if name == "read_skill":

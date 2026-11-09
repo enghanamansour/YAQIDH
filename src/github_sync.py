@@ -90,9 +90,19 @@ def render_comment(evidence: Evidence) -> str:
     return text if len(text) <= MAX_COMMENT else text[:MAX_COMMENT] + "\n\n_(تم قص التعليق لأنه طويل، التفاصيل الكاملة في الداشبورد)_"
 
 
+def post_release_comment(store: EvidenceStore, comments: Poster, release_id: str) -> dict:
+    """The one way a comment gets written: built from the evidence, posted through whatever poster is configured."""
+    evidence = store.get(release_id)
+    if not evidence.repo or not evidence.pr_number:
+        return {"skipped": "this release is not linked to a pull request"}
+    return comments.upsert_comment(evidence.repo, evidence.pr_number, "release", render_comment(evidence))
+
+
 class GitHubPublisher:
-    def __init__(self, store: EvidenceStore, history: HistoryLog, client: Poster):
+    def __init__(self, store: EvidenceStore, history: HistoryLog, client: Poster, comments: Poster | None = None):
+        """client sets the commit statuses (and the comment if no `comments` poster is given, e.g. the GitHub MCP one)."""
         self.store, self.history, self.client = store, history, client
+        self.comments = comments or client
 
     def publish(self, release_id: str) -> dict:
         evidence = self.store.get(release_id)
@@ -100,7 +110,7 @@ class GitHubPublisher:
             return {"skipped": "this release is not linked to a pull request"}
         result: dict = {}
         try:
-            result["comment"] = self.client.upsert_comment(evidence.repo, evidence.pr_number, "release", render_comment(evidence))
+            result["comment"] = post_release_comment(self.store, self.comments, release_id)
             if re.fullmatch(r"[0-9a-fA-F]{40}", evidence.head_commit or ""):
                 for target in ("staging", "main"):
                     gate = check_gate(evidence, evidence.head_commit, target)

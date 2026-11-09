@@ -66,6 +66,15 @@ class Workflow:
         self.service.grant_exception(release_id, stage, fingerprint, justification, approved_by)
         return self.status(release_id)
 
+    def apply_security_results(self, release_id: str) -> StatusReport:
+        """Security results arrived (from CI). If it is security's turn, scan or re-scan with them and ask the policy."""
+        if self.status(release_id).status in (
+            ReleaseStatus.AWAITING_SECURITY_SCAN, ReleaseStatus.SECURITY_BLOCKED, ReleaseStatus.AWAITING_SECURITY_APPROVAL,
+            ReleaseStatus.SECURITY_REJECTED, ReleaseStatus.READY_TO_MERGE,
+        ):
+            self._security_step(release_id)
+        return self.status(release_id)
+
     # --- internals ---
 
     def _security_step(self, release_id: str) -> None:

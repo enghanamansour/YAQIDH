@@ -1,6 +1,7 @@
 """Runs the tools of one stage and returns one combined result. Plain code; the agent never picks tools."""
 
 from collections.abc import Callable
+from contextvars import ContextVar
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -19,6 +20,10 @@ class ScanResult:
 
 
 Runner = Callable[[Path], ScanResult]
+
+# The release a scan is running for, set by the service around each runner call, so a runner that needs it
+# (the CI one) can read it without every runner's signature changing.
+CURRENT_RELEASE: ContextVar[str] = ContextVar("current_release", default="")
 
 
 def dedupe(findings: list[Finding]) -> list[Finding]:
@@ -66,3 +71,25 @@ def default_runners(settings: Settings) -> dict[StageName, Runner]:
 
 class NoRunner(ToolError):
     pass
+
+
+def submitted_runner(store) -> Runner:
+    """Security results come from a CI job (it has the pull request's code), not from a scan on this machine."""
+
+    def run(target: Path) -> ScanResult:
+        evidence = store.get(CURRENT_RELEASE.get())
+        pending = evidence.pending_scan
+        if pending is None or pending.commit != evidence.head_commit:
+            raise ToolError(
+                f"waiting for the CI scan results of commit {evidence.head_commit[:8] or '(none yet)'}; nothing was scanned"
+            )
+        return ScanResult(list(pending.findings), dict(pending.versions), set(pending.tools_run), set(pending.components))
+
+    return run
+
+
+def build_runners(settings: Settings, store) -> dict[StageName, Runner]:
+    runners = default_runners(settings)
+    if settings.scan_source == "ci":
+        runners[StageName.SECURITY] = submitted_runner(store)
+    return runners
