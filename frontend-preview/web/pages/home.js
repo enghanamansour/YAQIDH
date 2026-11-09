@@ -39,8 +39,8 @@ function landing(){
       '<div class="seq-final"><span class="seq-chip">'+ICON.shield+copy('يجهّز النتائج للفريق الأمني لاتخاذ القرار النهائي','Prepares the results for the security team to make the final decision')+'</span></div>')
     +'<p class="muted">'+copy('فحوصات مؤتمتة، مراجعات أكثر وضوحًا، وطريق أسرع نحو الإطلاق الآمن.','Automated checks, clearer reviews, and a faster path to a safe release.')+'</p></article></div></section>'
 
-    +'<section class="lp-section" id="about"><span class="lp-eyebrow">'+copy('كيف يعمل','How it works')+'</span><h2>'+copy('كيف يمشي الطلب','How a request moves')+'</h2><ol class="lp-journey">'
-    +journey.map(([title,text],i)=>'<li><i>'+(i+1)+'</i><b>'+title+'</b><small>'+text+'</small></li>').join('')+'</ol>'
+    +'<section class="lp-section" id="about"><span class="lp-eyebrow">'+copy('كيف يعمل','How it works')+'</span><h2>'+copy('كيف يمشي الطلب','How a request moves')+'</h2>'
+    +swim(journey)
     +'</section>'
 
     +'<section class="lp-section" id="roles"><span class="lp-eyebrow">'+copy('الأدوار','Roles')+'</span></section>'
@@ -73,4 +73,20 @@ const ICON={
 function seq(kind,actors,rows,tail){
   return '<div class="seq '+kind+'"><div class="seq-head">'+actors.map(([icon,name])=>'<span class="seq-actor">'+icon+'<b>'+name+'</b></span>').join('')+'</div>'
     +'<ol class="seq-rows">'+rows.map(([dir,text])=>'<li class="'+dir+'"><span class="seq-text">'+text+'</span><span class="seq-arrow"></span></li>').join('')+'</ol>'+tail+'</div>';
+}
+
+/* swimlanes: who does each step (the specialist, يَقِـــظ, or the developer) and how the request moves between them */
+ICON.person='<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c1-4 4-6 7-6s6 2 7 6"/></svg>';
+function swim(steps){
+  const lanes=['dev','auto','human','auto','human','auto'];
+  const col={human:'col1',auto:'col2',dev:'col3'};
+  const links=[['l23','to-start'],['l12','to-start'],['l12','to-end'],['l12','to-start'],['l12','to-end']];
+  const head=[['human',ICON.person,copy('المختص','The specialist'),copy('قرار بشري','Human decision')],['auto',ICON.loop,copy('يَقِـــظ','Yaqidh'),copy('تلقائي','Automatic')],['dev',ICON.code,copy('المطوّر','The developer'),copy('يُصلح ويرفع','Fixes and pushes')]];
+  const lane=l=>({human:copy('قرار بشري','Human decision'),auto:copy('تلقائي','Automatic'),dev:copy('المطوّر','Developer')})[l];
+  let body='';
+  steps.forEach(([title,text],i)=>{
+    body+='<article class="sw-node '+col[lanes[i]]+' '+lanes[i]+'"><span class="sw-num">'+(i+1)+'</span><div><small class="sw-tag">'+lane(lanes[i])+'</small><h3>'+title+'</h3><p>'+text+'</p></div></article>';
+    if(links[i])body+='<div class="sw-link '+links[i][0]+' '+links[i][1]+'" aria-hidden="true"><i class="a"></i><i class="b"></i></div>';
+  });
+  return '<div class="sw"><div class="sw-head">'+head.map(([k,icon,name,tag])=>'<span class="sw-actor '+k+'">'+icon+'<b>'+name+'</b><small>'+tag+'</small></span>').join('')+'</div><div class="sw-body">'+body+'</div></div>';
 }
