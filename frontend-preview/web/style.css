@@ -285,3 +285,13 @@ html{scroll-behavior:smooth}
 @media(prefers-reduced-motion:reduce){.lp-cycle-ring{animation:none}}
 a.action.hdr-login{background:var(--grad);border:0;color:#fff;border-radius:999px;padding:9px 24px}
 .v-side .lp-copy{max-width:min(700px,56%)}.v-side .lp-art{width:min(540px,44vw)}.v-side .lp-art .animated-logo{width:70%}
+
+/* round 3: no line before the tag; the two problem columns are open, equal and centered */
+.lp-tag::before{display:none}
+.lp-two{position:relative;gap:clamp(24px,6vw,80px)}.lp-two::before{content:"";position:absolute;inset-block:6%;inset-inline-start:50%;width:1px;background:var(--line)}
+.lp-two .lp-card,.lp-two .lp-card.on{background:none;border:0;box-shadow:none;transform:none;text-align:center;justify-items:center;padding:8px}
+.lp-two .lp-card small{font-size:15px}.lp-two .lp-card h3{display:none}
+.lp-line{min-height:320px;align-content:center;justify-items:center;gap:22px;margin:8px 0 0}
+.lp-line li{padding:8px 18px;border-radius:999px;background:var(--surface);border:1px solid color-mix(in srgb,var(--brand) 60%,var(--line));font-size:13px;gap:10px;z-index:auto}
+.lp-line li::after{inset-inline-start:auto;left:calc(50% - 1px);top:100%;width:2px;height:22px;background:color-mix(in srgb,var(--brand) 55%,transparent);z-index:auto}
+.lp-line i{width:22px;height:22px;font-size:12px}

@@ -33,8 +33,8 @@ function landing(){
   return '<main class="landing2">'
     +'<section class="lp-hero v-'+variant+'"><div class="lp-bg" aria-hidden="true"><div class="lp-grid"></div></div>'
     +'<div class="lp-hero-inner"><div class="lp-copy"><span class="lp-tag">'+copy('الجاهزية الأمنية للإصدارات','Security readiness for releases')+'</span>'
-    +'<h1>'+copy('<span class="lp-l">أمان <span class="grad">استباقي</span>،</span> <span class="lp-l">إطلاق أسرع.</span>','<span class="lp-l"><span class="grad">Proactive</span> security,</span> <span class="lp-l">faster releases.</span>')+'</h1>'
-    +'<p class="lp-sub">'+copy('يقظ يرافق منتجك قبل الإطلاق: يفحص، يشرح، ويعيد الفحص تلقائيًا، والقرار دايمًا بيد الفريق.','Yaqidh accompanies your product before release: it checks, explains and re-checks automatically, and the decision always stays with your team.')+'</p>'
+    +'<h1>'+copy('<span class="lp-l">أمــان <span class="grad">استباقــي</span>،</span> <span class="lp-l">إطــلاق أســرع.</span>','<span class="lp-l"><span class="grad">Proactive</span> security,</span> <span class="lp-l">faster releases.</span>')+'</h1>'
+    +'<p class="lp-sub">'+copy('يَقِـــظ يرافــق منتجــك قبــل الإطــلاق: يفحــص، يشــرح، ويعيــد الفحــص تلقائيــًا، والقــرار دائمًــا بيــد الفريــق.','Yaqidh accompanies your product before release: it checks, explains and re-checks automatically, and the decision always stays with your team.')+'</p>'
     +'<div class="actions lp-cta"><a class="action primary" href="'+go+'">'+goLabel+'</a><a class="action" href="#about">'+copy('كيف يعمل','How it works')+'</a></div></div>'
     +'<div class="lp-art" aria-hidden="true">'+ring(190,'a')+ring(150,'b')+''+animatedLogo()+'</div></div></section>'
 
@@ -45,7 +45,7 @@ function landing(){
     +'<p class="muted">'+copy('كل لفّة وقت وجهد، وتأخير للإطلاق.','Every round costs time and effort, and delays the release.')+'</p></article>'
     +'<article class="lp-card on"><small>'+copy('مع يقظ','With Yaqidh')+'</small>'
     +'<ol class="lp-line"><li><i>✓</i>'+copy('يفحص تلقائيًا','Checks automatically')+'</li><li><i>✓</i>'+copy('يشرح فورًا','Explains at once')+'</li><li><i>✓</i>'+copy('يعيد الفحص بعد كل تعديل','Re-checks every change')+'</li><li><i>✓</i>'+copy('يتأكد إن المشكلة انقفلت','Confirms it is closed')+'</li></ol>'
-    +'<p class="muted">'+copy('الناس تتدخل للموافقة فقط.','People step in only to approve.')+'</p></article></div></section>'
+    +'<p class="muted">'+copy('والفريق المختص يتدخل للموافقة فقط.','People step in only to approve.')+'</p></article></div></section>'
 
     +'<section class="lp-section" id="about"><h2>'+copy('كيف يمشي الطلب','How a request moves')+'</h2><ol class="lp-journey">'
     +journey.map(([title,text],i)=>'<li><i>'+(i+1)+'</i><b>'+title+'</b><small>'+text+'</small></li>').join('')+'</ol>'
