@@ -56,7 +56,20 @@ DEMO_RUN_DATES = {"portal-128": "2026-11-04", "portal-129": "2026-11-05",
     "portal-133": "2026-11-08", "portal-134": "2026-11-08", "portal-135": "2026-11-09"}
 QA_APPROVED = {"portal-128", "portal-129", "portal-131", "portal-134", "portal-135"}
 QA_CHECKED = QA_APPROVED | {"portal-132"}
-STATIC = {"/app.js": "app.js", "/style.css": "style.css",
+STATIC = {
+    "/components/navigation.js": "components/navigation.js",
+    "/components/charts.js": "components/charts.js",
+    "/components/metric-card.js": "components/metric-card.js",
+    "/pages/home.js": "pages/home.js",
+    "/pages/about.js": "pages/about.js",
+    "/pages/login.js": "pages/login.js",
+    "/pages/signup.js": "pages/signup.js",
+    "/pages/communication.js": "pages/communication.js",
+    "/pages/admin.js": "pages/admin.js",
+    "/pages/dashboard/developer.js": "pages/dashboard/developer.js",
+    "/pages/dashboard/review.js": "pages/dashboard/review.js",
+    "/pages/dashboard/index.js": "pages/dashboard/index.js",
+    "/app.js": "app.js", "/style.css": "style.css",
           "/assets/yaqidh-dark-transparent.png": "assets/yaqidh-dark-transparent.png",
           "/assets/yaqidh-light-transparent.png": "assets/yaqidh-light-transparent.png"}
 MIME = {".js": "text/javascript", ".css": "text/css", ".png": "image/png", ".html": "text/html"}
