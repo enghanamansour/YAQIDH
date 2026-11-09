@@ -315,3 +315,6 @@ a.action.hdr-login{background:var(--grad);border:0;color:#fff;border-radius:999p
 .lp-journey{grid-template-columns:repeat(3,minmax(0,1fr));row-gap:44px;column-gap:28px}.lp-journey li::before{display:none}.lp-journey li{justify-items:start;text-align:start;gap:10px}
 .lp-journey b{font-size:20px}.lp-journey small{font-size:16px;max-width:none;line-height:1.85;color:color-mix(in srgb,var(--text) 72%,transparent)}
 @media(max-width:900px){.lp-journey{grid-template-columns:1fr}.top{grid-template-columns:auto 1fr auto}}
+
+.lp-lead{font-size:clamp(18px,2vw,22px);margin-top:-16px;color:color-mix(in srgb,var(--text) 78%,transparent)}
+.lp-line li{align-items:center}
