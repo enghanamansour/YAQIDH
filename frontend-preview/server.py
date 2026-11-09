@@ -125,8 +125,21 @@ def seed(store, policy):
         store.save(Evidence(release_id=key, stages=stages, human_decisions=decisions))
     return {key: getattr(verification, key) for key in ("closed", "still_open", "new", "new_from_db_update", "reopened", "warnings")}
 
+def finding_title(finding):
+    """A readable name for a real finding (the tools give rule ids like python.flask.security.audit.debug-enabled)."""
+    rule = finding.rule or ""
+    if finding.tool == "trivy" and finding.detail:
+        return f"{rule}: {finding.detail}" if rule else finding.detail
+    if finding.tool == "playwright":
+        return rule.replace("_", " ")
+    if finding.tool == "semgrep":
+        return rule.split(".")[-1].replace("-", " ")
+    return rule
+
+
 def clean_finding(finding):
     data = finding.model_dump(mode="json")
+    data["title"] = finding_title(finding)
     # Never pass arbitrary explanation text or location details from a secret result.
     if finding.tool == "trivy" and (
         not finding.component or "secret" in finding.rule.lower() or "secret" in finding.location.lower()
@@ -218,7 +231,10 @@ class Handler(BaseHTTPRequestHandler):
         approved = bool(decisions) and decisions[-1]["decision"] == "approve"
         previous_qa = qa[-1] if qa else None
         live = self.server.live
+        status = live.status_report(key) if live else None
         return {
+            "gate": {"status": status["status"], "staging": status["can_merge_to_staging"], "main": status["can_merge_to_main"],
+                     "reasons": status["reasons"]} if status else None,
             "id": key, **{k: v for k, v in meta.items() if k != "owner"}, "demo": True,
             "stage": stage_name, "outcome": outcome, "runs": runs,
             "findings": [clean_finding(finding) for finding in stage.findings] if stage else [],
@@ -273,7 +289,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self.json(200, self.thread_list(account))
             if path == "/api/dashboard":
                 if role == "company-admin":
-                    return self.json(200, {"account": account, "role": role, "demo": True,
+                    return self.json(200, {"account": account, "role": role, "demo": True, "live": bool(self.server.live),
                         "accounts": [{"name": name, "role": data["role"], "active": data["active"]}
                             for name, data in ACCOUNTS.items() if not data.get("deleted")],
                         "audit": self.server.audit,
@@ -286,7 +302,7 @@ class Handler(BaseHTTPRequestHandler):
                             "active": meta["active"], "day": DEMO_RUN_DATES.get(key), "outcome": view["outcome"]["result"] if view["outcome"] else None,
                             "returnReason": view["decisions"][-1]["reason"] if role == "developer" and view["decisions"] and view["decisions"][-1]["decision"] == "reject" else None,
                             "pendingReview": view["canApprove"], "failedRuns": sum(run["state"] == "error" for run in view["runs"])})
-                return self.json(200, {"account": account, "role": role, "demo": True, "releases": releases,
+                return self.json(200, {"account": account, "role": role, "demo": True, "live": bool(self.server.live), "releases": releases,
                     "reviewAlerts": self.qa_review_alerts(account) if role == "qa" else [],
                     "liveError": self.server.live.error if self.server.live else ""})
             parts = path.strip("/").split("/")
@@ -302,6 +318,26 @@ class Handler(BaseHTTPRequestHandler):
                 if parts[3] == "evidence":
                     return self.json(200, view, [("Content-Disposition", f'attachment; filename="{key}-evidence.json"')])
             self.fail(404, "not_found")
+
+    def grant_exception_request(self, account, key, data):
+        """A security reviewer grants an exception for an eligible finding. Live mode only: the Yaqidh API records it and the
+        policy engine decides whether it counts."""
+        if not self.server.live:
+            return self.fail(404, "not_found")
+        if ACCOUNTS[account]["role"] != "security" or not self.visible(account, key) or RELEASES[key]["active"] != "security":
+            return self.fail(403, "forbidden")
+        finding_id, why = data.get("fingerprint"), data.get("justification")
+        if not isinstance(finding_id, str) or not isinstance(why, str) or not 3 <= len(why.strip()) <= 1000:
+            return self.fail(400, "invalid_input")
+        if finding_id not in self.release_view(account, key)["exceptionEligible"]:
+            return self.fail(409, "decision_unavailable")
+        from live import LiveError
+        try:
+            self.server.live.grant_exception(key, finding_id, why.strip(), account)
+        except LiveError:
+            return self.fail(409, "decision_unavailable")
+        self.refresh_live()
+        return self.json(200, self.release_view(account, key))
 
     def qa_review_alerts(self, account):
         alerts = []
@@ -591,6 +627,8 @@ class Handler(BaseHTTPRequestHandler):
             if path == "/api/threads" or path.startswith("/api/threads/"):
                 return self.post_thread(account, path, data)
             parts = path.strip("/").split("/")
+            if len(parts) == 4 and parts[:2] == ["api", "releases"] and parts[3] == "exception":
+                return self.grant_exception_request(account, parts[2], data)
             if len(parts) != 4 or parts[:2] != ["api", "releases"] or parts[3] != "decision":
                 return self.fail(404, "not_found")
             key = parts[2]

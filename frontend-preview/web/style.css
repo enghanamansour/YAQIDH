@@ -159,3 +159,5 @@ html{scroll-behavior:smooth}
   }
 }
 @keyframes logo-loop{to{transform:rotate(1turn)}}
+
+.explain{white-space:pre-line;line-height:1.8}.gate p{margin:.35rem 0}

@@ -89,6 +89,9 @@ class LiveBackend:
             raise KeyError(key)
         return self.Evidence.model_validate(self._evidence[key])
 
+    def status_report(self, key: str) -> dict | None:
+        return self._status.get(key)
+
     def status(self, key: str) -> str:
         return self._status.get(key, {}).get("status", "")
 

@@ -13,7 +13,7 @@ function adminTimeline(runs,developer=false){
   const y=n=>162-132*n/max;
   const poly=counts=>counts.map((n,i)=>x(i)+','+y(n)).join(' ');
   const scale=[0,Math.ceil(max/2),max].filter((value,index,list)=>list.indexOf(value)===index);
-  return '<section class="panel admin-trend"><div class="section-head"><h2>'+heading+'</h2>'+badge(copy('سجل تجريبي مؤرخ','Dated demo history'))+'</div>'
+  return '<section class="panel admin-trend"><div class="section-head"><h2>'+heading+'</h2>'+badge(profile&&profile.live?copy('سجل مؤرخ','Dated history'):copy('سجل تجريبي مؤرخ','Dated demo history'))+'</div>'
     +'<p class="muted">'+ (developer?copy('الأبنية المسندة يوميًا حسب تاريخ سجل المعاينة. اختر يومًا لتصفية قائمة الأبنية.','Assigned builds by dated demo record. Select a day to filter the build list.'):copy('عدد التشغيلات يوميًا ضمن المشروع والمرحلة المختارين','Daily runs in the selected project and stage'))+'</p>'
     +'<svg class="admin-line" viewBox="0 0 600 202" role="img" aria-label="'+copy('التشغيلات والمتعطل حسب اليوم','Daily runs and failures')+'">'
     +scale.map(n=>'<path class="line-grid" d="M43 '+y(n)+'H561"/><text x="30" y="'+(y(n)+4)+'">'+n+'</text>').join('')

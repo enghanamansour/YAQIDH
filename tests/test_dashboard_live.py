@@ -13,6 +13,7 @@ import pytest
 import uvicorn
 
 from src.api.app import create_app
+from src.schema import StageName
 from tests.test_http_api import H, Stack  # noqa: F401
 
 PREVIEW = Path(__file__).resolve().parents[1] / "frontend-preview"
@@ -208,3 +209,59 @@ def test_an_unreachable_api_is_reported_too(world):
     dash.live.base_url = "http://127.0.0.1:9"
     board = Browser(dash).login("qa").call("GET", "/api/dashboard")[1]
     assert board["releases"] == [] and "not reachable" in board["liveError"]
+
+
+# --- release status and merge, readable titles, and granting an exception from the dashboard ---
+
+def ready_for_security(stack, findings):
+    stack.sec.findings = findings
+    open_pr(stack)
+    stack.service.add_human_decision("r1", "qa", "approve", "Sara", "")
+    stack.service.run_scan("r1", "security")
+    stack.service.evaluate_policy("r1", "security")
+
+
+def test_the_view_says_whether_merging_is_allowed_and_gives_readable_titles(world):
+    stack, dash, _ = world
+    f = stack.sec.findings[0].model_copy(update={"tool": "semgrep", "rule": "python.flask.security.audit.debug-enabled"})
+    t = stack.sec.findings[0].model_copy(update={"fingerprint": "F-2", "tool": "trivy", "rule": "CVE-1", "detail": "Denial of service"})
+    ready_for_security(stack, [f, t])
+    view = Browser(dash).login("security").call("GET", "/api/releases/r1")[1]
+    assert view["gate"]["status"] == "security_blocked" and view["gate"]["staging"] is True and view["gate"]["main"] is False
+    assert {x["title"] for x in view["findings"]} == {"debug enabled", "CVE-1: Denial of service"}
+    assert Browser(dash).login("security").call("GET", "/api/dashboard")[1]["live"] is True
+
+
+def test_a_security_reviewer_can_grant_an_exception_for_a_medium_finding_only(world):
+    stack, dash, _ = world
+    medium = stack.sec.findings[0].model_copy(update={"fingerprint": "F-m", "reported_as": "medium"})
+    high = stack.sec.findings[0].model_copy(update={"fingerprint": "F-h", "reported_as": "high"})
+    ready_for_security(stack, [medium, high])
+    sec = Browser(dash).login("security")
+    view = sec.call("GET", "/api/releases/r1")[1]
+    assert view["exceptionEligible"] == ["F-m"]
+    assert sec.call("POST", "/api/releases/r1/exception", {"fingerprint": "F-h", "justification": "legacy code"})[0] == 409
+    assert sec.call("POST", "/api/releases/r1/exception", {"fingerprint": "F-m", "justification": "ab"})[0] == 400
+    status, after = sec.call("POST", "/api/releases/r1/exception", {"fingerprint": "F-m", "justification": "legacy, fix planned"})
+    assert status == 200
+    saved = {f.fingerprint: f for f in stack.service.store.get("r1").stage(StageName.SECURITY).findings}
+    assert saved["F-m"].status.value == "excepted" and saved["F-m"].exception.approved_by == "security"
+    assert saved["F-h"].status.value == "open"  # the high finding still blocks
+
+
+def test_only_the_security_reviewer_may_grant_exceptions(world):
+    stack, dash, _ = world
+    medium = stack.sec.findings[0].model_copy(update={"fingerprint": "F-m", "reported_as": "medium"})
+    ready_for_security(stack, [medium])
+    for account in ("qa", "developer"):
+        assert Browser(dash).login(account).call("POST", "/api/releases/r1/exception", {"fingerprint": "F-m", "justification": "because"})[0] == 403
+    assert stack.service.store.get("r1").stage(StageName.SECURITY).findings[0].status.value == "open"
+
+
+def test_a_review_request_answer_from_the_dashboard_reaches_the_api(world):
+    stack, dash, _ = world
+    ready_for_security(stack, stack.sec.findings)
+    dash.live.record_review_request("r1", {"request_id": "t9", "commit": C1, "finding": "F-1", "kind": "deadline", "status": "approved",
+                                           "by": "security", "reason": "more time", "approved_deadline": "2026-11-20"})
+    saved = stack.service.store.get("r1").review_request_decisions
+    assert [(d.kind, d.status, d.by) for d in saved] == [("deadline", "approved", "security")]

@@ -15,6 +15,7 @@ const demoText=value=>({
 }[value]||value);
 const mon=value=>'<bdi class="mono">'+safe(value)+'</bdi>';
 
+const isLive=()=>Boolean(profile&&profile.live);
 const requestedSample=new URLSearchParams(location.search).get('sample');
 let profile=null,release=null,tool='all',severity='all',findingFilter='all',runFilter='all',developerOutcome='all',developerDay='all';
 let requestNumber=0;
@@ -50,7 +51,7 @@ const findingName=f=>({
   'demo.order-confirmation':copy('لم يظهر تأكيد الطلب','Order confirmation missing'),
   'DEMO-ADVISORY-01':copy('ملاحظة في مكتبة مستخدمة','Dependency finding'),
   'DEMO-ADVISORY-02':copy('ملاحظة مستثناة في مكتبة','Excepted dependency finding')
-}[f.rule]||f.rule||f.fingerprint);
+}[f.rule]||f.title||f.rule||f.fingerprint);
 const logo=()=>'/assets/yaqidh-'+document.documentElement.dataset.theme+'-transparent.png';
 const action=(name,label,extra='')=>'<button type="button" data-action="'+name+'" '+extra+'>'+label+'</button>';
 const badge=(label,tone='')=>'<span class="badge '+tone+'">'+label+'</span>';
@@ -111,7 +112,7 @@ function changeAppearance(id){
 
 const liveWarning=()=>profile&&profile.liveError?'<section class="panel" role="alert"><b>'+copy('تعذّر قراءة البيانات الحقيقية','Could not read the real data')+'</b><p>'+safe(profile.liveError)+'</p></section>':'';
 function introduction(){
-  return liveWarning()+'<section class="intro"><div><h1>'+roleNames(profile.role)+'</h1><small>'+copy('معاينة محلية · بيانات تشغيل ومستخدمون تجريبيون','Local preview · Demo runs and users')+'</small></div>'+badge(safe(accountName(profile.role)))+'</section>';
+  return liveWarning()+'<section class="intro"><div><h1>'+roleNames(profile.role)+'</h1><small>'+(isLive()?copy('بيانات حقيقية من خادم يقظ','Live data from the Yaqidh server'):copy('معاينة محلية · بيانات تشغيل ومستخدمون تجريبيون','Local preview · Demo runs and users'))+'</small></div>'+'<div class="actions">'+action('refresh',copy('تحديث','Refresh'))+badge(safe(accountName(profile.role)))+'</div></section>';
 }
 let adminQuery='',adminActive='all';
 
@@ -166,7 +167,7 @@ async function load(){
   }else{release=null;render()}
 }
 function openRuns(){
-  const records=release.runs.map(r=>'<p>'+safe(toolName(r.tool))+' · '+badge(statusText(r.state),r.state==='completed'?'good':'bad')+' · '+copy('سجل تشغيل تجريبي','Demo run record')+'</p>').join('');
+  const records=release.runs.map(r=>'<p>'+safe(toolName(r.tool))+' · '+badge(statusText(r.state),r.state==='completed'?'good':'bad')+' '+(isLive()?'':'· '+copy('سجل تشغيل تجريبي','Demo run record'))+'</p>').join('');
   modal(copy('تشغيلات الأدوات','Tool runs'),records||'<p>'+copy('لا توجد سجلات تشغيل لهذه المرحلة.','No run records for this stage.')+'</p>');
 }
 const eventName=id=>({
@@ -224,11 +225,46 @@ function findingModal(id){
     +(f.exception?'<p class="note"><b>'+copy('استثناء مسجل','Recorded exception')+'</b><br>'+safe(demoText(f.exception.justification))+' · '+safe(demoText(f.exception.approved_by))+'</p>':'')
     +(profile.role==='security'||(profile.role==='developer'&&release.stage==='security'&&!release.blockerIds.includes(f.fingerprint))?'':'<p>'+action('new-thread',release.stage==='security'?copy('طلب تمديد المهلة','Request deadline extension'):copy('ناقش هذه الملاحظة','Discuss this finding'),'data-id="'+safe(f.fingerprint)+'"')+'</p>')
     +(profile.role==='developer'&&release.exceptionEligible.includes(f.fingerprint)?'<p>'+action('new-exception',copy('طلب استثناء أمني','Request security exception'),'data-id="'+safe(f.fingerprint)+'"')+'</p>':'')
-    +(f.explanation?'<p class="note"><b>'+copy('شرح يقظ','YAQIDH explanation')+'</b><br>'+safe(demoText(f.explanation.text))+'</p>':''));
+    +(f.explanation?'<div class="note explain"><b>'+copy('شرح يقظ','YAQIDH explanation')+'</b> '+badge(copy('كتبه الذكاء الاصطناعي · ليس حقيقة مثبتة','AI-written · not a verified fact'))+'<br>'+safe(demoText(f.explanation.text))+'</div>':'')
+    +(isLive()&&profile.role==='security'&&release.stage==='security'&&(release.exceptionEligible||[]).includes(f.fingerprint)&&f.status==='open'?'<p>'+action('exception',copy('منح استثناء','Grant exception'),'data-id="'+safe(f.fingerprint)+'"')+'</p>':''));
+}
+const gateStatusText=code=>({
+  not_started:copy('لم يبدأ الفحص','Not started'),qa_blocked:copy('الجودة: فيه ملاحظات مانعة، يرجع للمطوّر','QA: blocking findings, back to the developer'),
+  awaiting_qa_approval:copy('الجودة نجحت، بانتظار موافقة مراجع الجودة','QA passed, waiting for the QA reviewer'),
+  qa_rejected:copy('مراجع الجودة أرجع التعديل','The QA reviewer returned the change'),
+  awaiting_security_scan:copy('وافقت الجودة، الفحص الأمني لم يعمل بعد','QA approved, security not scanned yet'),
+  security_blocked:copy('الأمن: فيه ملاحظات مانعة، يرجع للمطوّر','Security: blocking findings, back to the developer'),
+  awaiting_security_approval:copy('الأمن نجح، بانتظار موافقة مراجع الأمن','Security passed, waiting for the security reviewer'),
+  security_rejected:copy('مراجع الأمن أرجع التعديل','The security reviewer returned the change'),
+  ready_to_merge:copy('اكتمل كل شي، الدمج مسموح','Everything passed and was approved: merge allowed')}[code]||code);
+function statusPanel(){
+  const g=release&&release.gate;
+  if(!g)return '';
+  const row=(label,ok)=>'<p>'+badge(ok?copy('مسموح','Allowed'):copy('ممنوع','Blocked'),ok?'good':'bad')+' '+label+'</p>';
+  return '<section class="panel gate"><h2>'+copy('حالة الإصدار والدمج','Release status and merge')+'</h2><p><b>'+safe(gateStatusText(g.status))+'</b></p>'
+    +row(copy('الدمج على staging','Merge to staging'),g.staging)+row(copy('الدمج على main','Merge to main'),g.main)
+    +(g.reasons&&g.reasons.length?'<p class="muted">'+g.reasons.map(r=>safe(displayReason(r))).join(' · ')+'</p>':'')+'</section>';
+}
+async function refreshData(manual){
+  if(!profile||location.pathname!=='/dashboard'||dialog.open)return;
+  try{
+    const before=JSON.stringify([profile,release]);
+    profile=await api('/api/dashboard');
+    const wanted=(release&&profile.releases?.some(r=>r.id===release.id))?release.id:profile.releases?.[0]?.id;
+    release=wanted?await api('/api/releases/'+encodeURIComponent(wanted)):null;
+    if(manual||JSON.stringify([profile,release])!==before)render();
+    if(manual)notify(copy('تم التحديث','Updated'));
+  }catch(e){if(manual)notify(copy('تعذر التحديث','Could not refresh'))}
 }
 async function handleAction(button){
   const id=button.dataset.action;
   if(id==='close')return dialog.close();
+  if(id==='refresh')return refreshData(true);
+  if(id==='exception'){
+    return modal(copy('منح استثناء','Grant exception'),'<p>'+copy('للملاحظات المتوسطة فقط. تحتاج تبريرًا مكتوبًا، وسياسة يقظ هي التي تقرر هل يكفي.','Medium findings only. A written justification is required and the policy decides whether it is enough.')+'</p>'
+      +'<form id="exception-form" data-release="'+safe(release.id)+'" data-finding="'+safe(button.dataset.id)+'"><label class="field">'+copy('التبرير','Justification')+'<textarea name="justification" required minlength="3" maxlength="1000"></textarea></label>'
+      +'<button class="primary">'+copy('حفظ الاستثناء','Save exception')+'</button></form>');
+  }
   if(id==='metric')return showMetric(button.dataset.id);
   if(id==='run-state'){runFilter=chartPick(button.dataset.id);refreshChart(button);return}
   if(id==='developer-outcome'){developerOutcome=developerOutcome===button.dataset.id?'all':button.dataset.id;refreshChart(button);return}
@@ -285,7 +321,7 @@ async function handleAction(button){
     return modal(id==='approve'?copy('تسجيل الموافقة','Record approval'):copy('إرجاع التعديل','Return change'),
       '<p>'+safe(buildName(release.build))+' · '+mon(release.commit)+'</p><form id="decision-form" data-choice="'+id+'" data-release="'+safe(release.id)+'" data-commit="'+safe(release.commit)+'">'
       +'<label class="field">'+copy('السبب','Reason')+'<textarea name="reason" required minlength="3" maxlength="1000"></textarea></label>'
-      +'<button class="primary">'+copy('حفظ القرار التجريبي','Save demo decision')+'</button></form>');
+      +'<button class="primary">'+copy('حفظ القرار','Save decision')+'</button></form>');
   }
 }
 const metricTip=document.createElement('div');
@@ -375,11 +411,17 @@ document.addEventListener('submit',async event=>{
       dialog.close();
       render();
     }
+    if(form.id==='exception-form'){
+      const key=form.dataset.release;
+      const updated=await api('/api/releases/'+encodeURIComponent(key)+'/exception',{fingerprint:form.dataset.finding,justification:data.justification});
+      if(release?.id===key){release=updated;dialog.close();render()}
+      notify(copy('تم تسجيل الاستثناء','Exception recorded'));
+    }
     if(form.id==='decision-form'){
       const key=form.dataset.release;
       const updated=await api('/api/releases/'+encodeURIComponent(key)+'/decision',{decision:form.dataset.choice,reason:data.reason,commit:form.dataset.commit});
       if(release?.id===key){release=updated;dialog.close();render()}
-      notify(copy('تم تسجيل القرار التجريبي','Demo decision recorded'));
+      notify(copy('تم تسجيل القرار','Decision recorded'));
     }
   }catch(e){
     notify(e.message==='401'?copy('بيانات الدخول غير صحيحة أو انتهت الجلسة','Invalid credentials or expired session'):
@@ -390,3 +432,4 @@ setAppearance();
 render();
 load().catch(()=>notify(copy('تعذر تحميل الداشبورد','Dashboard could not be loaded')));
 setInterval(refreshQAReviewAlerts,10000);
+setInterval(()=>refreshData(false),20000);
