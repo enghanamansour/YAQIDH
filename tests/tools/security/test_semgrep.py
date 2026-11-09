@@ -1,0 +1,146 @@
+import shutil
+import sys
+from pathlib import Path
+
+import pytest
+
+from src.schema import Severity
+from src.tools.base import ToolError
+from src.tools.security.semgrep import SemgrepTool, _rule_id, parse_output
+
+FIXTURES = Path(__file__).parent / "fixtures"
+RULES_DIR = Path(__file__).resolve().parents[3] / "config" / "semgrep-rules"
+SQLI = "python.flask.security.injection.tainted-sql-string"
+DEBUG = "python.flask.security.audit.debug-enabled"
+
+
+def fake_result(tmp_path, check_id=SQLI, severity="ERROR", line=3):
+    f = tmp_path / "app.py"
+    f.write_text("a = 1\nb = 2\nquery = 'x' + name\n")
+    return {
+        "check_id": check_id,
+        "path": str(f),
+        "start": {"line": line},
+        "end": {"line": line},
+        "extra": {"severity": severity, "lines": "requires login"},
+    }
+
+
+def test_parse_maps_fields(tmp_path):
+    [f] = parse_output({"results": [fake_result(tmp_path)], "errors": []}, tmp_path)
+    assert f.tool == "semgrep"
+    assert f.rule == SQLI
+    assert f.location == "app.py:3"
+    assert f.severity == Severity.HIGH
+
+
+@pytest.mark.parametrize(
+    "check_id",
+    [SQLI, f"config.semgrep-rules.{SQLI}", f"Users.someone.project.config.semgrep-rules.{SQLI}"],
+)
+def test_rule_id_does_not_depend_on_where_the_rules_are_stored(check_id):
+    assert _rule_id(check_id) == SQLI
+
+
+def test_original_level_is_kept(tmp_path):
+    for semgrep, reported in [("ERROR", "high"), ("WARNING", "medium"), ("INFO", "low"), ("NEW", "unknown")]:
+        [f] = parse_output({"results": [fake_result(tmp_path, severity=semgrep)], "errors": []}, tmp_path)
+        assert f.reported_as == reported
+
+
+@pytest.mark.parametrize("semgrep,ours", [("ERROR", Severity.HIGH), ("WARNING", Severity.HIGH), ("INFO", Severity.LOW), ("SOMETHING_NEW", Severity.HIGH)])
+def test_severity_mapping(tmp_path, semgrep, ours):
+    [f] = parse_output({"results": [fake_result(tmp_path, severity=semgrep)], "errors": []}, tmp_path)
+    assert f.severity == ours
+
+
+def test_id_survives_a_line_shift(tmp_path):
+    result = fake_result(tmp_path)
+    first = parse_output({"results": [result], "errors": []}, tmp_path)[0]
+    (tmp_path / "app.py").write_text("# new comment\na = 1\nb = 2\nquery = 'x' + name\n")
+    shifted = {**result, "start": {"line": 4}, "end": {"line": 4}}
+    second = parse_output({"results": [shifted], "errors": []}, tmp_path)[0]
+    assert first.location != second.location
+    assert first.fingerprint == second.fingerprint
+
+
+def test_duplicate_results_collapse_to_one_finding(tmp_path):
+    r = fake_result(tmp_path)
+    assert len(parse_output({"results": [r, r], "errors": []}, tmp_path)) == 1
+
+
+def test_semgrep_errors_are_raised_not_hidden(tmp_path):
+    with pytest.raises(ToolError):
+        parse_output({"results": [], "errors": [{"message": "bad rule"}]}, tmp_path)
+
+
+def test_missing_target_raises(tmp_path):
+    with pytest.raises(ToolError):
+        SemgrepTool(RULES_DIR).run(tmp_path / "nope")
+
+
+def test_missing_rules_raise_a_helpful_error(tmp_path):
+    with pytest.raises(ToolError, match="fetch_semgrep_rules"):
+        SemgrepTool(tmp_path / "no-rules").run(tmp_path)
+
+
+def test_rules_version_is_unknown_when_rules_are_missing(tmp_path):
+    assert SemgrepTool(tmp_path).rules_version() == "unknown"
+
+
+have_semgrep = shutil.which("semgrep") is not None or (Path(sys.executable).parent / "semgrep").exists()
+have_rules = (RULES_DIR / "python").is_dir()
+needs_real_scan = pytest.mark.skipif(
+    not (have_semgrep and have_rules),
+    reason="needs semgrep and the official rules (run scripts/fetch_semgrep_rules.sh)",
+)
+
+
+@pytest.fixture(scope="module")
+def fixtures(tmp_path_factory):
+    # Semgrep skips folders named "tests" by default (and does so in git repos), so scan a copy elsewhere.
+    dest = tmp_path_factory.mktemp("semgrep_fixtures")
+    shutil.copytree(FIXTURES, dest, dirs_exist_ok=True)
+    return dest
+
+
+@pytest.fixture(scope="module")
+def tool():
+    return SemgrepTool(RULES_DIR)
+
+
+@pytest.fixture(scope="module")
+def vulnerable_findings(tool, fixtures):
+    # One real scan is shared by the tests below: loading the official rules takes about 10 seconds.
+    return tool.run(fixtures / "vulnerable")
+
+
+@needs_real_scan
+def test_real_scan_finds_planted_vulnerabilities(vulnerable_findings):
+    # Rules that flag the same line are merged into one finding, so a rule may be named in the detail only.
+    rules = {f.rule for f in vulnerable_findings} | {f.detail for f in vulnerable_findings}
+    assert any(SQLI in r for r in rules)
+    assert any(DEBUG in r for r in rules)
+
+
+@needs_real_scan
+def test_real_scan_severities(vulnerable_findings):
+    sqli = next(f for f in vulnerable_findings if f.rule == SQLI or SQLI in f.detail)
+    debug = next(f for f in vulnerable_findings if f.rule == DEBUG or DEBUG in f.detail)
+    assert sqli.severity == Severity.HIGH
+    assert debug.severity == Severity.HIGH
+
+
+@needs_real_scan
+def test_real_scan_of_clean_code_finds_nothing(tool, fixtures):
+    assert tool.run(fixtures / "clean") == []
+
+
+@needs_real_scan
+def test_real_scan_is_deterministic(tool, fixtures, vulnerable_findings):
+    assert tool.run(fixtures / "vulnerable") == vulnerable_findings
+
+
+@needs_real_scan
+def test_rules_version_is_the_pinned_commit(tool):
+    assert len(tool.rules_version()) == 40

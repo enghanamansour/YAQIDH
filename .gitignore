@@ -1,6 +1,18 @@
+.env
 .venv/
 __pycache__/
-.pytest_cache/
-data/
 *.pyc
-.env
+.pytest_cache/
+data/releases/*
+!data/releases/.gitkeep
+data/history/
+reports/
+
+# Hana's hash-chained evidence log
+data/evidence.jsonl
+
+# Official Semgrep rules, downloaded by scripts/fetch_semgrep_rules.sh
+config/semgrep-rules/
+
+# demo app database
+demo_app/*.db

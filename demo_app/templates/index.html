@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Home{% endblock %}
+{% block content %}
+<section class="hero">
+  <h1>Books worth staying up for.</h1>
+  <p>Fiction, history, technology and more, delivered across the Kingdom in two days.</p>
+  <a class="button" href="{{ url_for('catalog') }}">Browse the catalog</a>
+</section>
+
+<ul class="perks">
+  <li><strong>Free delivery</strong><span>on orders over 150 SAR</span></li>
+  <li><strong>Two-day shipping</strong><span>across the Kingdom</span></li>
+  <li><strong>Easy returns</strong><span>within 14 days</span></li>
+</ul>
+
+<h2>Featured this week</h2>
+<div class="grid">
+  {% for b in featured %}{% include "_card.html" %}{% endfor %}
+</div>
+
+<h2>Shop by category</h2>
+<ul class="tiles">
+  {% for c in categories %}
+    <li><a class="tile t-{{ c.category.split('-')[0]|lower }}" href="{{ url_for('catalog', category=c.category) }}">
+      <strong>{{ c.category }}</strong><span>{{ c.n }} books</span>
+    </a></li>
+  {% endfor %}
+</ul>
+{% endblock %}
