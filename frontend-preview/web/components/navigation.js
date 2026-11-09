@@ -3,10 +3,10 @@ function animatedLogo(){
 }
 function header(){
   const ar=document.documentElement.lang==='ar', theme=document.documentElement.dataset.theme;
-  const toggle=(id,label,active)=>action(id,label,'aria-pressed="'+active+'"');
-  return '<header class="top"><div class="top-navigation"><a class="top-logo" href="/" aria-label="'+copy('يقظ · الرئيسية','YAQIDH · Home')+'"><img class="brand" alt="'+copy('يقظ','YAQIDH')+'" src="'+logo()+'"></a><nav aria-label="'+copy('التنقل العام','Main navigation')+'">'+(location.pathname==='/'?'<a href="#problem">'+copy('المشكلة','The problem')+'</a><a href="#about">'+copy('كيف يعمل','How it works')+'</a><a href="#roles">'+copy('الأدوار','Roles')+'</a><a href="#trust">'+copy('الثقة','Trust')+'</a>':'<a href="/#about">'+copy('عن يقظ','About YAQIDH')+'</a>')+'</nav></div>'
-    +'<div class="toolbar"><div class="top-control" role="group" aria-label="'+copy('اللغة','Language')+'">'+toggle('ar',copy('العربية','Arabic'),ar)+toggle('en',copy('الإنجليزية','English'),!ar)+'</div>'
-    +'<div class="top-control" role="group" aria-label="'+copy('المظهر','Appearance')+'">'+toggle('light',copy('☀ فاتح','☀ Light'),theme==='light')+toggle('dark',copy('☾ غامق','☾ Dark'),theme==='dark')+'</div>'+(!profile&&!['/login','/signup'].includes(location.pathname)?'<a class="action primary hdr-login" href="/login">'+copy('تسجيل الدخول','Sign in')+'</a>':'')+'</div></header>';
+  const toggle=(id,label,active,name)=>action(id,label,'aria-pressed="'+active+'" aria-label="'+name+'" title="'+name+'"');
+  return '<header class="top"><div class="top-navigation"><a class="top-logo" href="/" aria-label="'+copy('يقظ · الرئيسية','YAQIDH · Home')+'"><img class="brand" alt="'+copy('يقظ','YAQIDH')+'" src="'+logo()+'"></a><nav aria-label="'+copy('التنقل العام','Main navigation')+'">'+(location.pathname==='/'?'<a href="#problem">'+copy('المشكلة','The problem')+'</a><a href="#about">'+copy('كيف يعمل','How it works')+'</a><a href="#features">'+copy('المميزات','Features')+'</a>':'<a href="/#about">'+copy('عن يقظ','About YAQIDH')+'</a>')+'</nav></div>'
+    +'<div class="toolbar"><div class="top-control" role="group" aria-label="'+copy('اللغة','Language')+'">'+toggle('ar','ع',ar,'العربية')+toggle('en','EN',!ar,'English')+'</div>'
+    +'<div class="top-control" role="group" aria-label="'+copy('المظهر','Appearance')+'">'+toggle('light','☀',theme==='light','فاتح')+toggle('dark','☾',theme==='dark','غامق')+'</div>'+(!profile&&!['/login','/signup'].includes(location.pathname)?'<a class="action primary hdr-login" href="/login">'+copy('تسجيل الدخول','Sign in')+'</a>':'')+'</div></header>';
 }
 
 function sidebar(){
