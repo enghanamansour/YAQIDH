@@ -21,7 +21,7 @@ _T = {
         "unsure": "تنبيه: الأداة نفسها غير متأكدة من هذي الملاحظة (ثقة منخفضة)، فهي احتمال. تأكد منها قبل ما تعدّل.",
     },
     "en": {
-        "phase": {"qa": "Quality check", "security": "Security check"},
+        "phase": {"qa": "QA check", "security": "Security check"},
         "blocked": "Merging is blocked until every high-severity finding below is closed. The agent only explains and never edits code; the developer does the fixing.",
         "clean": "No high-severity findings remain in this check. It now goes to the human team for review.",
         "low": "Low-severity findings: they do not block the merge, but they are recorded and not harmless. Better fixed.",

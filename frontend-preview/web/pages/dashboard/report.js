@@ -24,7 +24,7 @@ function reportDistribution(report){
   const owasp=Object.entries(s.by_owasp||{}).filter(([k])=>k!=='none').map(([k,v])=>'<li>'+safe(k)+': <b>'+v+'</b></li>').join('');
   return '<div class="report-dist"><div><h3>'+copy('حسب خطورة الأداة','By tool rating')+'</h3><ul class="metric-records">'+levels+'</ul></div><div><h3>'+copy('حسب الأداة','By tool')+'</h3><ul class="metric-records">'+tools+'</ul></div><div><h3>OWASP Top 10</h3><ul class="metric-records">'+(owasp||'<li class="muted">—</li>')+'</ul></div></div>';
 }
-const reportStatus=row=>row.status==='open'?copy('مفتوحة','Open'):row.status==='excepted'?copy('مستثناة','Excepted'):copy('مغلقة بإثبات','Closed, verified');
+const reportStatus=row=>row.status==='open'?copy('مفتوحة','Open'):row.status==='excepted'?copy('مستثناة','Excepted'):copy('مغلقة بإثبات','Closed, proven');
 const reportNotes={
   elapsed_time:()=>copy('الزمن هو المدة المنقضية بين الفحوصات وتشمل الانتظار، وليس جهد المطوّر.','Time is the elapsed time between scans and includes waiting; it is not the developer’s working time.'),
   scan_resolution:()=>copy('دقة الزمن بحجم الفترة بين فحصين.','Precision equals the gap between two scans.'),
@@ -91,20 +91,20 @@ function reportTile(label,value,tone,note){
 }
 
 /* Where the build is, in five steps, and one sentence saying what it needs. */
-const reportSteps=()=>[copy('فحص الجودة','QA scan'),copy('موافقة الجودة','QA approval'),copy('فحص الأمن','Security scan'),copy('موافقة الأمن','Security approval'),copy('جاهز للدمج','Ready to merge')];
+const reportSteps=()=>[copy('فحص الجودة','QA check'),copy('موافقة الجودة','QA approval'),copy('فحص الأمن','Security check'),copy('موافقة الأمن','Security approval'),copy('جاهز للدمج','Ready to merge')];
 const reportWhere={
   not_started:[0,'bad'],qa_blocked:[0,'bad'],qa_rejected:[0,'bad'],awaiting_qa_approval:[1,'wait'],
   awaiting_security_scan:[2,'wait'],security_blocked:[2,'bad'],security_rejected:[2,'bad'],awaiting_security_approval:[3,'wait'],ready_to_merge:[4,'good']
 };
 const reportSentence={
   not_started:()=>copy('لم يبدأ الفحص بعد.','Checking has not started yet.'),
-  qa_blocked:()=>copy('فحص الجودة وجد ملاحظات تمنع الدمج. أصلحها وارفع تعديلاً جديداً.','The QA scan found blocking findings. Fix them and push a new change.'),
+  qa_blocked:()=>copy('فحص الجودة وجد ملاحظات تمنع الدمج. أصلحها وارفع تعديلاً جديداً.','The QA check found blocking findings. Fix them and push a new change.'),
   qa_rejected:()=>copy('أرجع فريق الجودة البناء. اقرأ السبب وأصلح ثم ارفع تعديلاً.','The QA team returned the build. Read the reason, fix it and push again.'),
-  awaiting_qa_approval:()=>copy('اجتاز فحص الجودة، وينتظر موافقة فريق الجودة.','It passed the QA scan and waits for the QA team.'),
-  awaiting_security_scan:()=>copy('ينتظر فحص الأمن.','Waiting for the security scan.'),
-  security_blocked:()=>copy('فحص الأمن وجد ملاحظات تمنع الدمج. أصلحها وارفع تعديلاً جديداً.','The security scan found blocking findings. Fix them and push a new change.'),
+  awaiting_qa_approval:()=>copy('اجتاز فحص الجودة، وينتظر موافقة فريق الجودة.','It passed the QA check and waits for the QA team.'),
+  awaiting_security_scan:()=>copy('ينتظر فحص الأمن.','Waiting for the security check.'),
+  security_blocked:()=>copy('فحص الأمن وجد ملاحظات تمنع الدمج. أصلحها وارفع تعديلاً جديداً.','The security check found blocking findings. Fix them and push a new change.'),
   security_rejected:()=>copy('أرجع فريق الأمن البناء. اقرأ السبب وأصلح ثم ارفع تعديلاً.','The security team returned the build. Read the reason, fix it and push again.'),
-  awaiting_security_approval:()=>copy('اجتاز فحص الأمن، وينتظر موافقة فريق الأمن.','It passed the security scan and waits for the security team.'),
+  awaiting_security_approval:()=>copy('اجتاز فحص الأمن، وينتظر موافقة فريق الأمن.','It passed the security check and waits for the security team.'),
   ready_to_merge:()=>copy('كل شيء مكتمل. البناء جاهز للدمج.','Everything is done. The build is ready to merge.')
 };
 
@@ -178,7 +178,7 @@ function timeFlow(row){
   const closed=row.closed_at!==null&&row.closed_at!==undefined;
   const nodes=[
     hnode(copy('أول ظهور','First seen'),safe(reportDate(row.first_seen)),'accent',safe(reportStage(row.stage))),
-    hnode(copy('جولات الفحص','Scan rounds'),safe(row.rounds),'wait',''),
+    hnode(copy('جولات الفحص','Check rounds'),safe(row.rounds),'wait',''),
     closed?hnode(copy('أُغلقت','Closed'),safe(reportDate(row.closed_at)),'good',copy('بعد ','after ')+safe(reportTime(row.seconds_to_close)))
           :hnode(copy('لم تُغلق','Not closed yet'),row.seconds_open!==null?safe(reportTime(row.seconds_open)):'—','bad',copy('مفتوحة منذ ظهورها','open since it appeared'))
   ];
@@ -203,6 +203,6 @@ function developerReport(){
   const waits=s.approval_waits.map(item=>safe(reportStage(item.stage))+': '+safe(reportTime(item.seconds))).join(' · ');
   const notes=report.notes.map(code=>reportNotes[code]?reportNotes[code]():'').filter(Boolean).map(text=>'<li>'+safe(text)+'</li>').join('');
   const more='<details class="more-details"><summary>'+copy('كيف تُحسب هذه الأرقام؟','How are these numbers worked out?')+'</summary>'
-    +(waits?'<p class="muted">'+copy('انتظار الموافقة بعد نجاح الفحص: ','Wait for approval after a passing scan: ')+waits+'</p>':'')+'<ul class="report-notes">'+notes+'</ul></details>';
+    +(waits?'<p class="muted">'+copy('انتظار الموافقة بعد نجاح الفحص: ','Wait for approval after a passing check: ')+waits+'</p>':'')+'<ul class="report-notes">'+notes+'</ul></details>';
   return '<section class="panel report">'+head+reportStepper(report)+tiles+reportBar(s)+reportRatings(s)+cards+'<p class="muted decided">'+decided+'</p>'+more+'</section>';
 }

@@ -1,6 +1,6 @@
 function threadText(value){
   return ({
-    'developer-inbox-demo':copy('إرجاع تعديل الجودة','QA change returned'),
+    'developer-inbox-demo':copy('إرجاع بناء الجودة','QA build returned'),
     'developer-message-demo':copy('لم يظهر تأكيد الطلب بعد الإرسال. عالج الملاحظة وارفع التعديل لإعادة الفحص.','Order confirmation did not appear after submission. Address the finding and resubmit for verification.'),
     'deadline-demo':copy('طلب مهلة إضافية لمعالجة ملاحظة أمنية','Extension request for security remediation'),
     'deadline-reason-demo':copy('وقت إضافي لإكمال المعالجة وإعادة التحقق.','Extra time to complete remediation and reverification.'),
@@ -30,7 +30,7 @@ function startThread(finding,releaseId=release.id){
   const extensionOnly=profile.role==='developer'&&release.stage==='security';
   const optional=extensionOnly?'':' '+copy('(اختياري)','(optional)');
   const required=extensionOnly?' required':'';
-  const destination=profile.role==='developer'?stageText(release.stage):copy('المطوّر المسند إليه التعديل','Assigned developer');
+  const destination=profile.role==='developer'?stageText(release.stage):copy('المطوّر المسند إليه البناء','Assigned developer');
   modal(extensionOnly?copy('طلب تمديد المهلة','Request deadline extension'):copy('فتح نقاش مرتبط بالبناء','Start a build discussion'),
     '<form id="thread-new" data-finding="'+safe(finding)+'" data-release="'+safe(releaseId)+'"><div class="note"><b>'+copy('المرسل','Sender')+'</b> '+safe(accountName(profile.account))+' · '+roleNames(profile.role)+'<br><b>'+copy('التوجيه التلقائي','Automatically routed to')+'</b> '+destination+'</div>'
     +'<label class="field">'+copy('موضوع النقاش','Subject')+'<input name="subject" required maxlength="100"></label>'

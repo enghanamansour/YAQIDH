@@ -53,11 +53,11 @@ function shieldChart(){
     +'<div class="shield-content"><strong>'+outcomeText()+'</strong><small>'+safe(buildName(release.build))+'</small></div></div><small>'+copy('محرك القواعد · البناء كاملًا','Policy engine · full build')+'</small></section>';
 }
 
-function findingLabel(key){return ({open:copy('مفتوحة','In progress'),fixed:copy('مغلقة','Closed'),excepted:copy('مستثناة','Excepted')})[key]||''}
+function findingLabel(key){return ({open:copy('مفتوحة','Open'),fixed:copy('مغلقة','Closed'),excepted:copy('مستثناة','Excepted')})[key]||''}
 
 function bugChart(rows){
-  const counts=[['open',copy('مفتوحة','In progress'),'bad'],['fixed',copy('مغلقة','Closed'),'good'],['excepted',copy('مستثناة','Excepted'),'wait']];
-  return '<section class="panel"><h2>'+(profile.role==='qa'?copy('حالة ملاحظات الجودة','QA finding status'):copy('حالة الثغرات والملاحظات','Vulnerability and finding status'))+'</h2><div class="bug-chart">'
+  const counts=[['open',copy('مفتوحة','Open'),'bad'],['fixed',copy('مغلقة','Closed'),'good'],['excepted',copy('مستثناة','Excepted'),'wait']];
+  return '<section class="panel"><h2>'+(profile.role==='qa'?copy('حالة ملاحظات الجودة','QA finding status'):copy('حالة الثغرات والملاحظات','Finding status'))+'</h2><div class="bug-chart">'
     +'<svg viewBox="0 0 230 140" preserveAspectRatio="none" aria-hidden="true"><path d="M41 51 20 39H5m36 32H5m36 25-21 14H5m184-59 21-12h15m-36 32h36m-36 25 21 14h15M55 25h120l14 15v72l-14 15H55l-14-15V40Z"/><path class="bug-head" d="M89 24 101 8h28l12 16v16H89Z"/></svg><b class="bug-total" title="'+copy('إجمالي الملاحظات المطابقة','Total matching findings')+'">'+rows.length+'</b><div class="bug-counts">'
     +counts.map(([key,label,tone])=>'<button type="button" data-action="finding-group" data-id="'+key+'" class="'+tone+'" aria-pressed="'+(findingFilter===key)+'" title="'+label+' · '+fraction(rows.filter(f=>findingGroup(f)===key).length,rows.length)+'"><span>'+label+'</span><progress value="'+rows.filter(f=>findingGroup(f)===key).length+'" max="'+Math.max(rows.length,1)+'"></progress><b>'+rows.filter(f=>findingGroup(f)===key).length+'</b></button>').join('')
     +'</div></div><small>'+copy('تتغير مع فلتر الأداة والخطورة','Updates with tool and severity filters')+'</small></section>';
@@ -65,8 +65,8 @@ function bugChart(rows){
 
 function qaChart(rows,title=copy('حالة ملاحظات الجودة','QA finding status')){
   const resolved=rows.filter(f=>f.closure?.result==='closed').length;
-  const groups=[[copy('مفتوحة','Needs remediation'),rows.filter(f=>f.status!=='excepted'&&f.closure?.result!=='closed').length,'bad'],
-    [copy('مغلقة بإثبات','Verified closed'),resolved,'good'],
+  const groups=[[copy('مفتوحة','Open'),rows.filter(f=>f.status!=='excepted'&&f.closure?.result!=='closed').length,'bad'],
+    [copy('مغلقة بإثبات','Closed, proven'),resolved,'good'],
     [copy('مستثناة','Excepted'),rows.filter(f=>f.status==='excepted'&&f.closure?.result!=='closed').length,'wait']];
   return '<section class="panel"><h2>'+title+'</h2>'
     +groups.map(([label,count,tone])=>'<div class="bar-row '+tone+'"><span>'+label+' <b>'+count+'</b></span><progress value="'+count+'" max="'+Math.max(1,rows.length)+'"></progress></div>').join('')
@@ -83,8 +83,8 @@ function flowChart(){
   const tone=release.outcome?.result==='pass'?'good':release.outcome?.result==='fail'?'bad':'wait';
   const pct=n=>total?Math.round(100*n/total)+'%':'—';
   const node=(cls,label,value,sub,key)=>'<'+(key?'button type="button" data-action="finding-group" data-id="'+key+'"':'div')+' class="flow-node '+cls+'"'+(key?' aria-pressed="'+(findingFilter===key)+'"':'')+'><small>'+label+'</small><b>'+value+'</b>'+(sub?'<span>'+sub+'</span>':'')+'</'+(key?'button':'div')+'>';
-  return '<section class="panel flow"><h2>'+copy('مسار الفحص إلى القرار','From scan to decision')+'</h2><div class="flow-chart">'
-    +node('wait',copy('الفحص','Scanning'),ran+' / '+runs.length,copy('أدوات اكتمل تشغيلها','tools finished'))
+  return '<section class="panel flow"><h2>'+copy('مسار الفحص إلى القرار','From check to decision')+'</h2><div class="flow-chart">'
+    +node('wait',copy('الفحص','Checks'),ran+' / '+runs.length,copy('أدوات اكتمل تشغيلها','tools finished'))
     +'<i class="flow-arrow" aria-hidden="true"></i>'
     +node('accent',copy('ملاحظات وُجدت','Findings found'),total,'')
     +'<i class="flow-arrow" aria-hidden="true"></i>'

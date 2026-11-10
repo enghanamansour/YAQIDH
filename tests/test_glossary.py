@@ -43,3 +43,27 @@ def test_the_glossary_file_lists_every_banned_word():
     doc = (ROOT / "docs/glossary.md").read_text(encoding="utf-8")
     missing = [word for word in BANNED if word not in doc and word != "مطور"]
     assert not missing, f"docs/glossary.md does not mention: {missing}"
+
+
+# the same, in English (the second text of every copy('عربي','English'))
+BANNED_EN = {
+    "Needs remediation": "Open",
+    "In progress": "Open",
+    "Verified closed": "Closed, proven",
+    "Verified closure": "Closed, proven",
+    "Closed, verified": "Closed, proven",
+    "Record approval": "Approve build",
+    "QA scan": "QA check",
+    "Security scan": "Security check",
+    "Assigned changes": "Assigned builds",
+    "Returned change": "Returned build",
+    "Return change": "Return build",
+    "Blocking vulnerability": "Blocking finding",
+    "Quality check": "QA check",
+}
+
+
+def test_no_old_english_synonym_is_left():
+    found = [f"{path.relative_to(ROOT).as_posix()}: «{word}» -> «{use}»"
+             for path, text in texts() for word, use in BANNED_EN.items() if word in text]
+    assert not found, "use the glossary words:\n" + "\n".join(found)

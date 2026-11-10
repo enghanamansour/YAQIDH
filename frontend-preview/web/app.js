@@ -6,7 +6,7 @@ const copy=(ar,en)=>document.documentElement.lang==='en'?en:ar;
 const demoText=value=>({
   'qa-return-demo':copy('لم يظهر تأكيد الطلب. أصلح السيناريو وأعد الفحص.','Order confirmation was missing. Fix it and rerun the check.'),
   'ready-demo':copy('اكتملت الفحوصات وراجعت أدلة البناء.','Required checks completed and evidence was reviewed.'),
-  'Fixture: QA checks completed for this commit.':copy('اكتملت فحوصات الجودة التجريبية لهذا التعديل.','Demo QA checks completed for this commit.'),
+  'Fixture: QA checks completed for this commit.':copy('اكتملت فحوصات الجودة التجريبية لهذا البناء.','Demo QA checks completed for this build.'),
   'Demo: the order confirmation did not appear after submission.':copy('في المثال، لم يظهر تأكيد الطلب بعد الإرسال.','Demo: the order confirmation did not appear after submission.'),
   'A query builds SQL from request input. Review the reported location.':copy('يُنشأ استعلام قاعدة البيانات من مدخلات الطلب. راجع الموقع المحدد.','A query builds SQL from request input. Review the reported location.'),
   'Isolated demo dependency pending replacement.':copy('مكتبة تجريبية معزولة بانتظار الاستبدال.','Isolated demo dependency pending replacement.'),
@@ -27,7 +27,7 @@ const roleNames=role=>({
 const projectName=id=>id==='portal'?copy('بوابة الخدمات','Services Portal'):id==='research'?copy('مشروع المختبر','Lab project'):id;
 const toolName=id=>({semgrep:copy('سيم غريب','Semgrep'),trivy:copy('تريفي','Trivy'),playwright:copy('بلاي رايت','Playwright')}[id]||id);
 const severityName=id=>({
-  high:copy('عالية','HIGH'),low:copy('منخفضة','LOW'),medium:copy('متوسطة','Medium'),
+  high:copy('عالية','High'),low:copy('منخفضة','Low'),medium:copy('متوسطة','Medium'),
   critical:copy('حرجة','Critical'),info:copy('معلومة','Info'),unknown:copy('غير محددة','Unknown')
 }[id]||'—');
 const accountName=id=>({
@@ -117,10 +117,10 @@ let adminProject='all',adminRole='all',adminActive='all',adminStage='all';
 
 
 
-function outcomeText(){return release.outcome?(release.outcome.result==='pass'?copy('اجتاز','PASS'):copy('أخفق','FAIL')):release.runs.some(run=>run.state==='error')?copy('تعطل فحص مطلوب','Required check failed to run'):copy('بانتظار نتيجة صالحة','Awaiting a valid result')}
+function outcomeText(){return release.outcome?(release.outcome.result==='pass'?copy('اجتاز','Passed'):copy('أخفق','Failed')):release.runs.some(run=>run.state==='error')?copy('تعطل فحص مطلوب','Required check failed to run'):copy('بانتظار نتيجة صالحة','Awaiting a valid result')}
 function stageText(stage){return stage==='qa'?copy('مسار الجودة · المرحلة الأولى','QA pipeline · Stage 1'):copy('مسار الأمن · المرحلة الثانية','Security pipeline · Stage 2')}
 function statusText(status){return ({
-  open:copy('مفتوحة','Needs remediation'),fixed:copy('مغلقة','Fixed'),excepted:copy('مستثناة','Excepted'),
+  open:copy('مفتوحة','Open'),fixed:copy('مغلقة','Closed'),excepted:copy('مستثناة','Excepted'),
   completed:copy('مكتمل','Completed'),error:copy('تعطل','Failed to run'),
   approve:copy('موافقة مسجلة','Approval recorded'),reject:copy('إرجاع مع السبب','Returned with reason')
 })[status]||copy('بانتظار القرار','Awaiting decision')}
@@ -129,10 +129,10 @@ function decisionText(){return statusText(lastDecision()?.decision)}
 function displayReason(reason){
   if(reason==='no blocking findings')return copy('لا توجد ملاحظات مانعة وفق السياسة','No blocking findings');
   const count=reason.match(/^(\d+) high open$/);
-  return count?copy(count[1]==='1'?'ملاحظة واحدة عالية الخطورة تمنع التقدّم':count[1]+' ملاحظات عالية الخطورة تمنع التقدّم',count[1]+' blocking HIGH findings'):safe(reason);
+  return count?copy(count[1]==='1'?'ملاحظة واحدة عالية الخطورة تمنع التقدّم':count[1]+' ملاحظات عالية الخطورة تمنع التقدّم',count[1]+' blocking high findings'):safe(reason);
 }
 function sampleBuild(sample){if(profile.role==='developer')return sample==='issue'?'portal-133':'portal-129';if(sample==='approved')return profile.role==='qa'?'portal-129':'portal-135';return profile.role==='qa'?(sample==='issue'?'portal-133':'portal-132'):(sample==='issue'?'portal-128':'portal-134')}
-function findingState(f){return f.closure?.result==='closed'?copy('مغلقة بإثبات','Verified closed'):f.closure?.result==='still_open'?copy('ما زالت مفتوحة','Still needs remediation'):statusText(f.status)}
+function findingState(f){return f.closure?.result==='closed'?copy('مغلقة بإثبات','Closed, proven'):f.closure?.result==='still_open'?copy('ما زالت مفتوحة','Still open'):statusText(f.status)}
 function findingGroup(f){return f.closure?.result==='closed'?'fixed':f.status==='excepted'?'excepted':'open'}
 function matched(){return release.findings.filter(f=>(runFilter==='all'||release.runs.filter(run=>run.tool===f.tool).length===1&&release.runs.some(run=>run.tool===f.tool&&run.state===runFilter))&&(findingFilter==='all'||findingGroup(f)===findingFilter)&&(tool==='all'||tool===f.tool)&&(severity==='all'||severity===f.severity))}
 
@@ -177,7 +177,7 @@ function decisionList(){
 function findingModal(id){
   const f=release.findings.find(item=>item.fingerprint===id);
   if(!f)return;
-  const flags={closed:copy('مغلقة بإثبات','Verified closure'),still_open:copy('ما زالت مفتوحة','Still needs remediation'),new:copy('ملاحظة جديدة','New finding'),new_from_db_update:copy('جديدة بسبب تحديث قاعدة تريفي','New after Trivy DB update'),reopened:copy('عادت بعد الإغلاق','Reopened')};
+  const flags={closed:copy('مغلقة بإثبات','Closed, proven'),still_open:copy('ما زالت مفتوحة','Still open'),new:copy('ملاحظة جديدة','New finding'),new_from_db_update:copy('جديدة بسبب تحديث قاعدة تريفي','New after Trivy DB update'),reopened:copy('عادت بعد الإغلاق','Reopened')};
   const history=Object.entries(flags).filter(([key])=>release.verification?.[key]?.includes(id)).map(([,label])=>label).join(' · ');
   modal(copy('دليل الملاحظة','Finding evidence'),'<div class="details-grid">'
     +detail(copy('البصمة','Fingerprint'),mon(f.fingerprint))+(profile.role==='developer'?'':detail(copy('الأداة','Tool'),safe(toolName(f.tool))))
@@ -228,7 +228,7 @@ async function handleAction(button){
   if(id==='clear'||id==='bar'||id==='finding-group'){if(id==='clear'){tool='all';severity='all';findingFilter='all';runFilter='all';developerOutcome='all';developerDay='all'}else if(id==='bar')severity=severity===button.dataset.id?'all':button.dataset.id;else findingFilter=findingFilter===button.dataset.id?'all':button.dataset.id;refreshChart(button);return}
   if(id==='finding')return findingModal(button.dataset.id);
   if(id==='runs')return openRuns();
-  if(id==='next-stage')return modal(copy('مرحلة الأمن','Security stage'),'<p>'+copy('تعرض لوحة الجودة فحوصات المرحلة الأولى وقرارها. يتابع مراجع الأمن فحوصات المرحلة الثانية بعد انتقال التعديل.','The QA dashboard shows first-stage checks and the QA decision. The security reviewer handles second-stage checks after the change advances.')+'</p>');
+  if(id==='next-stage')return modal(copy('مرحلة الأمن','Security stage'),'<p>'+copy('تعرض لوحة الجودة فحوصات المرحلة الأولى وقرارها. يتابع مراجع الأمن فحوصات المرحلة الثانية بعد انتقال البناء.','The QA dashboard shows first-stage checks and the QA decision. The security reviewer handles second-stage checks after the change advances.')+'</p>');
   if(id==='decisions')return modal(copy('سجل القرار البشري','Human decision log'),decisionList());
   if(id==='build')return modal(copy('هوية البناء','Build identity'),'<p>'+mon('PR #'+release.pr+' · Build #'+release.build+' · '+release.commit)+'</p>');
   if(id==='previous-qa'){
@@ -242,7 +242,7 @@ async function handleAction(button){
       +'<a class="action" href="/api/releases/'+encodeURIComponent(release.id)+'/evidence">'+copy('تصدير الأدلة المصرّح بها','Export authorized evidence')+'</a>');
   }
   if(id==='approve'||id==='reject'){
-    return modal(id==='approve'?copy('الموافقة على البناء','Record approval'):copy('إرجاع التعديل','Return change'),
+    return modal(id==='approve'?copy('الموافقة على البناء','Approve build'):copy('إرجاع البناء','Return build'),
       '<p>'+safe(buildName(release.build))+' · '+mon(release.commit)+'</p><form id="decision-form" data-choice="'+id+'" data-release="'+safe(release.id)+'" data-commit="'+safe(release.commit)+'">'
       +'<label class="field">'+copy('السبب','Reason')+'<textarea name="reason" required minlength="3" maxlength="1000"></textarea></label>'
       +'<button class="primary">'+copy('حفظ القرار التجريبي','Save demo decision')+'</button></form>');
@@ -337,7 +337,7 @@ document.addEventListener('submit',async event=>{
     }
   }catch(e){
     notify(e.message==='401'?copy('بيانات الدخول غير صحيحة أو انتهت الجلسة','Invalid credentials or expired session'):
-      e.message==='409'?copy('القرار غير متاح على هذا التعديل','Decision unavailable for this commit'):copy('تعذر حفظ الطلب','Request could not be saved'));
+      e.message==='409'?copy('القرار غير متاح على هذا البناء','Decision unavailable for this build'):copy('تعذر حفظ الطلب','Request could not be saved'));
   }finally{submit.disabled=false}
 });
 setAppearance();
