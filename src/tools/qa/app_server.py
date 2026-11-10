@@ -59,16 +59,28 @@ class AppServer(AbstractContextManager):
         self.__exit__()
         raise ToolError(f"the app under test did not start ({self.module}): {tail}")
 
+    @staticmethod
+    def _stop(proc: subprocess.Popen) -> None:
+        """Stops the app and its children (the debug reloader starts one). Windows has no process groups."""
+        if os.name == "nt":
+            subprocess.run(["taskkill", "/PID", str(proc.pid), "/T", "/F"], capture_output=True)
+            try:
+                proc.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                pass
+            return
+        try:
+            os.killpg(proc.pid, signal.SIGTERM)
+            proc.wait(timeout=10)
+        except (ProcessLookupError, subprocess.TimeoutExpired):
+            try:
+                os.killpg(proc.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+
     def __exit__(self, *exc):
         if self._proc and self._proc.poll() is None:
-            try:
-                os.killpg(self._proc.pid, signal.SIGTERM)
-                self._proc.wait(timeout=10)
-            except (ProcessLookupError, subprocess.TimeoutExpired):
-                try:
-                    os.killpg(self._proc.pid, signal.SIGKILL)
-                except ProcessLookupError:
-                    pass
+            self._stop(self._proc)
         if self._log is not None:
             self._log.close()
         if self._tmp is not None:

@@ -150,38 +150,170 @@ class LLMExplainer:
 
 
 DIALECT_PROMPT = (
-    "You rewrite a short security explanation in natural, easy Saudi Arabic dialect. "
-    "Keep the meaning exactly: do not add, remove or change any fact. Keep every "
-    "technical term, acronym, rule name, CWE id and number exactly as written, in "
-    "its original English form. Never write code, commands or backticks. Answer with "
-    'one JSON object with exactly the same three string keys: "problem", '
-    '"why_dangerous", "direction".'
+    "You rewrite a short security explanation in natural, easy Saudi Arabic dialect, "
+    "the way a Saudi colleague would say it. Keep the meaning exactly: do not add, "
+    "remove or change any fact. Keep every technical term, acronym, rule name, CWE id, "
+    "file name and number exactly as written, in its original form. Keep location words "
+    'such as "السطر" (line) and "الملف" (file) as they are, and never turn a prohibition '
+    "into a permission or the reverse. Keep addressing the developer directly: an "
+    "instruction stays an instruction to 'you', never 'I need'. Use Saudi forms (for "
+    "example: كذا، وش، ليش، هالـ، لازم، ما) and avoid Egyptian, Levantine and Maghrebi "
+    "forms (for example: ده، دي، كده، بتـ، ـش، عايز، هادي). Never write code, commands or backticks. Answer "
+    "with one JSON object with exactly the same three string keys: "
+    '"problem", "why_dangerous", "direction". Follow the style of the examples.'
 )
 
+# Few-shot examples: (formal explanation, the same explanation in Saudi dialect).
+# They are about findings that are NOT in the comparison sample, so testing on that
+# sample does not just measure how well the model copies the examples.
+# Written by the assistant: Hana should review and adjust the dialect wording.
+DIALECT_EXAMPLES: list[tuple[dict, dict]] = [
+    (
+        {
+            "problem": "يتم عرض مدخلات المستخدم في الصفحة دون ترميز، في الملف views.py عند السطر 40، مما يجعل التطبيق عرضة لهجوم XSS (CWE-79).",
+            "why_dangerous": "يستطيع المهاجم حقن شيفرة JavaScript تعمل في متصفح الضحية، فيسرق الجلسة أو ينفذ إجراءات باسمه.",
+            "direction": "يجب ترميز أي قيمة قادمة من المستخدم قبل عرضها، ولا تعتمد على التحقق في الواجهة الأمامية وحده.",
+        },
+        {
+            "problem": "مدخلات المستخدم تنعرض في الصفحة بدون ترميز، في الملف views.py عند السطر 40، وهذا يخلي التطبيق عرضة لهجوم XSS (CWE-79).",
+            "why_dangerous": "المهاجم يقدر يحقن شيفرة JavaScript تشتغل في متصفح الضحية، وبعدها يسرق الجلسة أو يسوي إجراءات باسمه.",
+            "direction": "لازم ترمّز أي قيمة جاية من المستخدم قبل ما تعرضها، ولا تعتمد على التحقق في الواجهة الأمامية لحاله.",
+        },
+    ),
+    (
+        {
+            "problem": "تُخزَّن كلمات المرور باستخدام خوارزمية MD5 في الملف auth.py عند السطر 18 (CWE-327)، وهي خوارزمية ضعيفة وسريعة الكسر.",
+            "why_dangerous": "إذا تسربت قاعدة البيانات، يستطيع المهاجم استرجاع كلمات المرور الأصلية بسهولة، ولا يحتاج إلى وقت طويل.",
+            "direction": "لا تستخدم MD5 لحماية كلمات المرور، واستبدلها بخوارزمية مخصصة لذلك وبطيئة عمدًا، مثل bcrypt.",
+        },
+        {
+            "problem": "كلمات المرور تنخزّن بخوارزمية MD5 في الملف auth.py عند السطر 18 (CWE-327)، وهي خوارزمية ضعيفة وتنكسر بسرعة.",
+            "why_dangerous": "لو تسربت قاعدة البيانات، المهاجم يقدر يرجّع كلمات المرور الأصلية بسهولة، وما يحتاج وقت طويل.",
+            "direction": "لا تستخدم MD5 لحماية كلمات المرور، وبدّلها بخوارزمية مخصصة لهذا الغرض وبطيئة عمدًا، مثل bcrypt.",
+        },
+    ),
+]
+
+
+def _example_messages() -> list[dict]:
+    messages: list[dict] = []
+    for formal, dialect in DIALECT_EXAMPLES:
+        messages.append({"role": "user", "content": json.dumps(formal, ensure_ascii=False)})
+        messages.append({"role": "assistant", "content": json.dumps(dialect, ensure_ascii=False)})
+    return messages
+
 _FIELDS = ("problem", "why_dangerous", "direction")
-_TECHNICAL = re.compile(r"CWE-\d+|\b[A-Z][A-Z0-9]{2,}\b|\d+")
+# Everything written in Latin letters (CWE-89, SQL, debug, app.py, parameterized) and every number.
+_LATIN = re.compile(r"[A-Za-z][A-Za-z0-9_-]*(?:\.[A-Za-z0-9_-]+)*")
+_TECHNICAL = re.compile(_LATIN.pattern + r"|\d+")
+# Models sometimes write CWE-22 with a non-breaking hyphen; treat all dashes as a normal one.
+_DASHES = dict.fromkeys(map(ord, "‐‑‒–−"), "-")
+_SENTENCE_END = re.compile(r"[.!?؟]+")
+
+
+def _normalize(text: str) -> str:
+    return text.translate(_DASHES)
+# Location words that a rewrite must not swap for something else ("السطر 12" became "بالصفحة 12" once).
+_POSITION_STEMS = ("سطر", "ملف")
+# "ما" is left out of the formal list on purpose: in formal Arabic it is mostly "what" or
+# "ما إذا" (whether), not a negation. In the dialect it is the normal negation, so it counts there.
+_FORMAL_NEGATIONS = frozenset({"لا", "لم", "لن", "ليس", "غير", "بدون", "دون", "عدم"})
+_DIALECT_NEGATIONS = _FORMAL_NEGATIONS | {"ما", "مو", "مب"}
+_ARABIC_WORD = re.compile(r"[؀-ۿ]+")
+
+
+def _has_word(text: str, stem: str) -> bool:
+    """True if `stem` is a word of its own, also with a one-letter prefix or the article
+    (سطر، السطر، بالسطر، للملف). A longer word that merely contains it does not count:
+    "ملفات تعريف الارتباط" means cookies, it is not "the file"."""
+    for word in _ARABIC_WORD.findall(text):
+        w = word
+        for _ in range(2):
+            if len(w) > len(stem) and w[0] in "وفبلك":
+                w = w[1:]
+        if w.startswith("ال") and len(w) > len(stem):
+            w = w[2:]
+        if w == stem:
+            return True
+    return False
+
+
+# Clear markers of Egyptian / Levantine / Maghrebi speech. The model drifted into these
+# even when told to write Saudi, so an answer that uses one is not accepted as Saudi.
+_NOT_SAUDI = frozenset({"ده", "دي", "دا", "كده", "كدا", "هادي", "هاد", "مش", "عايز", "عايزة",
+                        "دلوقتي", "دلوقت", "إنو", "انو", "أوي", "اوي", "تاني", "تانية", "تانيه", "بتاع", "بتاعة",
+                        "بتاعت", "إزاي", "ازاي", "برضو", "برضه", "بقى", "بقا"})
+
+
+# A present-tense plural verb that drops its final ن (يكتشفوا، يقدروا) is Egyptian/Levantine; Saudi keeps it (يكتشفون).
+_DROPPED_NOON = re.compile(r"^ي[ء-ي]{2,}وا$")
+
+
+def _not_saudi_word(text: str) -> str | None:
+    for word in _ARABIC_WORD.findall(text):
+        if _DROPPED_NOON.match(word):
+            return word
+        for candidate in (word, word[1:] if len(word) > 2 and word[0] in "وفب" else ""):
+            if candidate in _NOT_SAUDI:
+                return candidate
+    return None
+
+
+def _has_negation(text: str, words: frozenset[str]) -> bool:
+    """True if the text has one of the negation words, also with a one-letter prefix (ولا، وما، فلا)."""
+    for word in _ARABIC_WORD.findall(text):
+        if word in words or (len(word) > 2 and word[0] in "وف" and word[1:] in words):
+            return True
+    return False
 
 
 def _text(exp: Explanation) -> str:
     return " ".join(getattr(exp, f) for f in _FIELDS)
 
 
-def preserves_meaning(original: Explanation, rewritten: Explanation) -> bool:
+def meaning_problem(original: Explanation, rewritten: Explanation) -> str | None:
     """Cheap checks that a dialect rewrite did not change the substance.
 
-    Every technical token (CWE ids, acronyms like SQL, numbers) of the original
-    must still be there, no code appeared, and no field changed size wildly.
+    These are cheap rules, not a proof: they catch lost technical terms, changed
+    numbers, swapped location words, a dropped negation, code, and big size changes.
+    They cannot catch a subtle change of meaning, so a human should still read samples.
     """
     if violates_rules(rewritten):
-        return False
-    after = _text(rewritten)
-    if any(token not in after for token in set(_TECHNICAL.findall(_text(original)))):
-        return False
+        return "contains code or backticks"
+    before_all, after_all = _normalize(_text(original)), _normalize(_text(rewritten))
+    # every Latin-letter token (CWE ids, SQL, file names, English terms) and every number
+    missing = sorted(t for t in set(_TECHNICAL.findall(before_all)) if t not in after_all)
+    if missing:
+        return "lost technical terms or numbers: " + ", ".join(missing)
+    # ...and nothing new in Latin letters: a made-up "CWE-476" must not slip in
+    added = sorted(set(_LATIN.findall(after_all)) - set(_LATIN.findall(before_all)))
+    if added:
+        return "added terms that were not in the original: " + ", ".join(added)
+    foreign = _not_saudi_word(after_all)
+    if foreign:
+        return f"not Saudi dialect: the word '{foreign}' is Egyptian or Levantine"
+    first_person = {"احتاج", "أحتاج"}
+    if first_person & set(_ARABIC_WORD.findall(after_all)) and not first_person & set(_ARABIC_WORD.findall(before_all)):
+        return "an instruction to the developer became a sentence about the speaker ('I need')"
+    sentences = [s.strip() for s in _SENTENCE_END.split(after_all) if len(s.strip()) >= 25]
+    if len(sentences) != len(set(sentences)):
+        return "a sentence is repeated"
+    for stem in _POSITION_STEMS:
+        if _has_word(before_all, stem) and not _has_word(after_all, stem):
+            return f"the location word '{stem}' is gone"
     for f in _FIELDS:
-        a, b = len(getattr(original, f)), len(getattr(rewritten, f))
-        if b < 0.3 * a or b > 3 * a:
-            return False
-    return True
+        before, after = getattr(original, f), getattr(rewritten, f)
+        if not 0.5 * len(before) <= len(after) <= 1.8 * len(before):
+            return f"'{f}' changed size too much ({len(before)} -> {len(after)} chars)"
+        if _has_negation(before, _FORMAL_NEGATIONS) and not _has_negation(after, _DIALECT_NEGATIONS):
+            # "لا تستخدم" must not become "استخدم"
+            return f"a negation was dropped in '{f}'"
+    return None
+
+
+def preserves_meaning(original: Explanation, rewritten: Explanation) -> bool:
+    """True when `meaning_problem` finds nothing wrong."""
+    return meaning_problem(original, rewritten) is None
 
 
 class DialectRewriter:
@@ -192,11 +324,15 @@ class DialectRewriter:
         self.base_url, self.api_key, self.model = base_url, api_key, model
         self.client = client or httpx.Client(timeout=timeout)
 
-    def rewrite(self, exp: Explanation) -> Explanation | None:
-        data = _chat_json(self.client, self.base_url, self.api_key, self.model, [
+    def build_messages(self, exp: Explanation) -> list[dict]:
+        return [
             {"role": "system", "content": DIALECT_PROMPT},
+            *_example_messages(),
             {"role": "user", "content": json.dumps(exp.model_dump(), ensure_ascii=False)},
-        ])
+        ]
+
+    def rewrite(self, exp: Explanation) -> Explanation | None:
+        data = _chat_json(self.client, self.base_url, self.api_key, self.model, self.build_messages(exp))
         if data is None:
             return None
         try:
@@ -230,7 +366,7 @@ def get_explainer() -> Explainer:
     reasoner = LLMExplainer(
         base_url=base_url,
         api_key=key,
-        model=os.environ.get("LLM_MODEL", "llama-3.3-70b-versatile"),
+        model=os.environ.get("LLM_MODEL", "openai/gpt-oss-120b"),
         send_snippets=os.environ.get("SEND_SNIPPETS", "0") == "1",
     )
     dialect_model = os.environ.get("DIALECT_MODEL", "").strip()

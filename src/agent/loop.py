@@ -16,6 +16,7 @@ import httpx
 from jsonschema import ValidationError, validate
 from mcp import ClientSession
 
+from src.agent.dialect import non_saudi_word
 from src.agent.prompt import SYSTEM_PROMPT, task_message
 from src.agent.skills import SkillError, Skills
 from src.phases.status import release_status
@@ -37,7 +38,8 @@ POST_COMMENT_TOOL = {
 MAX_STEPS = 60
 MAX_RESULT_CHARS = 8000
 BATCH = 5  # how many unexplained findings the model sees per get_findings call, to keep each request small
-KEEP_STEPS = 3  # only the latest tool steps stay in the conversation, so each request stays small
+MAX_GROUP = 12  # how many CVEs of one library are listed to the model
+KEEP_STEPS = 3 # only the latest tool steps stay in the conversation, so each request stays small
 
 
 class ChatClient:
@@ -47,21 +49,27 @@ class ChatClient:
         self.sleep = sleep
         self.base_url = (base_url or os.environ.get("LLM_BASE_URL", "https://api.groq.com/openai/v1")).rstrip("/")
         self.api_key = api_key or os.environ.get("LLM_API_KEY", "")
-        self.model = model or os.environ.get("LLM_MODEL", "llama-3.3-70b-versatile")
+        self.model = model or os.environ.get("LLM_MODEL", "openai/gpt-oss-120b")
         self.client = client or httpx.Client(timeout=60)
+        self.total_tokens = 0  # what this client has used so far, to see what a run costs
         if not self.api_key:
             raise RuntimeError("LLM_API_KEY is not set")
 
-    def complete(self, messages: list[dict], tools: list[dict]) -> dict:
+    def complete(self, messages: list[dict], tools: list[dict] | None = None, model: str | None = None) -> dict:
         last = None
+        body = {"model": model or self.model, "temperature": 0, "messages": messages}
+        if tools:
+            body.update(tools=tools, tool_choice="auto")
         for _ in range(10):  # a malformed tool call or a rate limit usually passes on another try
             resp = self.client.post(
                 f"{self.base_url}/chat/completions",
                 headers={"Authorization": f"Bearer {self.api_key}"},
-                json={"model": self.model, "temperature": 0, "messages": messages, "tools": tools, "tool_choice": "auto"},
+                json=body,
             )
             if resp.status_code == 200:
-                return resp.json()["choices"][0]["message"]
+                body_json = resp.json()
+                self.total_tokens += (body_json.get("usage") or {}).get("total_tokens", 0)
+                return body_json["choices"][0]["message"]
             last = f"{resp.status_code}: {resp.text[:300]}"
             if resp.status_code == 429:  # free tiers limit tokens per minute: wait as long as the server says
                 wait = re.search(r"try again in ([\d.]+)s", resp.text)
@@ -77,6 +85,7 @@ class Run:
     steps: int = 0
     final: str = ""
     calls: list[dict] = field(default_factory=list)
+    tokens: int = 0  # tokens the model calls used, when the client reports them
 
 
 def _openai_tool(name: str, description: str, schema: dict) -> dict:
@@ -85,9 +94,11 @@ def _openai_tool(name: str, description: str, schema: dict) -> dict:
 
 class AgentLoop:
     def __init__(self, session: ClientSession, chat, skills: Skills | None = None, max_steps: int = MAX_STEPS,
-                 post_comment=None):
-        """post_comment(release_id) posts the PR comment through the GitHub MCP server; without it the tool is not offered."""
+                 post_comment=None, dialect=None):
+        """post_comment(release_id) posts the PR comment through the GitHub MCP server; without it the tool is not offered.
+        dialect (DialectStep) rewrites each saved explanation in Saudi dialect; the original is kept if it is rejected."""
         self.post_comment = post_comment
+        self.dialect = dialect
         self.session = session
         self.chat = chat
         self.skills = skills or Skills()
@@ -139,6 +150,8 @@ class AgentLoop:
                 problem = await self._explanation_problem(args)
                 if problem:
                     return f"ERROR: {problem}"
+                if self.dialect is not None:
+                    args = {**args, "text": await asyncio.to_thread(self.dialect.rewrite, args["text"])}
             result = await self.session.call_tool(name, args)
         except SkillError as e:
             return f"ERROR: {e}"
@@ -150,12 +163,50 @@ class AgentLoop:
         return ("ERROR: " if result.isError else "") + text[:MAX_RESULT_CHARS]
 
     @staticmethod
-    def _findings_view(result) -> str:
-        """What the model sees: only open findings that still need an explanation, a few at a time."""
+    def _upgrade_target(versions: list[str]) -> str | None:
+        """The one version that fixes every CVE of a library: the highest of all the fixed versions listed."""
+        from packaging.version import InvalidVersion, Version
+
+        tokens = [t.strip() for v in versions for t in v.split(",") if t.strip()]
+        try:
+            return str(max(tokens, key=Version)) if tokens else None
+        except InvalidVersion:
+            return None
+
+    @classmethod
+    def _findings_view(cls, result) -> str:
+        """What the model sees: open findings that still need an explanation, a few at a time.
+
+        Findings of the same library (same component) are shown as ONE item with also_for listing the other
+        fingerprints, so the model explains the library once. Each CVE keeps its own fingerprint and status."""
         items = (result.structuredContent or {}).get("result", [])
         todo = [f for f in items if f["status"] == "open" and not f.get("explanation")]
         keys = ("fingerprint", "tool", "rule", "location", "severity", "reported_as", "component", "fixed_version", "cwe", "confidence")
-        shown = [{**{k: f[k] for k in keys if f.get(k)}, "detail": f.get("detail", "")[:300]} for f in todo[:BATCH]]
+        groups: dict[str, list[dict]] = {}
+        units: list[list[dict]] = []
+        for f in todo:
+            comp = f.get("component")
+            if comp and comp in groups:
+                groups[comp].append(f)
+            else:
+                unit = [f]
+                units.append(unit)
+                if comp:
+                    groups[comp] = unit
+        shown = []
+        for unit in units[:BATCH]:
+            unit = sorted(unit, key=lambda f: (f["severity"] != "high", f["rule"]))
+            main = unit[0]
+            entry = {**{k: main[k] for k in keys if main.get(k)}, "detail": main.get("detail", "")[:300]}
+            if len(unit) > 1:
+                entry["also_for"] = [f["fingerprint"] for f in unit[1:]]
+                entry["group"] = [
+                    {k: f[k] for k in ("rule", "severity", "fixed_version", "cwe") if f.get(k)} for f in unit[:MAX_GROUP]
+                ]
+                target = cls._upgrade_target([f["fixed_version"] for f in unit if f.get("fixed_version")])
+                if target:
+                    entry["fix_all_by_upgrading_to"] = target
+            shown.append(entry)
         return json.dumps(
             {"total_findings": len(items), "need_explanation": len(todo), "shown": shown,
              "note": "call get_findings again after explaining these to see the next ones"},
@@ -165,6 +216,10 @@ class AgentLoop:
     async def _explanation_problem(self, args: dict) -> str | None:
         if "`" in args["text"]:
             return "explanations are words only: no code, no commands, no backticks"
+        foreign = non_saudi_word(args["text"])
+        if foreign:
+            return (f"the word '{foreign}' is Egyptian or Levantine. Write the whole explanation again in Saudi "
+                    "dialect (for example ليش، وش، مثل، يمدي، ما)")
         found = await self.session.call_tool("get_findings", {"release_id": args["release_id"], "stage": args["stage"]})
         items = (found.structuredContent or {}).get("result", [])
         for f in items:
@@ -191,13 +246,21 @@ class AgentLoop:
         status, reasons = await self._state(release_id)
         messages = [
             {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": task_message(release_id, event, status, reasons)},
+            {"role": "user", "content": task_message(release_id, event, status, reasons, self.skills.list())},
         ]
         run = Run()
+        start_tokens = getattr(self.chat, "total_tokens", 0)
+        try:
+            return await self._loop(run, messages, tools, start_tokens)
+        finally:
+            run.tokens = getattr(self.chat, "total_tokens", 0) - start_tokens
+
+    async def _loop(self, run: Run, messages: list[dict], tools: list[dict], start_tokens: int) -> Run:
         for _ in range(self.max_steps):
             self._trim(messages)
             try:
-                # the model call is blocking (and may wait out a rate limit), so it runs in a thread: the API stays responsive
+                # The call is blocking (an HTTP request, and a sleep when the provider says "wait"). Run directly it
+                # froze the whole server for as long as 20 seconds: no webhook, gate or dashboard answered.
                 message = await asyncio.to_thread(self.chat.complete, messages, tools)
             except Exception as e:
                 run.stopped, run.final = "error", str(e)

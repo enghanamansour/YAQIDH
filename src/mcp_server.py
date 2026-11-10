@@ -39,9 +39,10 @@ def create_server(service: ReleaseService) -> FastMCP:
         return service.evaluate_policy(release_id, stage)
 
     @mcp.tool()
-    def append_evidence(release_id: str, stage: str, fingerprint: str, text: str) -> dict:
-        """Attach your explanation text to a finding. It is stored as written by Yaqidh, never as fact."""
-        return service.append_evidence(release_id, stage, fingerprint, text)
+    def append_evidence(release_id: str, stage: str, fingerprint: str, text: str, also_for: list[str] | None = None) -> dict:
+        """Attach your explanation text to a finding. It is stored as written by Yaqidh, never as fact.
+        also_for: other findings of the same library that share this explanation (only same-component ones are accepted)."""
+        return service.append_evidence(release_id, stage, fingerprint, text, also_for)
 
     @mcp.tool()
     def get_evidence(release_id: str) -> dict:

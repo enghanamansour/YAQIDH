@@ -1,12 +1,26 @@
-from datetime import datetime, timezone
+import threading
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Literal
 
 from pydantic import BaseModel, Field
 
+_clock_lock = threading.Lock()
+_last_time: list[datetime] = []
+
 
 def utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    """The current time, never the same twice and never going backwards inside one process.
+
+    On Windows the clock ticks about every 15 ms, so a human decision and the scan after it could get the
+    same time, and "was this decision made after that scan?" had no answer (a test failed 2 times in 15).
+    """
+    now = datetime.now(timezone.utc)
+    with _clock_lock:
+        if _last_time and now <= _last_time[0]:
+            now = _last_time[0] + timedelta(microseconds=1)
+        _last_time[:] = [now]
+    return now
 
 
 class StageName(str, Enum):

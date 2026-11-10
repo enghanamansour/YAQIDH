@@ -6,13 +6,13 @@ from .models import BLOCKING, Explanation, Phase
 
 _T = {
     "ar": {
-        "phase": {"qa": "فحص الجودة", "security": "الفحص الأمني"},
+        "phase": {"qa": "فحص الجودة", "security": "فحص الأمن"},
         "blocked": "الدمج ممنوع لين تنتهي كل الملاحظات عالية الخطورة التالية. الوكيل يشرح فقط ولا يعدّل الكود، والمطوّر هو اللي يصلح.",
         "clean": "ما بقي أي ملاحظة عالية الخطورة في هذا الفحص. يمر الآن لمراجعة الفريق البشري.",
         "low": "ملاحظات منخفضة الخطورة: ما تمنع الدمج، لكنها مسجّلة وليست بلا ضرر. الأفضل إصلاحها.",
-        "closed": "ملاحظات انقفلت منذ الفحص السابق",
+        "closed": "ملاحظات أُغلقت منذ الفحص السابق",
         "problem": "المشكلة",
-        "why": "ليش خطيرة",
+        "why": "ليش خطرة",
         "direction": "اتجاه الإصلاح",
         "id": "البصمة",
         "where": "الموضع",
@@ -21,7 +21,7 @@ _T = {
         "unsure": "تنبيه: الأداة نفسها غير متأكدة من هذي الملاحظة (ثقة منخفضة)، فهي احتمال. تأكد منها قبل ما تعدّل.",
     },
     "en": {
-        "phase": {"qa": "Quality check", "security": "Security check"},
+        "phase": {"qa": "QA check", "security": "Security check"},
         "blocked": "Merging is blocked until every high-severity finding below is closed. The agent only explains and never edits code; the developer does the fixing.",
         "clean": "No high-severity findings remain in this check. It now goes to the human team for review.",
         "low": "Low-severity findings: they do not block the merge, but they are recorded and not harmless. Better fixed.",

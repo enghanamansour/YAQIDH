@@ -36,8 +36,8 @@ pytest
 
 ```
 set LLM_API_KEY=...
-set LLM_BASE_URL=https://openrouter.ai/api/v1
-set LLM_MODEL=meta-llama/llama-3.3-70b-instruct
+set LLM_BASE_URL=https://api.groq.com/openai/v1
+set LLM_MODEL=openai/gpt-oss-120b
 ```
 
 ولنشر التعليق والحالة على GitHub: `set GITHUB_TOKEN=...` وأرسلوا `"publish": true` مع الفحص.

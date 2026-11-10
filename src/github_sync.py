@@ -22,16 +22,16 @@ MAX_COMMENT = 60000  # GitHub allows 65536 characters in a comment
 
 _STATUS_TEXT = {
     ReleaseStatus.NOT_STARTED: "لسا ما بدأ الفحص",
-    ReleaseStatus.QA_BLOCKED: "فحص الـ QA فيه ملاحظات عالية الخطورة، الدمج ممنوع لين المطوّر يصلحها",
-    ReleaseStatus.AWAITING_QA_APPROVAL: "الـ QA نجح، بانتظار موافقة مراجع الـ QA",
-    ReleaseStatus.QA_REJECTED: "مراجع الـ QA رفض، يرجع للمطوّر",
-    ReleaseStatus.AWAITING_SECURITY_SCAN: "الـ QA انوافق عليه، الفحص الأمني لسا ما اشتغل",
-    ReleaseStatus.SECURITY_BLOCKED: "الفحص الأمني فيه ملاحظات عالية الخطورة، الدمج على main ممنوع لين المطوّر يصلحها",
-    ReleaseStatus.AWAITING_SECURITY_APPROVAL: "الفحص الأمني نجح، بانتظار موافقة مراجع الأمن",
-    ReleaseStatus.SECURITY_REJECTED: "مراجع الأمن رفض، يرجع للمطوّر",
-    ReleaseStatus.READY_TO_MERGE: "كل شي نجح وانوافق عليه، الدمج مسموح",
+    ReleaseStatus.QA_BLOCKED: "فحص الجودة فيه ملاحظات عالية الخطورة، الدمج ممنوع لين المطوّر يصلحها",
+    ReleaseStatus.AWAITING_QA_APPROVAL: "فحص الجودة نجح، بانتظار موافقة مراجع الجودة",
+    ReleaseStatus.QA_REJECTED: "مراجع الجودة أرجع البناء للمطوّر",
+    ReleaseStatus.AWAITING_SECURITY_SCAN: "مراجع الجودة وافق، وفحص الأمن لسا ما اشتغل",
+    ReleaseStatus.SECURITY_BLOCKED: "فحص الأمن فيه ملاحظات عالية الخطورة، الدمج على main ممنوع لين المطوّر يصلحها",
+    ReleaseStatus.AWAITING_SECURITY_APPROVAL: "فحص الأمن نجح، بانتظار موافقة مراجع الأمن",
+    ReleaseStatus.SECURITY_REJECTED: "مراجع الأمن أرجع البناء للمطوّر",
+    ReleaseStatus.READY_TO_MERGE: "كل شي نجح ووافق عليه المراجعون، الدمج مسموح",
 }
-_STAGE_NAME = {StageName.QA: "فحص الـ QA الأمني", StageName.SECURITY: "الفحص الأمني"}
+_STAGE_NAME = {StageName.QA: "فحص الجودة", StageName.SECURITY: "فحص الأمن"}
 
 
 class Poster(Protocol):
@@ -45,6 +45,15 @@ def release_id_for(repo: str, pr: int) -> str:
     return safe[-64:].lstrip("-") or f"pr{pr}"
 
 
+def _safe(text: str) -> str:
+    """Text from a scanner or from the model goes into a PUBLIC comment: it must not ping people, link out or inject HTML."""
+    text = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    text = re.sub(r"@(?=[A-Za-z0-9_-])", "@\u200b", text)  # no @mentions (a zero-width space stops the ping)
+    text = text.replace("](", "] (")  # no [text](url) links
+    text = re.sub(r"(?i)\b(https?)://", "\\1\u200b://", text)  # bare links are not turned into links
+    return text.replace("`", "'")  # a stray backtick would break the code span around the rule name
+
+
 def _stage_section(record: StageRecord) -> list[str]:
     name = _STAGE_NAME[record.name]
     if record.scanned_at is None:
@@ -53,34 +62,34 @@ def _stage_section(record: StageRecord) -> list[str]:
     verdict = {"pass": "✅ نجحت", "fail": "❌ فشلت", None: "⏳ بانتظار قرار السياسة"}[decision]
     open_ = [f for f in record.findings if f.status == FindingStatus.OPEN]
     closed = [f for f in record.findings if f.status == FindingStatus.FIXED and f.closure and f.closure.result == "closed"]
-    lines = [f"### {name}: {verdict}", f"_القرار من محرك السياسة، مو من الـ AI._ مفتوح: {len(open_)} | انقفل: {len(closed)}", ""]
+    lines = [f"### {name}: {verdict}", f"_القرار من محرك السياسة، مو من الـ AI._ مفتوحة: {len(open_)} | مغلقة بإثبات: {len(closed)}", ""]
     for f in sorted(open_, key=lambda f: (f.severity.value != "high", f.location)):
-        lines.append(f"#### [{f.severity.value.upper()}] `{f.rule}` — {f.location}")
+        lines.append(f"#### [{f.severity.value.upper()}] `{_safe(f.rule)}` — {_safe(f.location)}")
         meta = [f"البصمة: {f.fingerprint}"]
         if f.component:
-            meta.append(f"المكتبة: {f.component}")
+            meta.append(f"المكتبة: {_safe(f.component)}")
         if f.fixed_version:
-            meta.append(f"النسخة المصلحة: {f.fixed_version}")
+            meta.append(f"النسخة المصلحة: {_safe(f.fixed_version)}")
         if f.cwe:
-            meta.append(f"التصنيف: {f.cwe}")
+            meta.append(f"التصنيف: {_safe(f.cwe)}")
         lines.append(" | ".join(meta))
         if f.confidence == "low":
             lines.append("⚠️ الأداة نفسها غير متأكدة من هذي الملاحظة (ثقة منخفضة)، تأكد منها قبل ما تعدّل.")
         if f.explanation:
-            lines += ["", f"> **شرح يقظ (كتبه الـ AI، مو حقيقة مثبتة):**", *[f"> {line}" for line in f.explanation.text.splitlines()]]
+            lines += ["", f"> **شرح يقظ (كتبه الـ AI، مو حقيقة مثبتة):**", *[f"> {line}" for line in _safe(f.explanation.text).splitlines()]]
         elif f.detail:
-            lines.append(f"ملاحظة الأداة: {f.detail}")
+            lines.append(f"ملاحظة الأداة: {_safe(f.detail)}")
         lines.append("")
     if closed:
-        lines += ["**انقفلت (تأكد منها الفحص المعاد):** " + ", ".join(f.fingerprint for f in closed), ""]
+        lines += ["**مغلقة بإثبات (تأكد منها الفحص المعاد):** " + ", ".join(f.fingerprint for f in closed), ""]
     if record.flaky_tests:
-        lines += ["**فحوصات متذبذبة (نجحت بعد إعادة المحاولة، مسجلة ومو ملاحظات):** " + ", ".join(record.flaky_tests), ""]
+        lines += ["**فحوصات متذبذبة (نجحت بعد إعادة المحاولة، مسجلة ومو ملاحظات):** " + _safe(", ".join(record.flaky_tests)), ""]
     return lines
 
 
 def render_comment(evidence: Evidence) -> str:
     report = release_status(evidence)
-    lines = ["## يقظ — حالة الإصدار", "", f"**{_STATUS_TEXT[report.status]}**", ""]
+    lines = ["## يقظ — حالة البناء", "", f"**{_STATUS_TEXT[report.status]}**", ""]
     if evidence.head_commit:
         lines += [f"الكوميت: `{evidence.head_commit[:8]}`", ""]
     for name in (StageName.QA, StageName.SECURITY):

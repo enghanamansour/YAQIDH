@@ -5,12 +5,12 @@ for a decision, and add explanation text. It cannot: choose tools or targets, se
 write a closure, record an exception, or record a human decision.
 """
 
-import threading
 from contextlib import contextmanager
 from pathlib import Path
 
 from src.phases.status import ReleaseStatus, release_status
 from src.history import HistoryLog
+from src.lock import InterProcessLock
 from src.policy import evaluate_policy, load_policy
 from src.scanning import CURRENT_RELEASE, NoRunner, Runner, ScanResult
 from src.schema import (
@@ -55,7 +55,8 @@ class ReleaseService:
         self.policy_path = Path(policy_path)
         self.runners = runners
         self.target = Path(target)
-        self._lock = threading.Lock()  # one writer at a time, so two calls never overwrite each other
+        # one writer at a time, in this process AND in the other one (the API and the MCP server share the files)
+        self._lock = InterProcessLock(self.store.data_dir / ".lock")
 
     @contextmanager
     def _locked(self, release_id: str):
@@ -160,8 +161,13 @@ class ReleaseService:
         self._log(release_id, "policy_decision", "policy_engine", stage=stage, result=decision.result, reasons=decision.reasons)
         return decision.model_dump(mode="json")
 
-    def append_evidence(self, release_id: str, stage: str, fingerprint: str, text: str) -> dict:
-        """The one write the agent has: explanation text on a finding, always labelled source 'Yaqidh'."""
+    def append_evidence(self, release_id: str, stage: str, fingerprint: str, text: str,
+                        also_for: list[str] | None = None) -> dict:
+        """The one write the agent has: explanation text on a finding, always labelled source 'Yaqidh'.
+
+        also_for: other findings of the SAME library (same non-empty component) that share this explanation.
+        Only open findings of that component with no explanation get it; every other fingerprint is skipped.
+        Identity, status and closure of each finding stay its own."""
         name = self._stage(stage)
         text = text.strip()
         if not text:
@@ -172,9 +178,20 @@ class ReleaseService:
             evidence = self.store.get(release_id)
             finding = self._find(evidence, name, fingerprint)
             finding.explanation = Explanation(text=text)
+            shared, skipped = [], []
+            for other in dict.fromkeys(also_for or []):
+                f = next((x for x in evidence.stage(name).findings if x.fingerprint == other), None)
+                if (f is not None and other != fingerprint and finding.component and f.component == finding.component
+                        and f.status.value == "open" and f.explanation is None):
+                    f.explanation = Explanation(text=text)
+                    shared.append(other)
+                else:
+                    skipped.append(other)
             self.store.save(evidence)
-        self._log(release_id, "explanation", "agent", stage=stage, fingerprint=fingerprint, source="Yaqidh", text=text)
-        return {"release_id": release_id, "stage": stage, "fingerprint": fingerprint, "source": "Yaqidh"}
+        self._log(release_id, "explanation", "agent", stage=stage, fingerprint=fingerprint, source="Yaqidh", text=text,
+                  also_for=shared)
+        return {"release_id": release_id, "stage": stage, "fingerprint": fingerprint, "source": "Yaqidh",
+                "also_for": shared, "skipped": skipped}
 
     @staticmethod
     def _check_order(evidence: Evidence, name: StageName) -> None:

@@ -10,7 +10,7 @@ import hashlib
 import hmac
 import json
 import os
-from collections import Counter
+from collections import Counter, OrderedDict
 from typing import Awaitable, Callable, Literal
 
 from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException, Request
@@ -19,6 +19,7 @@ from pydantic import BaseModel, Field
 from src.gate import check_gate
 from src.github_sync import release_id_for
 from src.history import HistoryLog
+from src.report import build_report
 from src.schema import Finding, ReviewRequestDecision
 from src.tools.base import ToolError
 from src.verifier import VerifierError
@@ -74,6 +75,7 @@ def create_app(
     workflow = Workflow(service)
     running: set[str] = set()  # releases whose agent is working right now
     rerun: set[str] = set()  # a newer event arrived while the agent was working
+    seen_deliveries: OrderedDict[str, None] = OrderedDict()  # recent webhook delivery ids, to ignore a redelivery
 
     def release_or_404(release_id: str):
         try:
@@ -88,6 +90,15 @@ def create_app(
         if publisher is not None:
             await asyncio.to_thread(publisher.publish, release_id)
 
+    async def scan_for_commit(release_id: str) -> None:
+        """A new commit arrived: plain code runs the scans it needs, in order (QA first; security only once QA is
+        approved). The agent does not decide whether to scan: a model that was left to choose did not re-scan
+        after a push (6 of 6 tries), so the gate stayed closed. The agent only explains what the scans found."""
+        try:
+            await asyncio.to_thread(workflow.push, release_id)
+        except Exception as e:  # a failed scan must not stop the agent; the gate stays closed because nothing was scanned
+            history.append(release_id, "scan_not_run", "system", {"error": str(e)[:300]})
+
     async def run_agent(release_id: str, event: str) -> None:
         if agent_runner is None:
             await publish(release_id)
@@ -99,10 +110,14 @@ def create_app(
         try:
             while True:
                 rerun.discard(release_id)
+                if event in ("pull_request_opened", "push"):
+                    await scan_for_commit(release_id)
                 try:
                     result = await agent_runner(release_id, event)
-                    summary = {"stopped": result.get("stopped"), "steps": result.get("steps"),
+                    summary = {"stopped": result.get("stopped"), "steps": result.get("steps"), "tokens": result.get("tokens", 0),
                                "tools": dict(Counter(c["tool"] for c in result.get("calls", [])))}
+                    if result.get("stopped") == "error":  # say WHY, not only that it stopped
+                        summary["error"] = str(result.get("final", ""))[:300]
                 except Exception as e:  # a failing agent must never take the API down
                     summary = {"stopped": "error", "error": str(e)[:300]}
                 history.append(release_id, "agent_run", "agent", {"event": event, **summary})
@@ -173,6 +188,12 @@ def create_app(
         release_or_404(release_id)
         return workflow.status(release_id).model_dump(mode="json")
 
+    @app.get("/releases/{release_id}/report", dependencies=auth)
+    def get_report(release_id: str) -> dict:
+        """The developer's report: findings, severity, rounds and the time each took to close. Plain code over the evidence and history."""
+        evidence = release_or_404(release_id)
+        return build_report(evidence, history.entries(release_id))
+
     @app.get("/releases/{release_id}/findings", dependencies=auth)
     def get_findings(release_id: str, stage: Literal["qa", "security"]) -> list[dict]:
         release_or_404(release_id)
@@ -225,6 +246,7 @@ def create_app(
         background: BackgroundTasks,
         x_hub_signature_256: str | None = Header(default=None),
         x_github_event: str | None = Header(default=None),
+        x_github_delivery: str | None = Header(default=None),
     ) -> dict:
         secret = os.environ.get("GITHUB_WEBHOOK_SECRET")
         if not secret:
@@ -249,6 +271,12 @@ def create_app(
             raise HTTPException(422, "not a pull_request event we understand")
         if action not in ("opened", "reopened", "synchronize"):
             return {"ignored": f"pull_request.{action}"}
+        if x_github_delivery:  # GitHub redelivers an event with the same delivery id: handle it once
+            if x_github_delivery in seen_deliveries:
+                return {"ignored": "duplicate delivery"}
+            seen_deliveries[x_github_delivery] = None
+            if len(seen_deliveries) > 1000:
+                seen_deliveries.popitem(last=False)
         release_id = release_id_for(repo, number)
         event = "pull_request_opened" if action in ("opened", "reopened") else "push"
         try:

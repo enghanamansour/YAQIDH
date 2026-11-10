@@ -85,7 +85,16 @@ async def run_loop_with_server(release_id: str, event: str = "pull_request_opene
     async with stdio_client(params) as (read, write):
         async with ClientSession(read, write) as session:
             await session.initialize()
-            return await AgentLoop(session, chat or ChatClient(), post_comment=_comment_poster()).run(release_id, event)
+            chat = chat or ChatClient()
+            return await AgentLoop(session, chat, post_comment=_comment_poster(), dialect=_dialect_step(chat)).run(release_id, event)
+
+
+def _dialect_step(chat):
+    """The Saudi-dialect rewrite of each explanation, only when DIALECT_MODEL is set (empty = off)."""
+    from src.agent.dialect import DialectStep
+
+    model = os.environ.get("DIALECT_MODEL", "").strip()
+    return DialectStep(chat, model) if model else None
 
 
 def _comment_poster():

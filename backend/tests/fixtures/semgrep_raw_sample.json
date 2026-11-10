@@ -1,0 +1,160 @@
+{
+  "_note": "Trimmed copy of a real Semgrep run on the demo app, typed from the team's paste (offsets, references, OWASP tags and timing data removed). Without a Semgrep login the tool prints 'requires login' in place of the fingerprint and the code lines.",
+  "version": "1.184.0",
+  "results": [
+    {
+      "check_id": "config.semgrep-rules.python.django.security.injection.tainted-sql-string",
+      "path": "demo_app/app.py",
+      "start": {"line": 72, "col": 11},
+      "end": {"line": 72, "col": 107},
+      "extra": {
+        "message": "Detected user input used to manually construct a SQL string. This is usually bad practice because manual construction could accidentally result in a SQL injection. An attacker could use a SQL injection to steal or modify contents of the database. Instead, use a parameterized query which is available by default in most database engines. Alternatively, consider using the Django object-relational mappers (ORM) instead of raw SQL queries.",
+        "metadata": {
+          "cwe": ["CWE-915: Improperly Controlled Modification of Dynamically-Determined Object Attributes"],
+          "category": "security", "technology": ["django"], "subcategory": ["audit"],
+          "impact": "LOW", "likelihood": "MEDIUM", "confidence": "LOW"
+        },
+        "severity": "ERROR",
+        "fingerprint": "requires login",
+        "lines": "requires login"
+      }
+    },
+    {
+      "check_id": "config.semgrep-rules.python.flask.security.injection.tainted-sql-string",
+      "path": "demo_app/app.py",
+      "start": {"line": 72, "col": 11},
+      "end": {"line": 72, "col": 107},
+      "extra": {
+        "message": "Detected user input used to manually construct a SQL string. This is usually bad practice because manual construction could accidentally result in a SQL injection. An attacker could use a SQL injection to steal or modify contents of the database. Instead, use a parameterized query which is available by default in most database engines. Alternatively, consider using an object-relational mapper (ORM) such as SQLAlchemy which will protect your queries.",
+        "metadata": {
+          "cwe": ["CWE-704: Incorrect Type Conversion or Cast"],
+          "category": "security", "technology": ["sqlalchemy", "flask"], "subcategory": ["vuln"],
+          "impact": "MEDIUM", "likelihood": "MEDIUM", "confidence": "MEDIUM"
+        },
+        "severity": "ERROR",
+        "fingerprint": "requires login",
+        "lines": "requires login"
+      }
+    },
+    {
+      "check_id": "config.semgrep-rules.python.sqlalchemy.security.sqlalchemy-execute-raw-query",
+      "path": "demo_app/app.py",
+      "start": {"line": 73, "col": 13},
+      "end": {"line": 73, "col": 28},
+      "extra": {
+        "message": "Avoiding SQL string concatenation: untrusted input concatenated with raw SQL query can result in SQL Injection. In order to execute raw query safely, prepared statement should be used. SQLAlchemy provides TextualSQL to easily used prepared statement with named parameters. For complex SQL composition, use SQL Expression Language or Schema Definition Language. In most cases, SQLAlchemy ORM will be a better option.",
+        "metadata": {
+          "cwe": ["CWE-89: Improper Neutralization of Special Elements used in an SQL Command ('SQL Injection')"],
+          "category": "security", "technology": ["sqlalchemy"], "subcategory": ["audit"],
+          "likelihood": "LOW", "impact": "HIGH", "confidence": "LOW"
+        },
+        "severity": "ERROR",
+        "fingerprint": "requires login",
+        "lines": "requires login"
+      }
+    },
+    {
+      "check_id": "config.semgrep-rules.python.flask.security.unescaped-template-extension",
+      "path": "demo_app/app.py",
+      "start": {"line": 96, "col": 11},
+      "end": {"line": 99, "col": 6},
+      "extra": {
+        "message": "Flask does not automatically escape Jinja templates unless they have .html, .htm, .xml, or .xhtml extensions. This could lead to XSS attacks. Use .html, .htm, .xml, or .xhtml for your template extensions. See https://flask.palletsprojects.com/en/1.1.x/templating/#jinja-setup for more information.",
+        "metadata": {
+          "cwe": ["CWE-79: Improper Neutralization of Input During Web Page Generation ('Cross-site Scripting')"],
+          "category": "security", "technology": ["flask"], "subcategory": ["audit"],
+          "likelihood": "LOW", "impact": "MEDIUM", "confidence": "LOW"
+        },
+        "severity": "WARNING",
+        "fingerprint": "requires login",
+        "lines": "requires login"
+      }
+    },
+    {
+      "check_id": "config.semgrep-rules.python.flask.security.audit.debug-enabled",
+      "path": "demo_app/app.py",
+      "start": {"line": 170, "col": 5},
+      "end": {"line": 170, "col": 84},
+      "extra": {
+        "message": "Detected Flask app with debug=True. Do not deploy to production with this flag enabled as it will leak sensitive information. Instead, consider using Flask configuration variables or setting 'debug' using system environment variables.",
+        "metadata": {
+          "cwe": ["CWE-489: Active Debug Code"],
+          "category": "security", "technology": ["flask"], "subcategory": ["vuln"],
+          "likelihood": "HIGH", "impact": "MEDIUM", "confidence": "HIGH"
+        },
+        "severity": "WARNING",
+        "fingerprint": "requires login",
+        "lines": "requires login"
+      }
+    },
+    {
+      "check_id": "config.semgrep-rules.python.django.security.django-no-csrf-token",
+      "path": "demo_app/templates/base.html",
+      "start": {"line": 21, "col": 11},
+      "end": {"line": 24, "col": 18},
+      "extra": {
+        "message": "Manually-created forms in django templates should specify a csrf_token to prevent CSRF attacks.",
+        "metadata": {
+          "cwe": "CWE-352: Cross-Site Request Forgery (CSRF)",
+          "category": "security", "technology": ["django"], "subcategory": ["audit"],
+          "likelihood": "MEDIUM", "impact": "MEDIUM", "confidence": "MEDIUM"
+        },
+        "severity": "WARNING",
+        "fingerprint": "requires login",
+        "lines": "requires login"
+      }
+    },
+    {
+      "check_id": "config.semgrep-rules.python.django.security.django-no-csrf-token",
+      "path": "demo_app/templates/book.html",
+      "start": {"line": 17, "col": 5},
+      "end": {"line": 19, "col": 12},
+      "extra": {
+        "message": "Manually-created forms in django templates should specify a csrf_token to prevent CSRF attacks.",
+        "metadata": {
+          "cwe": "CWE-352: Cross-Site Request Forgery (CSRF)",
+          "category": "security", "technology": ["django"], "subcategory": ["audit"],
+          "likelihood": "MEDIUM", "impact": "MEDIUM", "confidence": "MEDIUM"
+        },
+        "severity": "WARNING",
+        "fingerprint": "requires login",
+        "lines": "requires login"
+      }
+    },
+    {
+      "check_id": "config.semgrep-rules.python.django.security.django-no-csrf-token",
+      "path": "demo_app/templates/cart.html",
+      "start": {"line": 14, "col": 11},
+      "end": {"line": 14, "col": 145},
+      "extra": {
+        "message": "Manually-created forms in django templates should specify a csrf_token to prevent CSRF attacks.",
+        "metadata": {
+          "cwe": "CWE-352: Cross-Site Request Forgery (CSRF)",
+          "category": "security", "technology": ["django"], "subcategory": ["audit"],
+          "likelihood": "MEDIUM", "impact": "MEDIUM", "confidence": "MEDIUM"
+        },
+        "severity": "WARNING",
+        "fingerprint": "requires login",
+        "lines": "requires login"
+      }
+    },
+    {
+      "check_id": "config.semgrep-rules.python.django.security.django-no-csrf-token",
+      "path": "demo_app/templates/login.html",
+      "start": {"line": 8, "col": 3},
+      "end": {"line": 12, "col": 10},
+      "extra": {
+        "message": "Manually-created forms in django templates should specify a csrf_token to prevent CSRF attacks.",
+        "metadata": {
+          "cwe": "CWE-352: Cross-Site Request Forgery (CSRF)",
+          "category": "security", "technology": ["django"], "subcategory": ["audit"],
+          "likelihood": "MEDIUM", "impact": "MEDIUM", "confidence": "MEDIUM"
+        },
+        "severity": "WARNING",
+        "fingerprint": "requires login",
+        "lines": "requires login"
+      }
+    }
+  ],
+  "errors": []
+}

@@ -101,7 +101,8 @@ class TrivyTool:
 
     def _run(self, args: list[str]) -> subprocess.CompletedProcess:
         try:
-            return subprocess.run([self._exe(), *args], capture_output=True, text=True, timeout=self.timeout)
+            return subprocess.run([self._exe(), *args], capture_output=True, text=True, encoding="utf-8", errors="replace",
+                              stdin=subprocess.DEVNULL, timeout=self.timeout)
         except subprocess.TimeoutExpired as e:
             raise ToolError(f"trivy timed out after {self.timeout}s") from e
 

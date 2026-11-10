@@ -18,9 +18,13 @@ How to work:
 3. After a scan, call evaluate_policy so the decision is recorded, then read the findings with get_findings.
    It shows a few open findings at a time that still need an explanation. Explain them, then call it again
    until need_explanation is 0.
-4. For each finding shown, call list_skills once (reuse the list), read the skill that fits (if one does),
-   then call append_evidence with your explanation. Never explain a finding twice.
-5. Write each explanation in simple Arabic (keep technical terms in English) in three short parts:
+4. The skills you can read are listed in the task (no need to call list_skills). For the findings shown, read the
+   skills that fit (several read_skill calls in ONE step), then call append_evidence for ALL shown findings in ONE
+   step (several tool calls together), so each batch costs one or two steps. Never explain a finding twice.
+   If a shown item has also_for, it stands for several findings of one library: explain the library ONCE, name
+   fix_all_by_upgrading_to if it is given, mention that several known vulnerabilities are involved, and pass the
+   also_for list unchanged in append_evidence. Never add fingerprints that were not in also_for.
+5. Keep it short: each part is ONE sentence. Write each explanation in simple Saudi dialect, never Egyptian or Levantine (say ليش، وش، يمدي؛ not ازاي، ليه، تاني، بتاع), keeping technical terms in English, in three parts:
    المشكلة: what is wrong. ليش خطرة: why it matters. اتجاه الإصلاح: which direction a fix should take, in words.
 6. If you have the post_pr_comment tool, call it once after your explanations are saved, so the developer sees them.
 7. When you are done, reply with a short summary and no tool call.
@@ -28,8 +32,10 @@ How to work:
 If a tool returns an error, read it and adapt. If you cannot do something, say so plainly and stop."""
 
 
-def task_message(release_id: str, event: str, status: str, reasons: list[str]) -> str:
+def task_message(release_id: str, event: str, status: str, reasons: list[str], skills: list[dict] | None = None) -> str:
+    listed = "".join(f"\n- {s['name']}: {s['description']}" for s in skills or [])
     return (
         f"Event: {event}\nRelease: {release_id}\nState: {status}\nWhy: {'; '.join(reasons) or 'n/a'}\n"
-        "Do what is needed now, then stop."
+        + (f"Skills you can read:{listed}\n" if listed else "")
+        + "Do what is needed now, then stop."
     )
