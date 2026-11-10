@@ -209,3 +209,21 @@ td:last-child,th:last-child{white-space:nowrap}
 .finding-card .fc-state{font-size:13px;font-weight:600;color:var(--tone);background:color-mix(in srgb,var(--tone) 12%,transparent);border-radius:999px;padding:3px 12px}
 .finding-card .fc-time{font-size:13px;color:var(--muted)}
 @media(max-width:760px){.finding-card>summary{grid-template-columns:auto 1fr}.fc-rating,.fc-state,.fc-time{grid-column:2}}
+
+/* hot accent: electric magenta, used in the header only (line under it and the language/theme switches) */
+:root{--hot:#ff2bd6;--hot-2:#8b5cff;--hot-3:#2de2e6}
+[data-theme=light]{--hot:#d3149f;--hot-2:#6b3fbd;--hot-3:#0f8f80}
+.top::after{height:3px;opacity:1;background:linear-gradient(90deg,var(--hot),var(--hot-2),var(--hot-3))}
+.top-control button[aria-pressed=true]{background:linear-gradient(135deg,var(--hot),var(--hot-2));color:#fff;box-shadow:0 6px 22px color-mix(in srgb,var(--hot) 40%,transparent)}
+
+/* About pill: the same, calmer size in Arabic and English (fixed box, content centred) */
+.top-navigation nav a{box-sizing:border-box;width:168px;height:44px;padding:0 14px;gap:8px;justify-content:center;line-height:1;white-space:nowrap;font-size:16px;font-weight:700}
+.top-navigation nav a .nav-mark{width:30px;height:30px}
+.top-navigation nav a .nav-mark img{width:28px;height:28px}
+
+/* flow cards: white values, the colour stays on the border */
+.hnode b{color:var(--text)}
+.hnode small,.hnode span{color:color-mix(in srgb,var(--text) 78%,var(--muted))}
+
+/* numbers: white, except green (good), red (bad) and yellow (wait) */
+.metric:not(.good):not(.bad):not(.wait) strong{color:var(--text)}
