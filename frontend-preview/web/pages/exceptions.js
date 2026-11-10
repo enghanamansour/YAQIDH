@@ -23,6 +23,6 @@ function exceptionsView(){
       +'<div class="exc"><small>'+copy('السبب الذي كتبه','The reason given')+'</small><p>'+safe(r.exception.justification)+'</p></div></article>';
   };
   const body=list.length?list.map(card).join(''):'<section class="panel"><p class="muted">'+copy('لم يوافق فريق الأمن على أي استثناء في هذا البناء بعد.','The security team has not accepted any exception in this build yet.')+'</p></section>';
-  const rule='<section class="panel"><p class="muted">'+copy('القاعدة: يُسمح بالاستثناء فقط لملاحظة صنّفتها الأداة نفسها «متوسطة» وبسبب مكتوب من مسؤول الأمن. الملاحظات العالية والحرجة لا تُستثنى أبدًا.','The rule: an exception is allowed only for a finding the tool itself rated medium, with a written reason from the security reviewer. High and critical findings are never excepted.')+'</p></section>';
+  const rule='<section class="panel"><p class="muted">'+copy('القاعدة: يُسمح بالاستثناء فقط لملاحظة صنّفتها الأداة نفسها «متوسطة» وبسبب مكتوب من مراجع الأمن. الملاحظات العالية والحرجة لا تُستثنى أبدًا.','The rule: an exception is allowed only for a finding the tool itself rated medium, with a written reason from the security reviewer. High and critical findings are never excepted.')+'</p></section>';
   return '<main>'+title+(picker?'<section class="panel">'+picker+'</section>':'')+rule+body+'</main>';
 }

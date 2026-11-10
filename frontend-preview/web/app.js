@@ -20,18 +20,18 @@ const FINDINGS_SHOWN=8;let showAllFindings=false;let booting=true; // until the 
 let profile=null,release=null,tool='all',severity='all',findingFilter='all',runFilter='all',adminDay='all',developerOutcome='all',developerDay='all';
 let requestNumber=0;
 const roleNames=role=>({
-  developer:copy('المطور','Developer'),
+  developer:copy('المطوّر','Developer'),
   qa:copy('مراجع الجودة','QA reviewer'),
-  security:copy('مراجع الأمن السيبراني','Security reviewer'),'company-admin':copy('مسؤول إدارة الشركة','Company admin'),
+  security:copy('مراجع الأمن','Security reviewer'),'company-admin':copy('مسؤول إدارة الشركة','Company admin'),
 }[role]||role);
 const projectName=id=>id==='portal'?copy('بوابة الخدمات','Services Portal'):id==='research'?copy('مشروع المختبر','Lab project'):id;
 const toolName=id=>({semgrep:copy('سيم غريب','Semgrep'),trivy:copy('تريفي','Trivy'),playwright:copy('بلاي رايت','Playwright')}[id]||id);
 const severityName=id=>({
-  high:copy('مرتفعة','HIGH'),low:copy('منخفضة','LOW'),medium:copy('متوسطة','Medium'),
+  high:copy('عالية','HIGH'),low:copy('منخفضة','LOW'),medium:copy('متوسطة','Medium'),
   critical:copy('حرجة','Critical'),info:copy('معلومة','Info'),unknown:copy('غير محددة','Unknown')
 }[id]||'—');
 const accountName=id=>({
-  developer:copy('حساب المطور التجريبي','developer'),
+  developer:copy('حساب المطوّر التجريبي','developer'),
   qa:copy('حساب الجودة التجريبي','qa'),
   security:copy('حساب الأمن التجريبي','security'),
   'company-admin':copy('حساب إدارة الشركة التجريبي','company-admin'),
@@ -120,7 +120,7 @@ let adminProject='all',adminRole='all',adminActive='all',adminStage='all';
 function outcomeText(){return release.outcome?(release.outcome.result==='pass'?copy('اجتاز','PASS'):copy('أخفق','FAIL')):release.runs.some(run=>run.state==='error')?copy('تعطل فحص مطلوب','Required check failed to run'):copy('بانتظار نتيجة صالحة','Awaiting a valid result')}
 function stageText(stage){return stage==='qa'?copy('مسار الجودة · المرحلة الأولى','QA pipeline · Stage 1'):copy('مسار الأمن · المرحلة الثانية','Security pipeline · Stage 2')}
 function statusText(status){return ({
-  open:copy('تحتاج معالجة','Needs remediation'),fixed:copy('مُصلحة','Fixed'),excepted:copy('مستثناة','Excepted'),
+  open:copy('مفتوحة','Needs remediation'),fixed:copy('مغلقة','Fixed'),excepted:copy('مستثناة','Excepted'),
   completed:copy('مكتمل','Completed'),error:copy('تعطل','Failed to run'),
   approve:copy('موافقة مسجلة','Approval recorded'),reject:copy('إرجاع مع السبب','Returned with reason')
 })[status]||copy('بانتظار القرار','Awaiting decision')}
@@ -129,10 +129,10 @@ function decisionText(){return statusText(lastDecision()?.decision)}
 function displayReason(reason){
   if(reason==='no blocking findings')return copy('لا توجد ملاحظات مانعة وفق السياسة','No blocking findings');
   const count=reason.match(/^(\d+) high open$/);
-  return count?copy(count[1]==='1'?'ملاحظة واحدة مرتفعة الخطورة تمنع التقدّم':count[1]+' ملاحظات مرتفعة الخطورة تمنع التقدّم',count[1]+' blocking HIGH findings'):safe(reason);
+  return count?copy(count[1]==='1'?'ملاحظة واحدة عالية الخطورة تمنع التقدّم':count[1]+' ملاحظات عالية الخطورة تمنع التقدّم',count[1]+' blocking HIGH findings'):safe(reason);
 }
 function sampleBuild(sample){if(profile.role==='developer')return sample==='issue'?'portal-133':'portal-129';if(sample==='approved')return profile.role==='qa'?'portal-129':'portal-135';return profile.role==='qa'?(sample==='issue'?'portal-133':'portal-132'):(sample==='issue'?'portal-128':'portal-134')}
-function findingState(f){return f.closure?.result==='closed'?copy('إغلاق مثبت','Verified closed'):f.closure?.result==='still_open'?copy('ما زالت تحتاج معالجة','Still needs remediation'):statusText(f.status)}
+function findingState(f){return f.closure?.result==='closed'?copy('مغلقة بإثبات','Verified closed'):f.closure?.result==='still_open'?copy('ما زالت مفتوحة','Still needs remediation'):statusText(f.status)}
 function findingGroup(f){return f.closure?.result==='closed'?'fixed':f.status==='excepted'?'excepted':'open'}
 function matched(){return release.findings.filter(f=>(runFilter==='all'||release.runs.filter(run=>run.tool===f.tool).length===1&&release.runs.some(run=>run.tool===f.tool&&run.state===runFilter))&&(findingFilter==='all'||findingGroup(f)===findingFilter)&&(tool==='all'||tool===f.tool)&&(severity==='all'||severity===f.severity))}
 
@@ -177,7 +177,7 @@ function decisionList(){
 function findingModal(id){
   const f=release.findings.find(item=>item.fingerprint===id);
   if(!f)return;
-  const flags={closed:copy('إغلاق مثبت','Verified closure'),still_open:copy('ما زالت تحتاج معالجة','Still needs remediation'),new:copy('ملاحظة جديدة','New finding'),new_from_db_update:copy('جديدة بسبب تحديث قاعدة تريفي','New after Trivy DB update'),reopened:copy('عادت بعد الإغلاق','Reopened')};
+  const flags={closed:copy('مغلقة بإثبات','Verified closure'),still_open:copy('ما زالت مفتوحة','Still needs remediation'),new:copy('ملاحظة جديدة','New finding'),new_from_db_update:copy('جديدة بسبب تحديث قاعدة تريفي','New after Trivy DB update'),reopened:copy('عادت بعد الإغلاق','Reopened')};
   const history=Object.entries(flags).filter(([key])=>release.verification?.[key]?.includes(id)).map(([,label])=>label).join(' · ');
   modal(copy('دليل الملاحظة','Finding evidence'),'<div class="details-grid">'
     +detail(copy('البصمة','Fingerprint'),mon(f.fingerprint))+(profile.role==='developer'?'':detail(copy('الأداة','Tool'),safe(toolName(f.tool))))
@@ -242,7 +242,7 @@ async function handleAction(button){
       +'<a class="action" href="/api/releases/'+encodeURIComponent(release.id)+'/evidence">'+copy('تصدير الأدلة المصرّح بها','Export authorized evidence')+'</a>');
   }
   if(id==='approve'||id==='reject'){
-    return modal(id==='approve'?copy('تسجيل الموافقة','Record approval'):copy('إرجاع التعديل','Return change'),
+    return modal(id==='approve'?copy('الموافقة على البناء','Record approval'):copy('إرجاع التعديل','Return change'),
       '<p>'+safe(buildName(release.build))+' · '+mon(release.commit)+'</p><form id="decision-form" data-choice="'+id+'" data-release="'+safe(release.id)+'" data-commit="'+safe(release.commit)+'">'
       +'<label class="field">'+copy('السبب','Reason')+'<textarea name="reason" required minlength="3" maxlength="1000"></textarea></label>'
       +'<button class="primary">'+copy('حفظ القرار التجريبي','Save demo decision')+'</button></form>');

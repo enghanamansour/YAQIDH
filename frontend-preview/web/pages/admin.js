@@ -17,7 +17,7 @@ function registrationQueue(){
 function adminRunList(runs){
   const rows=runs.slice().sort((a,b)=>(b.day||'').localeCompare(a.day||'')).map(r=>
     '<tr><td>'+safe(toolName(r.tool))+'</td><td>'+safe(stageText(r.stage))+'</td><td>'+safe(projectName(r.project))+'</td><td>'
-    +badge(statusText(r.state),r.state==='completed'?'good':r.state==='error'?'bad':'wait')+'</td><td>'+mon(r.day||'—')+'</td><td>'+action('admin-message',copy('مراسلة المطور','Message developer'),'data-id="'+safe(r.release)+'"')+'</td></tr>').join('');
+    +badge(statusText(r.state),r.state==='completed'?'good':r.state==='error'?'bad':'wait')+'</td><td>'+mon(r.day||'—')+'</td><td>'+action('admin-message',copy('مراسلة المطوّر','Message developer'),'data-id="'+safe(r.release)+'"')+'</td></tr>').join('');
   return '<section class="panel"><div class="section-head"><h2>'+copy('سجل التشغيلات المطابقة','Matching run records')+'</h2>'
     +badge(runs.length+' '+copy('تشغيل','runs'))+'</div><p class="muted">'+copy('مرتّب من الأحدث إلى الأقدم وفق الفلاتر الحالية.','Newest first, within the active filters.')+'</p>'
     +(rows?'<div class="table-wrap run-table"><table><thead><tr><th>'+copy('الأداة','Tool')+'</th><th>'+copy('المرحلة','Stage')+'</th><th>'+copy('المشروع','Project')+'</th><th>'+copy('حالة التشغيل','Run status')+'</th><th>'+copy('التاريخ','Date')+'</th><th>'+copy('التواصل','Communication')+'</th></tr></thead><tbody>'+rows+'</tbody></table></div>':'<p>'+copy('لا توجد تشغيلات مطابقة.','No matching runs.')+'</p>')+'</section>';

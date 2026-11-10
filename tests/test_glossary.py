@@ -1,0 +1,45 @@
+"""One word for one thing: the old synonyms must not come back into the dashboard or the pull request comment (docs/glossary.md)."""
+
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+
+# banned word -> the one to use
+BANNED = {
+    "تحتاج معالجة": "مفتوحة",
+    "قيد التنفيذ": "مفتوحة",
+    "إغلاق مثبت": "مغلقة بإثبات",
+    "إغلاقات مثبتة": "مغلقة بإثبات",
+    "مُصلحة": "مغلقة",
+    "مرتفعة الخطورة": "عالية الخطورة",
+    "انقفل": "أُغلقت / مغلقة بإثبات",
+    "اعتماد البناء": "الموافقة على البناء",
+    "تسجيل الموافقة": "الموافقة على البناء",
+    "مسؤول الأمن": "مراجع الأمن",
+    "مراجع الأمن السيبراني": "مراجع الأمن",
+    "السايبر": "مراجع الأمن",
+    "الـ QA": "الجودة",
+    "الفحص الأمني": "فحص الأمن",
+    "حالة الإصدار": "حالة البناء",
+    "ليش خطيرة": "ليش خطرة",
+    "مطور": "مطوّر (بالشدة)",
+}
+
+
+def texts():
+    files = list((ROOT / "frontend-preview/web").rglob("*.js"))
+    files += [ROOT / "src/github_sync.py", ROOT / "backend/app/comment.py", ROOT / "src/agent/prompt.py"]
+    for path in files:
+        yield path, path.read_text(encoding="utf-8")
+
+
+def test_no_old_synonym_is_left():
+    found = [f"{path.relative_to(ROOT).as_posix()}: «{word}» -> «{use}»"
+             for path, text in texts() for word, use in BANNED.items() if word in text]
+    assert not found, "use the glossary words:\n" + "\n".join(found)
+
+
+def test_the_glossary_file_lists_every_banned_word():
+    doc = (ROOT / "docs/glossary.md").read_text(encoding="utf-8")
+    missing = [word for word in BANNED if word not in doc and word != "مطور"]
+    assert not missing, f"docs/glossary.md does not mention: {missing}"

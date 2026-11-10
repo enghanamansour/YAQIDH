@@ -14,7 +14,7 @@ function resultActions(){
   const approved=last&&last.decision==='approve';
   /* why the decision buttons are not available right now, in words */
   const whyNot=()=>{
-    if(approved)return copy('تم اعتماد هذا البناء مسبقًا.','This build was already approved.');
+    if(approved)return copy('تمت الموافقة على هذا البناء مسبقًا.','This build was already approved.');
     if(release.stage!==profile.role)return copy('البناء الآن في مرحلة أخرى.','The build is in another stage now.');
     if(!release.outcome)return copy('بانتظار نتيجة الفحص.','Waiting for the scan result.');
     if(release.outcome.result==='fail')return blockers?copy('غير متاح: ','Not available: ')+blockers+' '+copy('ملاحظة تمنع الدمج.','findings block the merge.'):copy('غير متاح: الفحص لم يجتز.','Not available: the scan did not pass.');
@@ -23,9 +23,9 @@ function resultActions(){
   const act=(button,note)=>'<div class="act">'+button+(note?'<small class="why">'+note+'</small>':'')+'</div>';
   let decide='';
   if(reviewer){
-    const approveLabel=profile.role==='security'?copy('اعتماد البناء','Approve build'):copy('تسجيل الموافقة','Record approval');
+    const approveLabel=profile.role==='security'?copy('الموافقة على البناء','Approve build'):copy('الموافقة على البناء','Record approval');
     if(approved){
-      decide+=act('<div class="big good static"><b>'+copy('معتمد','Approved')+'</b><small><bdi>'+safe(last.by)+'</bdi>'+(last.timestamp?' · <bdi>'+safe(reportDate(last.timestamp))+'</bdi>':'')+'</small></div>','');
+      decide+=act('<div class="big good static"><b>'+copy('تمت الموافقة','Approved')+'</b><small><bdi>'+safe(last.by)+'</bdi>'+(last.timestamp?' · <bdi>'+safe(reportDate(last.timestamp))+'</bdi>':'')+'</small></div>','');
     }else if(release.canApprove){
       decide+=act(big('approve',approveLabel,'good'),'');
     }else{
@@ -44,7 +44,7 @@ function releaseHeader(){
   const options=profile.releases.map(item=>'<option value="'+safe(item.id)+'" '+(item.id===release.id?'selected':'')+'>'+buildName(item.build)+' · '+requestName(item.pr)+'</option>').join('');
   return '<section class="intro"><div><h2>'+stageText(release.stage)+'</h2><small>'+safe(projectName(release.project))+' · '+safe(requestName(release.pr))+' · '+safe(buildName(release.build))+' · '+safe(branchName(release.branch))+' · '+mon(release.commit)+'</small></div>'
     +'<label class="field">'+copy('البناء المصرّح به','Authorized build')+'<select id="release-select">'+options+'</select></label></section>'
-    +(release.live?'':'<section class="panel actions" aria-label="'+copy('عينات المراجعة','Review samples')+'"><b>'+copy('جرّب حالة','Try a scenario')+'</b>'+action('sample-issue',profile.role==='qa'?copy('مشكلة جودة','QA issue'):copy('ثغرة مانعة','Blocking vulnerability'),'aria-pressed="'+(release.id===sampleBuild('issue'))+'"')+action('sample-ready',profile.role==='qa'?copy('جاهز لمراجعة الجودة','Ready for QA review'):copy('صفر ملاحظات · جاهز للمراجعة','Zero findings · ready for review'),'aria-pressed="'+(release.id===sampleBuild('ready'))+'"')+action('sample-approved',profile.role==='qa'?copy('موافقة جودة مسجّلة','QA approval recorded'):copy('جاهز للإطلاق · معتمد أمنيًا','Ready for release · approved'),'aria-pressed="'+(release.id===sampleBuild('approved'))+'"')+'</section>')
+    +(release.live?'':'<section class="panel actions" aria-label="'+copy('عينات المراجعة','Review samples')+'"><b>'+copy('جرّب حالة','Try a scenario')+'</b>'+action('sample-issue',profile.role==='qa'?copy('مشكلة جودة','QA issue'):copy('ملاحظة مانعة','Blocking vulnerability'),'aria-pressed="'+(release.id===sampleBuild('issue'))+'"')+action('sample-ready',profile.role==='qa'?copy('جاهز لمراجعة الجودة','Ready for QA review'):copy('صفر ملاحظات · جاهز للمراجعة','Zero findings · ready for review'),'aria-pressed="'+(release.id===sampleBuild('ready'))+'"')+action('sample-approved',profile.role==='qa'?copy('موافقة جودة مسجّلة','QA approval recorded'):copy('جاهز للإطلاق · معتمد أمنيًا','Ready for release · approved'),'aria-pressed="'+(release.id===sampleBuild('approved'))+'"')+'</section>')
     +'<section class="summary '+(release.outcome?.result==='fail'?'bad':release.outcome?.result==='pass'?'good':'wait')+'"><div><b>'+copy('نتيجة محرك القواعد','Policy outcome')+' · '+outcomeText()+'</b><p>'
     +(release.outcome?.reasons.map(displayReason).join(' · ')||copy('تتوفر النتائج بعد اكتمال الفحوصات المطلوبة.','Results are available once required checks complete.'))+'</p></div>'
     +'<div><small>'+copy('القرار البشري','Human decision')+'</small><p>'+decisionText()+'</p></div></section>'+resultActions();
@@ -61,7 +61,7 @@ function findingsView(){
     +'<label>'+copy('أداة الفحص','Scan tool')+'<select id="tool-filter"><option value="all">'+copy('جميع الأدوات','All tools')+'</option>'+options+'</select></label>'
     +'<label>'+copy('خطورة الملاحظة','Finding severity')+'<select id="severity-filter"><option value="all">'+copy('جميع التصنيفات','All severities')+'</option>'
     +['high','low'].map(id=>'<option value="'+id+'" '+(id===severity?'selected':'')+'>'+severityName(id)+'</option>').join('')+'</select></label>'
-    +adminSelect('finding-filter',copy('حالة المعالجة','Remediation status'),findingFilter,[['open',copy('قيد التنفيذ','In progress')],['fixed',copy('مغلقة','Closed')],['excepted',copy('مستثناة','Excepted')]])
+    +adminSelect('finding-filter',copy('حالة المعالجة','Remediation status'),findingFilter,[['open',copy('مفتوحة','In progress')],['fixed',copy('مغلقة','Closed')],['excepted',copy('مستثناة','Excepted')]])
      +adminSelect('run-filter',copy('حالة التشغيل','Run state'),runFilter,stateLabels())+'</div>'+chipRow([['tool',tool,toolName(tool)],['severity',severity,severityName(severity)],['finding',findingFilter,findingFilter==='all'?'':findingLabel(findingFilter)],['run',runFilter,statusText(runFilter)]],'clear')+'</section>'+stageCharts()
     +'<div class="findings-layout"><section class="panel"><h2>'+copy('الملاحظات المطابقة','Matching findings')+' · '+rows.length+'</h2>'
     +(records?'<div class="table-wrap"><table><thead><tr><th>'+copy('الملاحظة','Finding')+'</th><th>'+copy('الأداة','Tool')+'</th><th>'+copy('الخطورة','Severity')+'</th><th>'+copy('الحالة','Status')+'</th><th>'+copy('التفاصيل','Details')+'</th></tr></thead><tbody>'+records+'</tbody></table></div>'+(rows.length>FINDINGS_SHOWN?'<div class="more">'+action('toggle-findings',showAllFindings?copy('عرض أقل','Show fewer'):copy('عرض الكل','Show all')+' ('+rows.length+')')+'</div>':''):'<p class="muted">'+copy('لا توجد ملاحظات مطابقة في السجل المعروض.','No matching findings in this record.')+'</p>')+'</section>'
@@ -80,7 +80,7 @@ function reviewView(){
 
   return reviewQueue()+releaseHeader()
     +'<div class="metric-row">'+(profile.role==='security'?metric(copy('ملاحظات مانعة','Blocking findings'),release.outcome?blockers.length:'—',blockers.length?'bad':'',blockers,buildScope(release.outcome?.reasons.map(displayReason).join(' · ')||copy('بانتظار نتيجة محرك القواعد.','Awaiting a policy outcome.')),findingRecord):metric(copy('ملاحظات تنتظر إعادة الفحص','Findings awaiting recheck'),open.length,open.length?'wait':'',open,buildScope(copy('الملاحظات المطابقة التي تحتاج متابعة.','Matching findings that need follow-up.')),findingRecord))
-    +metric(copy('إغلاقات مثبتة','Verified closures'),closed.length,'good',closed,buildScope(copy('الإغلاقات المثبتة ضمن الفلاتر الحالية.','Verified closures within active filters.')),findingRecord)
+    +metric(copy('مغلقة بإثبات','Verified closures'),closed.length,'good',closed,buildScope(copy('الإغلاقات المثبتة ضمن الفلاتر الحالية.','Verified closures within active filters.')),findingRecord)
     +metric(copy('تشغيلات مكتملة في السجل','Completed recorded runs'),visibleRuns.length?fraction(completed.length,visibleRuns.length):'—','',visibleRuns,buildScope(copy('المكتمل من التشغيلات المطابقة للأداة وحالة التشغيل.','Completed runs out of those matching tool and run-state filters.')),runRecord)
     +metric(copy('محادثات تنتظر الاطلاع','Unread conversations'),unread.length,'',unread,buildScope(copy('المحادثات غير المقروءة لهذا البناء.','Unread conversations for this build.')),thread=>'<a href="/communication?thread='+encodeURIComponent(thread.id)+'">'+safe(threadText(thread.subject))+'</a>')+'</div>'
     +'<section class="panel"><div class="section-head"><h2>'+copy('أدلة المرحلة والإجراءات','Stage evidence and actions')+'</h2><div class="actions">'
