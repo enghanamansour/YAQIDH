@@ -85,9 +85,22 @@ STATIC = {
     "/pages/dashboard/review.js": "pages/dashboard/review.js",
     "/pages/dashboard/index.js": "pages/dashboard/index.js",
     "/app.js": "app.js", "/style.css": "style.css",
+    "/assets/fonts.css": "assets/fonts.css",
+    "/theme.css": "theme.css",
+    "/components/motion.js": "components/motion.js",
+    "/assets/fonts/ArefRuqaa-700-arabic.woff2": "assets/fonts/ArefRuqaa-700-arabic.woff2",
+    "/assets/fonts/ArefRuqaa-700-latin.woff2": "assets/fonts/ArefRuqaa-700-latin.woff2",
+    "/assets/fonts/IBMPlexSansArabic-400-arabic.woff2": "assets/fonts/IBMPlexSansArabic-400-arabic.woff2",
+    "/assets/fonts/IBMPlexSansArabic-400-latin.woff2": "assets/fonts/IBMPlexSansArabic-400-latin.woff2",
+    "/assets/fonts/IBMPlexSansArabic-500-arabic.woff2": "assets/fonts/IBMPlexSansArabic-500-arabic.woff2",
+    "/assets/fonts/IBMPlexSansArabic-500-latin.woff2": "assets/fonts/IBMPlexSansArabic-500-latin.woff2",
+    "/assets/fonts/IBMPlexSansArabic-600-arabic.woff2": "assets/fonts/IBMPlexSansArabic-600-arabic.woff2",
+    "/assets/fonts/IBMPlexSansArabic-600-latin.woff2": "assets/fonts/IBMPlexSansArabic-600-latin.woff2",
+    "/assets/fonts/IBMPlexSansArabic-700-arabic.woff2": "assets/fonts/IBMPlexSansArabic-700-arabic.woff2",
+    "/assets/fonts/IBMPlexSansArabic-700-latin.woff2": "assets/fonts/IBMPlexSansArabic-700-latin.woff2",
           "/assets/yaqidh-dark-transparent.png": "assets/yaqidh-dark-transparent.png",
           "/assets/yaqidh-light-transparent.png": "assets/yaqidh-light-transparent.png"}
-MIME = {".js": "text/javascript", ".css": "text/css", ".png": "image/png", ".html": "text/html"}
+MIME = {".js": "text/javascript", ".css": "text/css", ".png": "image/png", ".html": "text/html", ".woff2": "font/woff2"}
 
 def seed(store, policy):
     old = [
@@ -177,7 +190,8 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(status)
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(body)))
-        self.send_header("Cache-Control", "no-store")
+        if not any(key == "Cache-Control" for key, _ in headers):
+            self.send_header("Cache-Control", "no-store")
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("Content-Security-Policy", "default-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'")
         for key, value in headers:
@@ -201,9 +215,9 @@ class Handler(BaseHTTPRequestHandler):
         account = self.server.sessions.get(sid)
         return sid, account if account and ACCOUNTS[account]["active"] else None
 
-    def refresh_live(self):
+    def refresh_live(self, force=False):
         if self.server.live:
-            self.server.live.refresh(RELEASES, RUNS, DEMO_RUN_DATES)
+            self.server.live.refresh(RELEASES, RUNS, DEMO_RUN_DATES, force=force)
 
     def visible(self, account, key):
         meta = RELEASES.get(key)
@@ -255,7 +269,13 @@ class Handler(BaseHTTPRequestHandler):
         path = urlsplit(self.path).path
         if path in {"/", "/about", "/login", "/signup", "/dashboard", "/communication", "/exceptions"} or path in STATIC:
             target = ROOT / "web" / STATIC.get(path, "index.html")
-            self.send_data(200, target.read_bytes(), MIME[target.suffix])
+            info = target.stat()
+            etag = f'"{info.st_mtime_ns:x}-{info.st_size:x}"'
+            cache = "public, max-age=86400" if target.suffix in (".woff2", ".png") else "no-cache"  # no-cache = ask, 304 if unchanged
+            if self.headers.get("If-None-Match") == etag:
+                self.send_data(304, b"", MIME[target.suffix], [("ETag", etag), ("Cache-Control", cache)])
+                return
+            self.send_data(200, target.read_bytes(), MIME[target.suffix], [("ETag", etag), ("Cache-Control", cache)])
             return
         if path == "/admin":
             _, account = self.auth()
@@ -460,7 +480,7 @@ class Handler(BaseHTTPRequestHandler):
                 self.server.live.grant_exception(key, "security", fingerprint, reason.strip(), account)
         except LiveError as e:
             return self.fail(409 if e.status in (409, 422) else 502, "exception_refused")
-        self.refresh_live()
+        self.refresh_live(force=True)
         return self.json(200, self.release_view(account, key))
 
     def resolve_request(self, account, data):
@@ -558,7 +578,7 @@ class Handler(BaseHTTPRequestHandler):
                     self.server.live.decide(key, role, choice, reason.strip(), account)
                 except LiveError as e:
                     return self.fail(409 if e.status in (409, 422) else 502, "decision_unavailable")
-                self.refresh_live()
+                self.refresh_live(force=True)
                 return self.json(200, self.release_view(account, key))
             evidence = self.server.store.get(key)
             evidence.human_decisions.append(HumanDecision(stage=role, decision=choice, by=account, reason=reason.strip()))

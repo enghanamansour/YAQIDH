@@ -10,6 +10,7 @@ Start it with:  python server.py --live --api-url http://127.0.0.1:8000     (tok
 
 import json
 import os
+import time
 import urllib.error
 import urllib.request
 
@@ -33,6 +34,7 @@ class LiveBackend:
         self._evidence: dict[str, dict] = {}
         self._status: dict[str, dict] = {}
         self._report: dict[str, dict | None] = {}
+        self._refreshed = 0.0
 
     def report(self, key: str):
         """The developer's report for one release, worked out by the API. None if the API cannot give it."""
@@ -61,8 +63,12 @@ class LiveBackend:
             raise LiveError(503, f"the Yaqidh API is not reachable: {e}") from None
 
     # --- reading ---
-    def refresh(self, releases: dict, runs: dict, dates: dict) -> None:
-        """Rebuilds the dashboard's release tables from the API. Called once per request."""
+    def refresh(self, releases: dict, runs: dict, dates: dict, force: bool = False) -> None:
+        """Rebuilds the dashboard's release tables from the API. A page load makes several requests in a row, so a
+        refresh done in the last two seconds is reused (a decision forces a new one)."""
+        if not force and releases and time.monotonic() - self._refreshed < 2.0:
+            return
+        self._refreshed = time.monotonic()
         self._evidence.clear()
         self._status.clear()
         self._report.clear()

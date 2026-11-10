@@ -107,17 +107,43 @@ function reportCard(row){
   return '<details class="finding-card '+state+'"><summary><span class="fc-name">'+safe(reportName(row))+reportPlace(row)+'</span>'
     +'<span class="badge '+reportTone(String(row.reported_as||'').toLowerCase())+'">'+safe(reportRated(row))+'</span><span class="fc-state">'+safe(reportStatus(row))+'</span><span class="fc-time">'+safe(time)+'</span></summary>'
     +'<div class="fc-body">'+(row.explanation?'<p class="fc-explain">'+safe(row.explanation)+'</p>':'')
+    +'<h4 class="flow-label">'+copy('كيف صُنّف الخطر','How the risk was rated')+'</h4>'+riskFlow(row)
+    +'<h4 class="flow-label">'+copy('الخط الزمني','Timeline')+'</h4>'+timeFlow(row)
     +'<div class="facts">'
-    +fact(copy('تصنيف الأداة','Tool rating'),safe(reportRated(row))+' · '+safe(toolName(row.tool)))
-    +fact(copy('تصنيف يقظ','Yaqidh rating'),row.severity==='high'?copy('مانعة','Blocking'):copy('تمر بتوعية','Passes with awareness'))
-    +fact(copy('المرحلة','Stage'),safe(reportStage(row.stage)))
     +fact('OWASP',safe(row.owasp))+fact('CWE',safe(row.cwe))
     +fact(copy('النسخة المصلحة','Fixed version'),safe(row.fixed_version))
-    +fact(copy('أول ظهور','First seen'),safe(reportDate(row.first_seen)))
-    +fact(copy('وقت الإغلاق','Closed at'),closed?safe(reportDate(row.closed_at)):'')
-    +fact(copy('المدة حتى الإغلاق','Time to close'),closed?safe(reportTime(row.seconds_to_close)):'')
-    +fact(copy('جولات الفحص','Scan rounds'),safe(row.rounds))
     +'</div>'+exc+'</div></details>';
+}
+
+
+/* How one finding was rated, step by step: the tool's rating, Yaqidh's rule, a person's decision if any, where it stands. */
+function hnode(label,value,tone,sub){
+  return '<div class="hnode '+tone+'"><small>'+label+'</small><b>'+value+'</b>'+(sub?'<span>'+sub+'</span>':'')+'</div>';
+}
+const harrow=()=>'<i class="harrow" aria-hidden="true"></i>';
+
+function riskFlow(row){
+  const level=String(row.reported_as||'unknown').toLowerCase(),blocks=row.severity==='high';
+  const closed=row.closed_at!==null&&row.closed_at!==undefined;
+  const nodes=[
+    hnode(copy('الأداة صنّفتها','The tool rated it'),safe(reportLevel(level)),reportTone(level),safe(toolName(row.tool))),
+    hnode(copy('قاعدة يقظ','Yaqidh rule'),blocks?copy('تمنع الدمج','Blocks the merge'):copy('تمر بتوعية','Passes with awareness'),blocks?'bad':'good',blocks?copy('غير «المنخفضة» تمنع','anything but “low” blocks'):copy('تظهر وتُسجَّل','shown and recorded'))
+  ];
+  if(row.exception)nodes.push(hnode(copy('قرار الأمن','Security decision'),copy('استثناء مقبول','Exception accepted'),level==='medium'?'wait':'bad',safe(row.exception.approved_by)));
+  nodes.push(hnode(copy('حالتها الآن','Where it stands'),safe(reportStatus(row)),closed?'good':row.status==='excepted'?'wait':'bad',''));
+  return '<div class="hflow" role="group" aria-label="'+safe(copy('مسار تصنيف الخطر','Risk classification path'))+'">'+nodes.join(harrow())+'</div>';
+}
+
+/* How long it lived: first seen, the scan rounds, closed. */
+function timeFlow(row){
+  const closed=row.closed_at!==null&&row.closed_at!==undefined;
+  const nodes=[
+    hnode(copy('أول ظهور','First seen'),safe(reportDate(row.first_seen)),'accent',safe(reportStage(row.stage))),
+    hnode(copy('جولات الفحص','Scan rounds'),safe(row.rounds),'wait',''),
+    closed?hnode(copy('أُغلقت','Closed'),safe(reportDate(row.closed_at)),'good',copy('بعد ','after ')+safe(reportTime(row.seconds_to_close)))
+          :hnode(copy('لم تُغلق','Not closed yet'),row.seconds_open!==null?safe(reportTime(row.seconds_open)):'—','bad',copy('مفتوحة منذ ظهورها','open since it appeared'))
+  ];
+  return '<div class="hflow" role="group" aria-label="'+safe(copy('الخط الزمني','Timeline'))+'">'+nodes.join(harrow())+'</div>';
 }
 
 function developerReport(){
