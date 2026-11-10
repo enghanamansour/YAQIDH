@@ -30,10 +30,10 @@ function reviewRequestDetails(thread){
   if(!request)return '';
   const statuses={pending:copy('بانتظار المراجعة','Pending review'),approved:copy('معتمد','Approved'),rejected:copy('مرفوض','Rejected')};
   return '<section class="note"><h3>'+(exception?copy('طلب استثناء أمني','Security exception request'):copy('طلب تمديد المهلة','Deadline extension request'))+'</h3><div class="details-grid">'
-    +(exception?'':detail(copy('الموعد الساري','Effective deadline'),displayReviewDeadline(request.status==='approved'?(request.approvedDeadline||request.requested):request.original))
+    +(exception?'':detail(copy('الموعد الساري','Effective deadline'),'<strong class="comm-deadline-effective">'+displayReviewDeadline(request.status==='approved'?(request.approvedDeadline||request.requested):request.original)+'</strong>')
       +detail(copy('الموعد الأصلي','Original deadline'),mon(request.original))
-      +detail(copy('موعد المطور المقترح','Developer proposed deadline'),displayReviewDeadline(request.requested)))
-    +detail(copy('الحالة','Status'),statuses[request.status])
+      +detail(copy('موعد المطور المقترح','Developer proposed deadline'),'<strong class="comm-deadline-proposed">'+displayReviewDeadline(request.requested)+'</strong>'))
+    +detail(copy('الحالة','Status'),badge(statuses[request.status],{pending:'wait',approved:'good',rejected:'bad'}[request.status]||''))
     +detail(copy('المبرر','Justification'),safe(threadText(request.reason)))
     +(request.by?detail(copy('قرار المراجع','Reviewed by'),safe(accountName(request.by))):'')+'</div>'
     +(profile.role==='security'&&request.status==='pending'?'<div class="actions">'
@@ -43,16 +43,31 @@ function reviewRequestDetails(thread){
     +'<p class="muted">'+(exception?copy('اعتماد الاستثناء يخص هذه الملاحظة فقط.','Approval applies to this finding only.'):copy('اعتماد المهلة يغيّر الموعد فقط.','Approval updates the deadline only.'))+'</p></section>';
 }
 
+function communicationAccount(account,role){
+  const tone=roleColor(role);
+  return '<b class="'+tone+'">'+safe(accountName(account))+'</b>'
+    +(role?' <small class="'+tone+'">('+safe(roleNames(role))+')</small>':'');
+}
+
+function communicationMessage(thread,message){
+  const recipients=thread.members.filter(member=>member!==message.by);
+  return '<article class="note"><div class="comm-message-header">'
+    +'<span><small>'+copy('من','From')+'</small> '+communicationAccount(message.by,message.role)+'</span>'
+    +'<span><small>'+copy('إلى','To')+'</small> '+recipients.map(member=>communicationAccount(member,thread.memberRoles?.[member])).join(' · ')+'</span>'
+    +'<small>'+mon(message.at.slice(0,16).replace('T',' '))+'</small></div><p>'+safe(threadText(message.text))+'</p></article>';
+}
+
 function communicationView(){
   const thread=threads.find(item=>item.id===selectedThread);
-  const cards=threads.map(item=>'<button type="button" class="thread-card" data-action="thread" data-id="'+safe(item.id)+'" aria-pressed="'+(item.id===selectedThread)+'"><b>'+safe(threadText(item.subject))+'</b><small>'+(item.kind==='administrative'?copy('مراسلة إدارية','Administrative message'):safe(buildName(item.build)))+(item.unread?' · '+copy('غير مقروء','Unread'):'')+'</small></button>').join('');
+  const cards=threads.map(item=>'<button type="button" class="thread-card" data-action="thread" data-id="'+safe(item.id)+'" aria-pressed="'+(item.id===selectedThread)+'"><b>'+safe(threadText(item.subject))+'</b><small>'+(item.kind==='administrative'?copy('مراسلة إدارية','Administrative message'):safe(profile.role==='developer'?copy('النسخة','Build')+' #'+item.build:buildName(item.build)))+(item.unread?' · <b class="comm-unread">'+copy('غير مقروء','Unread')+'</b>':'')+'</small></button>').join('');
   let details='<p class="muted">'+copy('اختر محادثة لعرض الرسائل.','Select a conversation to view messages.')+'</p>';
   if(thread){
-    details='<h2>'+safe(threadText(thread.subject))+'</h2><p>'+(thread.kind==='administrative'?'':safe(buildName(thread.build))+' · ')+thread.members.map(member=>safe(accountName(member))).join(' · ')+'</p>'
+    details='<h2>'+safe(threadText(thread.subject))+'</h2><p>'+(thread.kind==='administrative'?'':safe(profile.role==='developer'?copy('النسخة','Build')+' #'+thread.build:buildName(thread.build))+' · ')+thread.members.map(member=>communicationAccount(member,thread.memberRoles?.[member])).join(' · ')+'</p>'
       +(thread.finding?'<small>'+copy('بصمة الملاحظة','Finding fingerprint')+' '+mon(thread.finding)+'</small>':'')
-      +(thread.evidenceAllowed?'<p><a href="/dashboard?build='+encodeURIComponent(thread.release)+'">'+copy('فتح بناء الدليل','Open evidence build')+'</a></p>':'')
+      +(profile.role==='developer'&&thread.findingTool?'<p>'+copy('مصدر الملاحظة','Finding source')+' · '+toolLabel(thread.findingTool)+'</p>':'')
+      +(thread.evidenceAllowed?'<p><a href="/dashboard?build='+encodeURIComponent(thread.release)+'">'+(profile.role==='developer'?copy('عرض ملاحظات النسخة','View build findings'):copy('فتح بناء الدليل','Open evidence build'))+'</a></p>':'')
       +reviewRequestDetails(thread)
-      +'<div class="messages">'+thread.messages.map(message=>'<article class="note"><small>'+safe(accountName(message.by))+' · '+roleNames(message.role)+' · '+mon(message.at.slice(0,16).replace('T',' '))+'</small><p>'+safe(threadText(message.text))+'</p></article>').join('')+'</div>'
+      +'<div class="messages">'+thread.messages.map(message=>communicationMessage(thread,message)).join('')+'</div>'
       +'<form id="thread-reply" data-id="'+safe(thread.id)+'"><label class="field">'+copy('اكتب ردًا أو اطلب توضيحًا','Write a reply or ask for clarification')+'<textarea name="message" maxlength="1500" required></textarea></label><button class="primary">'+copy('إرسال الرد','Send reply')+'</button></form>';
   }
   return '<main><h1>'+(profile.role==='company-admin'?copy('مراسلات الموظفين','Employee messages'):copy('التواصل','Communication'))+'</h1>'+(profile.role==='company-admin'?'<div class="actions">'+action('new-admin-thread',copy('رسالة جديدة','New message'))+'</div>':'')+(profile.role==='qa'?qaReviewAlertsPanel():'')+'<div class="communication-grid"><section class="panel thread-list"><h2>'+copy('المحادثات','Conversations')+'</h2>'+ (cards||'<p>'+copy('لا توجد محادثات في نطاقك.','No conversations in your scope.')+'</p>')+'</section><section class="panel">'+details+'</section></div></main>';
@@ -60,13 +75,20 @@ function communicationView(){
 
 function startThread(finding,releaseId=release.id){
   const extensionOnly=profile.role==='developer'&&release.stage==='security';
-  const optional=extensionOnly?'':' '+copy('(اختياري)','(optional)');
-  const required=extensionOnly?' required':'';
   const destination=profile.role==='developer'?stageText(release.stage):copy('المطور المسند إليه التعديل','Assigned developer');
+  const builds=profile.role==='qa'?qaReviewBuilds('all'):profile.releases.filter(item=>item.active==='qa');
+  const buildLabel=item=>safe(copy('طلب الدمج','Pull request')+' #'+item.pr+' · '+copy('النسخة','Build')+' #'+item.build);
+  const context=extensionOnly?'<p><b>'+buildLabel(release)+'</b></p>':
+    '<label class="field">'+copy('طلب الدمج والنسخة','Pull request and build')+'<select name="release" required>'
+    +(!builds.some(item=>item.id===releaseId)?'<option value="" selected disabled>'+copy('اختر نسخة','Select a build')+'</option>':'')
+    +builds.map(item=>'<option value="'+safe(item.id)+'" '+(item.id===releaseId?'selected':'')+'>'+buildLabel(item)+'</option>').join('')+'</select></label>';
   modal(extensionOnly?copy('طلب تمديد المهلة','Request deadline extension'):copy('فتح نقاش مرتبط بالبناء','Start a build discussion'),
-    '<form id="thread-new" data-finding="'+safe(finding)+'" data-release="'+safe(releaseId)+'"><div class="note"><b>'+copy('المرسل','Sender')+'</b> '+safe(accountName(profile.account))+' · '+roleNames(profile.role)+'<br><b>'+copy('التوجيه التلقائي','Automatically routed to')+'</b> '+destination+'</div>'
-    +'<label class="field">'+copy('موضوع النقاش','Subject')+'<input name="subject" required maxlength="100"></label>'
-    +'<label class="field">'+copy('الرسالة أو سبب طلب المهلة','Message or extension reason')+'<textarea name="message" required maxlength="1500"></textarea></label><div class="details-grid"><label class="field">'+copy('الموعد المعتمد','Approved deadline')+optional+'<input type="date" name="original"'+required+'></label><label class="field">'+copy('الموعد المطلوب','Requested deadline')+optional+'<input type="date" name="requested"'+required+'></label></div><button class="primary">'+copy('إرسال','Send')+'</button></form>');
+    '<form id="thread-new" data-finding="'+safe(finding)+'" data-release="'+safe(releaseId)+'"><div class="note"><b>'+copy('المرسل','Sender')+'</b> '+communicationAccount(profile.account,profile.role)+'<br><b>'+copy('التوجيه التلقائي','Automatically routed to')+'</b> '+destination+'</div>'+context
+    +'<label class="field">'+(extensionOnly?copy('موضوع الطلب','Request subject'):copy('موضوع النقاش','Discussion subject'))+'<input name="subject" required maxlength="100"></label>'
+    +'<label class="field">'+(extensionOnly?copy('مبرر التمديد','Extension justification'):copy('الرسالة','Message'))+'<textarea name="message" required maxlength="1500"></textarea></label>'
+    +(extensionOnly?'<div class="details-grid"><label class="field">'+copy('الموعد الساري','Current deadline')+'<input type="date" name="original" required></label>'
+      +'<label class="field">'+copy('الموعد المقترح','Proposed deadline')+'<input type="date" name="requested" required></label></div>':'')
+    +'<button class="primary">'+copy('إرسال','Send')+'</button></form>');
 }
 
 function startAdminThread(){

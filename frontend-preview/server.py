@@ -195,6 +195,21 @@ class Handler(BaseHTTPRequestHandler):
             return meta["active"] == "security"
         return role == "qa"
 
+    def developer_stages(self, key, record):
+        stages = {}
+        for stage in record.stages:
+            name = stage.name.value
+            runs = RUNS.get(key, {}).get(name, [])
+            decision = next((item.model_dump(mode="json") for item in reversed(record.human_decisions)
+                if item.stage.value == name), None)
+            stages[name] = {
+                "status": "error" if any(run["state"] == "error" for run in runs)
+                    else stage.decision.result if stage.decision else "pending",
+                "decision": decision,
+                "hasResult": stage.decision is not None,
+            }
+        return stages
+
     def release_view(self, account, key):
         role = ACCOUNTS[account]["role"]
         record = self.server.store.get(key)
@@ -211,6 +226,7 @@ class Handler(BaseHTTPRequestHandler):
         return {
             "id": key, **{k: v for k, v in meta.items() if k != "owner"}, "demo": True,
             "stage": stage_name, "outcome": outcome, "runs": runs,
+            **({"stages": self.developer_stages(key, record)} if role == "developer" else {}),
             "findings": [clean_finding(finding) for finding in stage.findings] if stage else [],
             "blockerIds": [finding.fingerprint for finding in stage.findings
                 if evaluate_policy([finding], self.server.policy).result == "fail"] if stage and outcome else [],
@@ -267,8 +283,10 @@ class Handler(BaseHTTPRequestHandler):
                     if self.visible(account, key):
                         view = self.release_view(account, key)
                         releases.append({"id": key, "build": meta["build"], "commit": meta["commit"], "pr": meta["pr"],
+                            **({"stages": view["stages"], "project": meta["project"]} if role == "developer" else {}),
                             "active": meta["active"], "day": DEMO_RUN_DATES.get(key), "outcome": view["outcome"]["result"] if view["outcome"] else None,
                             "returnReason": view["decisions"][-1]["reason"] if role == "developer" and view["decisions"] and view["decisions"][-1]["decision"] == "reject" else None,
+                            **({"reviewed": bool(view["decisions"])} if role == "qa" else {}),
                             "pendingReview": view["canApprove"], "failedRuns": sum(run["state"] == "error" for run in view["runs"])})
                 return self.json(200, {"account": account, "role": role, "demo": True, "releases": releases,
                     "reviewAlerts": self.qa_review_alerts(account) if role == "qa" else []})
@@ -356,9 +374,20 @@ class Handler(BaseHTTPRequestHandler):
             return True
         return ACCOUNTS[account]["role"] != "company-admin" and RELEASES[thread["release"]]["project"] in ACCOUNTS[account]["projects"]
 
+    def thread_finding_tool(self, account, thread):
+        key = thread.get("release")
+        fingerprint = thread.get("finding")
+        if not fingerprint or not self.visible(account, key):
+            return None
+        return next((item.tool for stage in self.server.store.get(key).stages
+            for item in stage.findings if item.fingerprint == fingerprint), None)
+
     def thread_list(self, account):
-        return [{**thread, "unread": any(message["by"] != account for message in
+        return [{**thread, "memberRoles": {member: ACCOUNTS[member]["role"]
+            for member in thread["members"] if member in ACCOUNTS},
+            "unread": any(message["by"] != account for message in
             thread["messages"][self.server.read.get((account, thread["id"]), 0):]),
+            **({"findingTool": self.thread_finding_tool(account, thread)} if ACCOUNTS[account]["role"] == "developer" else {}),
             "evidenceAllowed": thread.get("kind") != "administrative" and self.visible(account, thread["release"])}
             for thread in self.server.threads.values() if self.thread_allowed(account, thread)]
 
@@ -427,6 +456,8 @@ class Handler(BaseHTTPRequestHandler):
             deadline = None
             original, requested = data.get("original"), data.get("requested")
             if original or requested:
+                if sender_role != "developer" or meta["active"] != "security":
+                    return self.fail(403, "forbidden")
                 if not isinstance(original, str) or not isinstance(requested, str):
                     return self.fail(400, "invalid_input")
                 try:
@@ -583,7 +614,7 @@ def main():
         store = EvidenceStore(Path(directory))
         verification = seed(store, policy)
         with DemoServer(("127.0.0.1", args.port), store, verification, policy) as server:
-            print(f"YAQIDH local demo: http://127.0.0.1:{server.server_port}/dashboard", flush=True)
+            print(f"YAQIDH local demo: http://127.0.0.1:{server.server_port}/", flush=True)
             server.serve_forever()
 
 if __name__ == "__main__":

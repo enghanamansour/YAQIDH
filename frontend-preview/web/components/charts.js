@@ -1,9 +1,9 @@
 function adminTimeline(runs,developer=false){
-  const heading=developer?copy('اتجاه نتائج الأبنية المسندة','Assigned build trend'):copy('اتجاه تشغيل الفحوصات','Check run trend');
-  const totalLabel=developer?copy('إجمالي الأبنية','Total builds'):copy('إجمالي التشغيلات','Total runs');
-  const failureLabel=developer?copy('أبنية أخفقت','Failed builds'):copy('تشغيلات متعطلة','Failed runs');
-  const actionName=developer?'developer-day':'admin-day';
-  const selectedDay=developerDay;
+  const heading=developer?copy('اتجاه نتائج الأبنية المسندة','Assigned build trend'):copy('تشغيل وكيل يقظ عبر الزمن','YAQIDH agent runs over time');
+  const totalLabel=developer?copy('إجمالي الأبنية','Total builds'):copy('تشغيلات الوكيل','Agent runs');
+  const failureLabel=developer?copy('أبنية أخفقت','Failed builds'):copy('تشغيلات الوكيل المتعطلة','Failed agent runs');
+  const actionName=developer?'developer-day':'agent-day';
+  const selectedDay=null;
   const days=[...new Set(runs.map(run=>run.day).filter(Boolean))].sort();
   if(!days.length)return '<section class="panel admin-trend"><h2>'+heading+'</h2><p class="muted">'+copy('لا توجد تشغيلات مؤرخة في النطاق المحدد.','No dated runs match the selected scope.')+'</p></section>';
   const totals=days.map(day=>runs.filter(run=>run.day===day).length);
@@ -14,18 +14,19 @@ function adminTimeline(runs,developer=false){
   const poly=counts=>counts.map((n,i)=>x(i)+','+y(n)).join(' ');
   const scale=[0,Math.ceil(max/2),max].filter((value,index,list)=>list.indexOf(value)===index);
   return '<section class="panel admin-trend"><div class="section-head"><h2>'+heading+'</h2>'+badge(copy('سجل تجريبي مؤرخ','Dated demo history'))+'</div>'
-    +'<p class="muted">'+ (developer?copy('الأبنية المسندة يوميًا حسب تاريخ سجل المعاينة. اختر يومًا لتصفية قائمة الأبنية.','Assigned builds by dated demo record. Select a day to filter the build list.'):copy('عدد التشغيلات يوميًا ضمن المشروع والمرحلة المختارين','Daily runs in the selected project and stage'))+'</p>'
+    +'<p class="muted">'+ (developer?copy('الأبنية المسندة يوميًا حسب تاريخ سجل المعاينة. اختر يومًا لتصفية قائمة الأبنية.','Assigned builds by dated demo record. Select a day to filter the build list.'):copy('تشغيلات الوكيل وتعطلاته يوميًا في سجل المعاينة. اختر يومًا لعرض التفاصيل.','Daily agent runs and failures in the demo history. Select a day for details.'))+'</p>'
     +'<svg class="admin-line" viewBox="0 0 600 202" role="img" aria-label="'+copy('التشغيلات والمتعطل حسب اليوم','Daily runs and failures')+'">'
     +scale.map(n=>'<path class="line-grid" d="M43 '+y(n)+'H561"/><text x="30" y="'+(y(n)+4)+'">'+n+'</text>').join('')
     +(days.length>1?'<polygon class="line-area" points="'+x(0)+',162 '+poly(totals)+' '+x(days.length-1)+',162"/>':'')
     +'<polyline class="line-total" points="'+poly(totals)+'"/><polyline class="line-errors" points="'+poly(errors)+'"/>'
-    +days.map((day,i)=>'<g class="line-point" role="button" data-action="'+actionName+'" data-id="'+day+'" aria-pressed="'+(selectedDay===day)+'" tabindex="0" aria-label="'+day+' · '+totalLabel+' '+totals[i]+' · '+failureLabel+' '+errors[i]+'"><title>'+day+' · '+totalLabel+' '+totals[i]+' · '+failureLabel+' '+errors[i]+'</title><circle class="line-dot total" cx="'+x(i)+'" cy="'+y(totals[i])+'" r="4"/><circle class="line-dot error" cx="'+x(i)+'" cy="'+y(errors[i])+'" r="3"/><text x="'+x(i)+'" y="186">'+day.slice(5)+'</text></g>').join('')
+    +days.map((day,i)=>'<g class="line-point" role="button" data-action="'+actionName+'" data-id="'+day+'"'+(developer?' aria-pressed="'+(selectedDay===day)+'"':'')+' tabindex="0" aria-label="'+day+' · '+totalLabel+' '+totals[i]+' · '+failureLabel+' '+errors[i]+'"><title>'+day+' · '+totalLabel+' '+totals[i]+' · '+failureLabel+' '+errors[i]+'</title><circle class="line-dot total" cx="'+x(i)+'" cy="'+y(totals[i])+'" r="4"/><circle class="line-dot error" cx="'+x(i)+'" cy="'+y(errors[i])+'" r="3"/><text x="'+x(i)+'" y="186">'+day.slice(5)+'</text></g>').join('')
     +'</svg><div class="actions"><span class="trend-key">'+totalLabel+'</span><span class="trend-key errors">'+failureLabel+'</span></div></section>';
 }
 
 function toolRunChart(runs,developer=false){
   const keys=developer?['pass','fail','pending']:['completed','error','pending'];
   const labels=developer?[copy('اجتاز','Passed'),copy('أخفق','Failed'),copy('قيد الانتظار','Pending')]:stateLabels().map(([,label])=>label);
+  const interactive=profile.role!=='qa';
   const selected=developer?developerOutcome:runFilter;
   const act=developer?'developer-outcome':'run-state';
   const states=['completed','error','pending'];
@@ -35,14 +36,15 @@ function toolRunChart(runs,developer=false){
     if(!count)return '';
     const length=count/runs.length*100;
     const tip=label+' · '+fraction(count,runs.length);
-    const result='<circle class="chart-ring '+tone+'" role="button" data-action="'+act+'" data-id="'+id+'" aria-pressed="'+(selected===id)+'" tabindex="0" aria-label="'+tip+'" cx="54" cy="54" r="39" pathLength="100" stroke-dasharray="'+length+' '+(100-length)+'" stroke-dashoffset="'+(-offset)+'"><title>'+tip+'</title></circle>';
+    const controls=interactive?' role="button" data-action="'+act+'" data-id="'+id+'" aria-pressed="'+(selected===id)+'" tabindex="0"':'';
+    const result='<circle class="chart-ring '+tone+(interactive?'':' chart-ring-static')+'"'+controls+' aria-label="'+tip+'" cx="54" cy="54" r="39" pathLength="100" stroke-dasharray="'+length+' '+(100-length)+'" stroke-dashoffset="'+(-offset)+'"><title>'+tip+'</title></circle>';
     offset+=length;
     return result;
   }).join('');
   const selectedCount=bins.find(([id])=>id===selected)?.[3];
   return '<section class="panel"><h2>'+(developer?copy('نتائج الأبنية المسندة','Assigned build outcomes'):copy('اكتمال تشغيل الأدوات','Tool run completion'))+'</h2><div class="chart-ring-layout">'
     +'<svg viewBox="0 0 108 108" class="chart-donut" role="group" aria-label="'+copy('توزيع الحالات','Status distribution')+'"><circle class="chart-ring-track" cx="54" cy="54" r="39"/>'+segments+'<text x="54" y="58">'+(selectedCount??runs.length)+'</text></svg>'
-    +'<div>'+bins.map(([id,label,tone,count])=>'<p>'+action(act,label+' · '+count,'class="badge '+tone+'" data-id="'+id+'" aria-pressed="'+(selected===id)+'" title="'+label+' · '+fraction(count,runs.length)+'"')+'</p>').join('')+'</div></div>'
+    +'<div>'+bins.map(([id,label,tone,count])=>'<p>'+(interactive?action(act,label+' · '+count,'class="badge '+tone+'" data-id="'+id+'" aria-pressed="'+(selected===id)+'" title="'+label+' · '+fraction(count,runs.length)+'"'):badge(label+' · '+count,tone))+'</p>').join('')+'</div></div>'
     +'<small>'+(runs.length?(developer?copy('التوزيع لكل الأبنية المسندة؛ الرقم يبيّن الحالة المختارة.','Distribution of all assigned builds; the number reflects the selection.'):copy('اكتمال التشغيل منفصل عن اجتياز الفحص.','Run completion is separate from passing a check.')):copy('لا توجد تشغيلات في النطاق المحدد.','No runs in the selected scope.'))+'</small></section>';
 }
 

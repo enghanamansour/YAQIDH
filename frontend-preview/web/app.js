@@ -16,8 +16,9 @@ const demoText=value=>({
 const mon=value=>'<bdi class="mono">'+safe(value)+'</bdi>';
 
 const requestedSample=new URLSearchParams(location.search).get('sample');
-let profile=null,release=null,tool='all',severity='all',findingFilter='all',runFilter='all',developerOutcome='all',developerDay='all';
+let profile=null,release=null,tool='all',severity='all',findingFilter='all',runFilter='all',developerOutcome='all',developerStage='all';
 let requestNumber=0;
+const roleColor=role=>({developer:'dev-author-name',qa:'dev-stage-qa',security:'dev-stage-security','company-admin':'comm-admin-name'}[role]||'');
 const roleNames=role=>({
   developer:copy('المطور','Developer'),
   qa:copy('مراجع الجودة','QA reviewer'),
@@ -25,6 +26,8 @@ const roleNames=role=>({
 }[role]||role);
 const projectName=id=>id==='portal'?copy('بوابة الخدمات','Services Portal'):id==='research'?copy('مشروع المختبر','Lab project'):id;
 const toolName=id=>({semgrep:copy('سيم غريب','Semgrep'),trivy:copy('تريفي','Trivy'),playwright:copy('بلاي رايت','Playwright')}[id]||id);
+const toolColor=id=>({playwright:'tool-playwright',semgrep:'tool-semgrep',trivy:'tool-trivy'}[id]||'');
+const toolLabel=id=>'<b class="'+toolColor(id)+'">'+safe(toolName(id)||copy('المصدر غير متاح','Source unavailable'))+'</b>';
 const severityName=id=>({
   high:copy('مرتفعة','HIGH'),low:copy('منخفضة','LOW'),medium:copy('متوسطة','Medium'),
   critical:copy('حرجة','Critical'),info:copy('معلومة','Info'),unknown:copy('غير محددة','Unknown')
@@ -58,13 +61,13 @@ const detail=(label,value)=>'<div><small>'+label+'</small><br>'+value+'</div>';
 const metricDetails=new Map();
 const findingRecord=f=>safe(findingName(f))+' · '+safe(findingState(f))+' '+action('finding',copy('فتح الدليل','Open evidence'),'data-id="'+safe(f.fingerprint)+'"');
 const buildRecord=b=>safe(requestName(b.pr))+' · '+safe(buildName(b.build))+' '+action('queue',copy('فتح البناء','Open build'),'data-id="'+safe(b.id)+'"');
-const runRecord=r=>safe(toolName(r.tool))+' · '+safe(statusText(r.state))+(r.day?' · '+safe(r.day):'');
+const runRecord=r=>toolLabel(r.tool)+' · '+safe(statusText(r.state))+(r.day?' · '+safe(r.day):'');
 const fraction=(n,total)=>n+'/'+total;
 const stateLabels=()=>[['completed',copy('اكتمل','Completed')],['error',copy('تعطل','Failed to run')],['pending',copy('قيد الانتظار','Pending')]];
 function buildScope(text){return buildName(release.build)+' · '+text}
 function chipRow(filters,clearAction){
   const active=filters.filter(([,value])=>value!=='all');
-  return active.length?'<div class="chips active-filters">'+active.map(([key,value,label])=>action('remove-filter',safe(label)+' ×','data-id="'+key+'"')).join('')+action(clearAction,copy('مسح الكل','Clear all'))+'</div>':'';
+  return active.length?'<div class="chips active-filters">'+active.map(([key,value,label])=>action('remove-filter',(key==='tool'?toolLabel(value):safe(label))+' ×','data-id="'+key+'"')).join('')+action(clearAction,copy('مسح الكل','Clear all'))+'</div>':'';
 }
 function chartPick(state){return runFilter===state?'all':state}
 function refreshChart(button){
@@ -110,7 +113,7 @@ function changeAppearance(id){
 }
 
 function introduction(){
-  return '<section class="intro"><div><h1>'+roleNames(profile.role)+'</h1><small>'+copy('معاينة محلية · بيانات تشغيل ومستخدمون تجريبيون','Local preview · Demo runs and users')+'</small></div>'+badge(safe(accountName(profile.role)))+'</section>';
+  return '<section class="intro"><div><h1 class="'+roleColor(profile.role)+'">'+roleNames(profile.role)+'</h1><small>'+copy('معاينة محلية · بيانات تشغيل ومستخدمون تجريبيون','Local preview · Demo runs and users')+'</small></div>'+badge(safe(accountName(profile.account)),roleColor(profile.role))+'</section>';
 }
 let adminQuery='',adminActive='all';
 
@@ -120,7 +123,7 @@ function outcomeText(){return release.outcome?(release.outcome.result==='pass'?c
 function stageText(stage){return stage==='qa'?copy('مسار الجودة · المرحلة الأولى','QA pipeline · Stage 1'):copy('مسار الأمن · المرحلة الثانية','Security pipeline · Stage 2')}
 function statusText(status){return ({
   open:copy('تحتاج معالجة','Needs remediation'),fixed:copy('مُصلحة','Fixed'),excepted:copy('مستثناة','Excepted'),
-  completed:copy('مكتمل','Completed'),error:copy('تعطل','Failed to run'),
+  completed:copy('اكتمل تنفيذ الفحص','Check execution completed'),error:copy('تعطل','Failed to run'),
   approve:copy('موافقة مسجلة','Approval recorded'),reject:copy('إرجاع مع السبب','Returned with reason')
 })[status]||copy('بانتظار القرار','Awaiting decision')}
 function lastDecision(){return release.decisions.at(-1)}
@@ -161,11 +164,21 @@ async function load(){
   if(location.pathname==='/communication'){selectedThread=new URLSearchParams(location.search).get('thread')||threads[0]?.id||null;render();return}
   if(profile?.releases?.length){
     const preferred=sampleBuild(requestedSample==='ready'?'ready':requestedSample==='issue'?'issue':profile.role==='qa'?'ready':'issue');
-    await selectRelease((profile.releases.find(r=>r.id===new URLSearchParams(location.search).get('build'))||profile.releases.find(r=>r.id===preferred)||profile.releases[0]).id);
+    const linked=profile.releases.find(r=>r.id===new URLSearchParams(location.search).get('build'));
+    const sample=profile.releases.find(r=>r.id===preferred);
+    if(profile.role==='qa'){
+      const requested=linked||(['ready','issue'].includes(requestedSample)?sample:null);
+      const explicit=qaReviewBuilds('all').find(item=>item.id===requested?.id);
+      const pending=qaReviewBuilds('pending');
+      qaReviewFilter=pending.length&&(!explicit||explicit.pendingReview)?'pending':'all';
+      const selected=explicit||qaReviewBuilds()[0];
+      if(selected)await selectRelease(selected.id);
+      else{release=null;render()}
+    }else await selectRelease((linked||sample||profile.releases[0]).id);
   }else{release=null;render()}
 }
 function openRuns(){
-  const records=release.runs.map(r=>'<p>'+safe(toolName(r.tool))+' · '+badge(statusText(r.state),r.state==='completed'?'good':'bad')+' · '+copy('سجل تشغيل تجريبي','Demo run record')+'</p>').join('');
+  const records=release.runs.map(r=>'<p>'+toolLabel(r.tool)+' · '+badge(statusText(r.state),r.state==='completed'?'good':'bad')+' · '+copy('سجل تشغيل تجريبي','Demo run record')+'</p>').join('');
   modal(copy('تشغيلات الأدوات','Tool runs'),records||'<p>'+copy('لا توجد سجلات تشغيل لهذه المرحلة.','No run records for this stage.')+'</p>');
 }
 function decisionList(){
@@ -177,7 +190,7 @@ function findingModal(id){
   const flags={closed:copy('إغلاق مثبت','Verified closure'),still_open:copy('ما زالت تحتاج معالجة','Still needs remediation'),new:copy('ملاحظة جديدة','New finding'),new_from_db_update:copy('جديدة بسبب تحديث قاعدة تريفي','New after Trivy DB update'),reopened:copy('عادت بعد الإغلاق','Reopened')};
   const history=Object.entries(flags).filter(([key])=>release.verification?.[key]?.includes(id)).map(([,label])=>label).join(' · ');
   modal(copy('دليل الملاحظة','Finding evidence'),'<div class="details-grid">'
-    +detail(copy('البصمة','Fingerprint'),mon(f.fingerprint))+(profile.role==='developer'?'':detail(copy('الأداة','Tool'),safe(toolName(f.tool))))
+    +detail(copy('البصمة','Fingerprint'),mon(f.fingerprint))+detail(copy('الأداة','Tool'),toolLabel(f.tool))
     +detail(copy('خطورة يقظ / التصنيف الأصلي','YAQIDH severity / original rating'),safe(severityName(f.severity)+' / '+severityName(f.reported_as)))
     +detail(copy('القاعدة والموقع','Rule and location'),mon(f.rule)+' · '+mon(f.location))
     +detail(copy('المكوّن وإصداره','Component and version'),mon(f.component||'—'))
@@ -189,16 +202,17 @@ function findingModal(id){
     +(f.exception?'<p class="note"><b>'+copy('استثناء مسجل','Recorded exception')+'</b><br>'+safe(demoText(f.exception.justification))+' · '+safe(demoText(f.exception.approved_by))+'</p>':'')
     +(profile.role==='security'||(profile.role==='developer'&&release.stage==='security'&&!release.blockerIds.includes(f.fingerprint))?'':'<p>'+action('new-thread',release.stage==='security'?copy('طلب تمديد المهلة','Request deadline extension'):copy('ناقش هذه الملاحظة','Discuss this finding'),'data-id="'+safe(f.fingerprint)+'"')+'</p>')
     +(profile.role==='developer'&&release.exceptionEligible.includes(f.fingerprint)?'<p>'+action('new-exception',copy('طلب استثناء أمني','Request security exception'),'data-id="'+safe(f.fingerprint)+'"')+'</p>':'')
-    +(f.explanation?'<p class="note"><b>'+copy('شرح يقظ','YAQIDH explanation')+'</b><br>'+safe(demoText(f.explanation.text))+'</p>':''));
+    +(f.explanation?'<p class="note">'+copy('شرح','Explanation by')+' · <b class="yaqidh-author">'+copy('وكيل يقظ','YAQIDH agent')+'</b><br>'+safe(demoText(f.explanation.text))+'</p>':''));
 }
 async function handleAction(button){
   const id=button.dataset.action;
   if(id==='close')return dialog.close();
   if(id==='metric')return showMetric(button.dataset.id);
   if(id==='run-state'){runFilter=chartPick(button.dataset.id);refreshChart(button);return}
+  if(id==='developer-evidence'&&profile?.role==='developer')return developerFindingTarget(button.dataset.id);
   if(id==='developer-outcome'){developerOutcome=developerOutcome===button.dataset.id?'all':button.dataset.id;refreshChart(button);return}
-  if(id==='developer-day'){developerDay=developerDay===button.dataset.id?'all':button.dataset.id;refreshChart(button);return}
-  if(id==='remove-filter'){const key=button.dataset.id;if(key==='tool')tool='all';if(key==='severity')severity='all';if(key==='finding')findingFilter='all';if(key==='run')runFilter='all';if(key==='developer-outcome')developerOutcome='all';if(key==='developer-day')developerDay='all';render();return}
+  if(id==='agent-day'&&profile?.role==='company-admin')return showAgentDay(button.dataset.id);
+  if(id==='remove-filter'){const key=button.dataset.id;if(key==='tool')tool='all';if(key==='severity')severity='all';if(key==='finding')findingFilter='all';if(key==='run')runFilter='all';if(key==='developer-outcome')developerOutcome='all';if(key==='developer-stage'){developerStage='all';developerOutcome='all';}render();return}
   if(['ar','en','light','dark'].includes(id)){changeAppearance(id);return}
   if(id==='logout'){await api('/api/logout',{});requestNumber++;profile=release=null;threads=[];selectedThread=null;history.replaceState(null,'','/');render();return}
   if(id==='thread'){
@@ -224,13 +238,24 @@ async function handleAction(button){
     }finally{button.disabled=false}
     return;
   }
+  if(id==='qa-review-filter'&&profile?.role==='qa'){
+    qaReviewFilter=button.dataset.id;
+    const rows=qaReviewBuilds();
+    if(rows.length&&!rows.some(item=>item.id===release?.id))await selectRelease(rows[0].id);
+    else{requestNumber++;render()}
+    app.querySelector('[data-action="qa-review-filter"][aria-pressed="true"]')?.focus();
+    return;
+  }
   if(!release)return;
-  if(id==='queue'||id==='returned-build'){if(dialog.open)dialog.close();await selectRelease(button.dataset.id);if(id==='returned-build')modal(copy('سبب الإرجاع','Return reason'),decisionList());return}
+  if(id==='queue'||id==='returned-build'){if(dialog.open)dialog.close();await selectRelease(button.dataset.id);if(id==='returned-build')modal(copy('سبب الإرجاع','Return reason'),decisionList());else if(profile.role==='developer')developerFindingTarget();return}
   if(id==='new-exception')return startExceptionRequest(button.dataset.id);
   if(id==='new-thread')return startThread(button.dataset.id||'');
-  if(id==='sample-approved')return selectRelease(sampleBuild('approved'));
-  if(id==='sample-issue'||id==='sample-ready')return selectRelease(sampleBuild(id==='sample-issue'?'issue':'ready'));
-  if(id==='clear'||id==='bar'||id==='finding-group'){if(id==='clear'){tool='all';severity='all';findingFilter='all';runFilter='all';developerOutcome='all';developerDay='all'}else if(id==='bar')severity=severity===button.dataset.id?'all':button.dataset.id;else findingFilter=findingFilter===button.dataset.id?'all':button.dataset.id;refreshChart(button);return}
+  if(['sample-approved','sample-issue','sample-ready'].includes(id)){
+    const target=sampleBuild(id.slice(7));
+    if(profile.role==='qa'&&!qaReviewBuilds().some(item=>item.id===target))qaReviewFilter='all';
+    return selectRelease(target);
+  }
+  if(id==='clear'||id==='bar'||id==='finding-group'){if(id==='clear'){tool='all';severity='all';findingFilter='all';runFilter='all';developerOutcome='all';developerStage='all'}else if(id==='bar')severity=severity===button.dataset.id?'all':button.dataset.id;else findingFilter=findingFilter===button.dataset.id?'all':button.dataset.id;refreshChart(button);return}
   if(id==='finding')return findingModal(button.dataset.id);
   if(id==='runs')return openRuns();
   if(id==='next-stage')return modal(copy('مرحلة الأمن','Security stage'),'<p>'+copy('تعرض لوحة الجودة فحوصات المرحلة الأولى وقرارها. يتابع مراجع الأمن فحوصات المرحلة الثانية بعد انتقال التعديل.','The QA dashboard shows first-stage checks and the QA decision. The security reviewer handles second-stage checks after the change advances.')+'</p>');
@@ -309,6 +334,7 @@ app.addEventListener('change',event=>{
   const input=event.target;
   if(input.id==='demo-account'&&input.value)$('#sign-in input[name=account]').value=input.value;
   if(input.id==='admin-active'){adminActive=input.value;render();$('#'+input.id)?.focus()}
+  if(input.id==='developer-stage'){developerStage=input.value;developerOutcome='all';render();document.getElementById(input.id)?.focus();return}
   if(input.id==='release-select')selectRelease(input.value).catch(()=>notify(copy('تعذر فتح البناء','Build could not be loaded')));
   if(['tool-filter','severity-filter','finding-filter','run-filter'].includes(input.id)){
     if(input.id==='tool-filter')tool=input.value;else if(input.id==='severity-filter')severity=input.value;else if(input.id==='run-filter')runFilter=input.value;else findingFilter=input.value;
@@ -331,7 +357,12 @@ document.addEventListener('submit',async event=>{
       const result=await api('/api/threads',{...data,subject:copy('طلب استثناء أمني','Security exception request'),requestType:'exception',release:form.dataset.release,finding:form.dataset.finding});
       location.href='/communication?thread='+encodeURIComponent(result.id);
     }
-    if(form.id==='thread-new'){const result=await api('/api/threads',{...data,release:form.dataset.release,finding:form.dataset.finding});location.href='/communication?thread='+encodeURIComponent(result.id)}
+    if(form.id==='thread-new'){
+      const target=data.release||form.dataset.release;
+      const finding=target===form.dataset.release?form.dataset.finding:'';
+      const result=await api('/api/threads',{...data,release:target,finding});
+      location.href='/communication?thread='+encodeURIComponent(result.id);
+    }
     if(form.id==='account-delete'){await api('/api/company/accounts/delete',{account:form.dataset.id});dialog.close();await load();notify(copy('حُذف الحساب من قائمة المستخدمين.','The account was removed from the user list.'))}
     if(form.id==='account-edit'){await api('/api/company/accounts',{account:form.dataset.id,role:data.role,active:data.active==='on'});dialog.close();await load()}
     if(form.id==='review-deadline-form'){
@@ -343,7 +374,17 @@ document.addEventListener('submit',async event=>{
     if(form.id==='decision-form'){
       const key=form.dataset.release;
       const updated=await api('/api/releases/'+encodeURIComponent(key)+'/decision',{decision:form.dataset.choice,reason:data.reason,commit:form.dataset.commit});
-      if(release?.id===key){release=updated;dialog.close();render()}
+      if(profile.role==='qa'){
+        const item=profile.releases.find(build=>build.id===key);
+        if(item){item.pendingReview=updated.canApprove;item.reviewed=Boolean(updated.decisions.length)}
+      }
+      if(release?.id===key){
+        release=updated;
+        dialog.close();
+        const next=profile.role==='qa'&&!qaReviewBuilds().some(item=>item.id===key)?qaReviewBuilds()[0]:null;
+        if(next)await selectRelease(next.id);
+        else render();
+      }
       notify(copy('تم تسجيل القرار التجريبي','Demo decision recorded'));
     }
   }catch(e){

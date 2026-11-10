@@ -15,5 +15,5 @@ function sidebar(){
     +nav(profile?.role==='company-admin'?'/admin':'/dashboard',copy('لوحة المتابعة','Dashboard'),'▦')
     +(profile?nav('/communication',(profile.role==='company-admin'?copy('مراسلات الموظفين','Employee messages'):copy('التواصل','Communication'))+(unreadCount()?' · '+unreadCount():''),'◌'):'')
     +(profile?.role==='company-admin'?nav('/admin#accounts',copy('إدارة الحسابات','Account administration'),'◇'):'')
-    +'</nav><div class="sidebar-account">'+(profile?'<b>'+roleNames(profile.role)+'</b>'+action('logout',copy('تسجيل الخروج','Sign out')):'<a class="action" href="/login">'+copy('تسجيل الدخول','Sign in')+'</a>')+'</div></aside>';
+    +'</nav><div class="sidebar-account">'+(profile?'<b class="'+roleColor(profile.role)+'">'+roleNames(profile.role)+'</b>'+action('logout',copy('تسجيل الخروج','Sign out')):'<a class="action" href="/login">'+copy('تسجيل الدخول','Sign in')+'</a>')+'</div></aside>';
 }
