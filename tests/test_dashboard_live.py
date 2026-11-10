@@ -209,7 +209,7 @@ def test_the_real_pages_render_for_the_developer_and_the_security_reviewer(world
         browser = p.chromium.launch()
         page, errors = _page_after_login(browser, dash, "developer")
         text = page.inner_text("body")
-        assert errors == [] and "تقرير المطوّر" in text and "حسب خطورة الأداة" in text and "OWASP" in text
+        assert errors == [] and "تقرير البناء" in text and "ملاحظات وُجدت" in text and "تمنع الدمج الآن" in text
 
         page, errors = _page_after_login(browser, dash, "security")
         assert errors == [] and "الملاحظات المتوسطة" in page.inner_text("body") and page.locator("form#exception-form input[name=finding]").count() == 1
