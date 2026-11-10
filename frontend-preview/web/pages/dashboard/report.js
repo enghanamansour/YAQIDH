@@ -52,6 +52,40 @@ const reportPlace=row=>String(row.location||'').startsWith('qa_checks/')?'':'<br
 const reportTone=level=>({critical:'bad',high:'bad',medium:'wait',low:'good'})[level]||'wait';
 const reportRated=row=>reportLevel(String(row.reported_as||'unknown').toLowerCase());
 
+
+/* An icon by kind of finding, so a key, a library and a piece of code look different at a glance. */
+const reportIcons={
+  key:'<circle cx="8" cy="12" r="3.5"/><path d="M11.5 12H21M17 12v3M20 12v2"/>',
+  lib:'<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z"/><path d="M12 12l8-4.5M12 12v9M12 12L4 7.5"/>',
+  code:'<path d="M9 8l-5 4 5 4M15 8l5 4-5 4"/>',
+  web:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h18"/>',
+  shield:'<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6l8-3z"/>'
+};
+function reportKind(row){
+  const rule=String(row.rule).toLowerCase();
+  if(rule.includes('github-pat')||rule.includes('secret'))return 'key';
+  if(row.component)return 'lib';
+  if(rule.includes('csrf')||rule.includes('template'))return 'web';
+  if(rule.includes('sql')||rule.includes('debug'))return 'code';
+  return 'shield';
+}
+const reportIcon=row=>'<span class="fc-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">'+reportIcons[reportKind(row)]+'</svg></span>';
+function reportTitle(row){
+  if(row.component&&/^CVE-/i.test(String(row.rule))){
+    const pkg=String(row.component).split('==')[0];
+    return copy('ثغرة في مكتبة ','Vulnerability in the library ')+pkg;
+  }
+  const hit=reportNames.find(([key])=>String(row.rule).includes(key));
+  return hit?hit[1]():String(row.rule).split('.').pop();
+}
+function reportChips(row){
+  const chips=[];
+  if(row.component){const version=String(row.component).split('==')[1];if(version)chips.push(copy('النسخة ','version ')+version);}
+  if(/^CVE-/i.test(String(row.rule)))chips.push(String(row.rule));
+  if(row.location&&!String(row.location).startsWith('qa_checks/'))chips.push(String(row.location).replace(/^__pycache__\//,''));
+  return chips.map(c=>'<span class="fc-chip">'+safe(c)+'</span>').join('');
+}
+
 function reportTile(label,value,tone,note){
   return '<div class="metric report-tile '+tone+'"><strong>'+safe(value)+'</strong><span>'+label+'</span>'+(note?'<small>'+safe(note)+'</small>':'')+'</div>';
 }
@@ -104,8 +138,13 @@ function reportCard(row){
   const time=closed?reportTime(row.seconds_to_close):row.seconds_open!==null?reportTime(row.seconds_open)+' · '+copy('ما زالت مفتوحة','still open'):'—';
   const fact=(label,value)=>value?'<div><small>'+label+'</small><b>'+value+'</b></div>':'';
   const exc=row.exception?'<div class="exc"><small>'+copy('استثناء من الأمن','Security exception')+'</small><b>'+safe(row.exception.approved_by)+' · '+safe(reportDate(row.exception.at))+'</b><p>'+safe(row.exception.justification)+'</p></div>':'';
-  return '<details class="finding-card '+state+'"><summary><span class="fc-name">'+safe(reportName(row))+reportPlace(row)+'</span>'
-    +'<span class="badge '+reportTone(String(row.reported_as||'').toLowerCase())+'">'+safe(reportRated(row))+'</span><span class="fc-state">'+safe(reportStatus(row))+'</span><span class="fc-time">'+safe(time)+'</span></summary>'
+  const tone=reportTone(String(row.reported_as||'').toLowerCase());
+  const stateIcon=closed?'✓ ':row.status==='excepted'?'◐ ':'● ';
+  return '<details class="finding-card '+state+'"><summary>'+reportIcon(row)
+    +'<span class="fc-main"><b class="fc-title">'+safe(reportTitle(row))+'</b><span class="fc-chips">'+reportChips(row)+'</span></span>'
+    +'<span class="badge fc-rating '+tone+'">'+safe(reportRated(row))+'</span>'
+    +'<span class="fc-state '+state+'">'+stateIcon+safe(reportStatus(row))+'</span>'
+    +'<span class="fc-time">⏱ '+safe(time)+'</span></summary>'
     +'<div class="fc-body">'+(row.explanation?'<p class="fc-explain">'+safe(row.explanation)+'</p>':'')
     +'<h4 class="flow-label">'+copy('كيف صُنّف الخطر','How the risk was rated')+'</h4>'+riskFlow(row)
     +'<h4 class="flow-label">'+copy('الخط الزمني','Timeline')+'</h4>'+timeFlow(row)
