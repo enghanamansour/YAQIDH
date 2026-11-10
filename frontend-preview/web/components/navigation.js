@@ -4,7 +4,7 @@ function animatedLogo(){
 function header(){
   const ar=document.documentElement.lang==='ar', theme=document.documentElement.dataset.theme;
   const toggle=(id,label,active)=>action(id,label,'aria-pressed="'+active+'"');
-  return '<header class="top"><div class="top-navigation"><a class="top-logo" href="/" aria-label="'+copy('يقظ · الرئيسية','YAQIDH · Home')+'"><img class="brand" alt="'+copy('يقظ','YAQIDH')+'" src="'+logo()+'"></a><span class="tagline">'+copy('جاهزية أمنية قبل كل إطلاق','Security readiness before every release')+'</span><nav aria-label="'+copy('التنقل العام','Main navigation')+'">'+'<a href="/#about"><span class="nav-mark"><img alt="" aria-hidden="true" src="'+logo()+'"></span>'+copy('عن يقظ','About YAQIDH')+'</a>'+'</nav></div>'
+  return '<header class="top"><div class="top-navigation"><a class="top-logo" href="/" aria-label="'+copy('يقظ · الرئيسية','YAQIDH · Home')+'"><img class="brand" alt="'+copy('يقظ','YAQIDH')+'" src="'+logo()+'"></a><span class="tagline">'+copy('جاهزية أمنية قبل كل إطلاق','Security readiness before every release')+'</span><nav aria-label="'+copy('التنقل العام','Main navigation')+'">'+'<a href="/#about"><span class="nav-mark"><img alt="" aria-hidden="true" src="/assets/yaqidh-mark-'+(theme==='light'?'light':'dark')+'.png"></span>'+copy('عن يقظ','About YAQIDH')+'</a>'+'</nav></div>'
     +'<div class="toolbar"><div class="top-control" role="group" aria-label="'+copy('اللغة','Language')+'">'+toggle('ar',copy('العربية','Arabic'),ar)+toggle('en',copy('الإنجليزية','English'),!ar)+'</div>'
     +'<div class="top-control" role="group" aria-label="'+copy('المظهر','Appearance')+'">'+toggle('light',copy('☀ فاتح','☀ Light'),theme==='light')+toggle('dark',copy('☾ غامق','☾ Dark'),theme==='dark')+'</div></div></header>';
 }

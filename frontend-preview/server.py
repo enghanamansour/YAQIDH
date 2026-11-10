@@ -87,6 +87,8 @@ STATIC = {
     "/app.js": "app.js", "/style.css": "style.css",
     "/assets/fonts.css": "assets/fonts.css",
     "/theme.css": "theme.css",
+    "/assets/yaqidh-mark-dark.png": "assets/yaqidh-mark-dark.png",
+    "/assets/yaqidh-mark-light.png": "assets/yaqidh-mark-light.png",
     "/components/motion.js": "components/motion.js",
     "/assets/fonts/ArefRuqaa-700-arabic.woff2": "assets/fonts/ArefRuqaa-700-arabic.woff2",
     "/assets/fonts/ArefRuqaa-700-latin.woff2": "assets/fonts/ArefRuqaa-700-latin.woff2",
