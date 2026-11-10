@@ -176,3 +176,13 @@ td:last-child,th:last-child{white-space:nowrap}
 [data-theme=light] .top-control button[aria-pressed=true]{color:#fff}
 .top .toolbar{gap:12px}
 @media(max-width:900px){.tagline{display:none}}
+
+/* "About" link: a prominent pill with the small mark of the logo (the right end of the wide logo) */
+.top-navigation nav a::before{content:none}
+.top-navigation nav a{gap:10px;padding:6px 22px 6px 10px;font-size:15px;font-weight:700;color:#1a1030;border:0;
+  background:linear-gradient(135deg,var(--brand),color-mix(in srgb,var(--brand) 50%,var(--brand-2)));
+  box-shadow:0 6px 20px color-mix(in srgb,var(--brand) 38%,transparent)}
+.top-navigation nav a:hover{background:linear-gradient(135deg,var(--brand),var(--brand-2));box-shadow:0 8px 26px color-mix(in srgb,var(--brand) 50%,transparent);transform:translateY(-2px)}
+[data-theme=light] .top-navigation nav a{color:#fff}
+.nav-mark{width:34px;height:34px;border-radius:50%;background:var(--surface);display:grid;place-items:center;overflow:hidden;flex:none;box-shadow:inset 0 0 0 2px color-mix(in srgb,var(--surface) 60%,transparent)}
+.nav-mark img{width:26px;height:26px;object-fit:cover;object-position:100% 50%;display:block}
