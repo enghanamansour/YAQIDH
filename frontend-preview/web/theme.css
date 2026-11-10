@@ -3,7 +3,7 @@
 
 :root{
   --font:'IBM Plex Sans Arabic','Segoe UI',Tahoma,system-ui,sans-serif;
-  --display:'Aref Ruqaa','IBM Plex Sans Arabic',serif;
+  --display:'IBM Plex Sans Arabic','Segoe UI',sans-serif;
   --bg:#110e18;--surface:#1a1625;--card:#241e33;--line:#3a3150;
   --text:#efe9f8;--muted:#b9abcb;
   --brand:#b9a0ff;--brand-2:#7fe3d3;
@@ -26,7 +26,7 @@ body{font:400 15px/1.75 var(--font);letter-spacing:0;-webkit-font-smoothing:anti
     var(--bg);
   background-attachment:fixed;color:var(--text)}
 h1,h2,h3{font-family:var(--font);font-weight:700}
-h1{font-family:var(--display);font-weight:700;font-size:34px;line-height:1.35}
+h1{font-family:var(--font);font-weight:700;font-size:30px;line-height:1.4}
 h2{font-size:18px}
 button,select,input,textarea,a.action{font-family:var(--font)}
 ::selection{background:color-mix(in srgb,var(--brand) 40%,transparent)}
