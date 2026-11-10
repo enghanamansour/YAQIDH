@@ -190,3 +190,7 @@ td:last-child,th:last-child{white-space:nowrap}
 .top-navigation nav a{padding:8px 26px 8px 10px;font-size:18px;font-weight:800;letter-spacing:.2px}
 .nav-mark{width:42px;height:42px}
 .nav-mark img{width:30px;height:30px;object-fit:contain;object-position:center}
+/* no circle behind the mark; in the light theme the pill is deep purple, so the mark turns white */
+.nav-mark{background:none;box-shadow:none;width:40px;height:40px;overflow:visible}
+.nav-mark img{width:36px;height:36px;filter:drop-shadow(0 2px 4px #0003)}
+[data-theme=light] .nav-mark img{filter:brightness(0) invert(1) drop-shadow(0 2px 4px #0003)}
