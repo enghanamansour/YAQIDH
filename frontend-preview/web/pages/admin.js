@@ -17,7 +17,7 @@ function adminRoleDonut(distribution,total){
     return '<circle class="chart-ring '+roleColor(id)+'" cx="54" cy="54" r="39" pathLength="100" stroke-dasharray="'+length+' '+(100-length)+'" stroke-dashoffset="'+(-start)+'"><title>'
       +safe(roleNames(id))+' · '+count+' · '+Math.round(length*10)/10+'%</title></circle>';
   }).join('');
-  return '<section class="panel"><h2>'+copy('توزيع الحسابات حسب الدور','Account distribution by role')+'</h2><div class="chart-ring-layout">'
+  return '<section class="panel"><h2>'+copy('توزيع الموظفين حسب الدور','Employee distribution by role')+'</h2><div class="chart-ring-layout">'
     +'<svg class="chart-donut" viewBox="0 0 108 108" aria-hidden="true"><circle class="chart-ring-track" cx="54" cy="54" r="39"/>'+segments
     +'<text x="54" y="54">'+total+'</text><text class="admin-donut-caption" x="54" y="67">'+copy('الإجمالي','Total')+'</text></svg>'
     +'<ul class="admin-role-legend">'+distribution.map(({id,count})=>'<li><span class="admin-role-dot '+roleColor(id)+'" aria-hidden="true"></span><span>'
@@ -52,9 +52,9 @@ function showAgentDay(day){
 
 function adminView(){
   const agentRuns=demoAgentHistory.flatMap(([day,total,failed])=>Array.from({length:total},(_,i)=>({day,state:i<failed?'error':'completed'})));
-  const roles=['developer','qa','security','company-admin'];
+  const roles=['developer','qa','security'];
   const query=adminQuery.toLowerCase();
-  const accounts=profile.accounts.filter(a=>(adminActive==='all'||String(a.active)===adminActive)
+  const accounts=profile.accounts.filter(a=>roles.includes(a.role)&&(adminActive==='all'||String(a.active)===adminActive)
     && (a.name.toLowerCase().includes(query)||accountName(a.name).toLowerCase().includes(query)));
   const distribution=roles.map(id=>({id,count:accounts.filter(a=>a.role===id).length}));
   const active=accounts.filter(a=>a.active);
@@ -63,7 +63,7 @@ function adminView(){
   const scope=copy('ضمن فلاتر الحسابات الحالية.','Within the current account filters.');
   const rows=accounts.map(a=>'<tr><td>'+safe(accountName(a.name))+'</td><td><b class="'+roleColor(a.role)+'">'+roleNames(a.role)+'</b></td><td>'+(a.active?copy('نشط','Active'):copy('معطّل','Disabled'))+'</td><td>'+(a.role!=='company-admin'?'<div class="actions">'+action('edit-account',copy('تعديل','Edit'),'data-id="'+safe(a.name)+'"')+(!a.active?action('delete-account',copy('حذف','Delete'),'class="danger-action" data-id="'+safe(a.name)+'"'):'')+'</div>':'—')+'</td></tr>').join('');
   return '<div class="admin-workspace"><div class="metric-row">'
-    +metric(copy('إجمالي الحسابات','Total accounts'),accounts.length,'',accounts,scope,formatAccount)
+    +metric(copy('إجمالي حسابات الموظفين','Total employee accounts'),accounts.length,'',accounts,scope,formatAccount)
     +metric(copy('الحسابات النشطة','Active accounts'),active.length,'good',active,scope,formatAccount)
     +metric(copy('الحسابات المعطّلة','Disabled accounts'),disabled.length,'wait',disabled,scope,formatAccount)
     +metric(copy('مراقبة وكيل يقظ','YAQIDH agent monitoring'),copy('غير متصلة','Disconnected'),'wait',[],copy('المعاينة المحلية لا تستقبل حالة تشغيل الوكيل.','The local preview does not receive agent health data.'),safe,copy('آخر اتصال فعلي غير متاح','Last live contact unavailable'))
@@ -74,7 +74,7 @@ function adminView(){
     +(adminQuery?action('clear-admin-search',copy('مسح البحث','Clear search')):'')+'</form>'
     +adminSelect('admin-active',copy('حالة الحساب','Account status'),adminActive,[['true',copy('نشط','Active')],['false',copy('معطّل','Disabled')]])+'</section>'
     +adminAgentAlerts()+adminTimeline(agentRuns)
-    +'<div class="admin-role-charts">'+adminRoleDonut(distribution,accounts.length)+'<section class="panel"><h2>'+copy('الحسابات حسب الدور','Accounts by role')+'</h2>'+distribution.map(({id,count})=>{return '<div class="bar-row '+roleColor(id)+'"><span>'+roleNames(id)+' <b>'+count+'</b></span><progress value="'+count+'" max="'+Math.max(1,accounts.length)+'"></progress></div>'}).join('')+'</section></div>'
+    +'<div class="admin-role-charts">'+adminRoleDonut(distribution,accounts.length)+'<section class="panel"><h2>'+copy('حسابات الموظفين حسب الدور','Employee accounts by role')+'</h2>'+distribution.map(({id,count})=>{return '<div class="bar-row '+roleColor(id)+'"><span>'+roleNames(id)+' <b>'+count+'</b></span><progress value="'+count+'" max="'+Math.max(1,accounts.length)+'"></progress></div>'}).join('')+'</section></div>'
     +'<section class="panel" id="accounts"><h2>'+copy('حسابات الموظفين','Employee accounts')+'</h2>'
     +(rows?'<div class="table-wrap"><table><thead><tr><th>'+copy('الحساب','Account')+'</th><th>'+copy('الدور','Role')+'</th><th>'+copy('الحالة','Status')+'</th><th>'+copy('الإجراء','Action')+'</th></tr></thead><tbody>'+rows+'</tbody></table></div>':'<p>'+copy('لا توجد حسابات مطابقة للفلاتر.','No accounts match the filters.')+'</p>')+'</section>'+adminAudit()+'</div>';
 }

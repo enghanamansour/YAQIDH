@@ -114,8 +114,6 @@ def seed(store, policy):
             security.tool_versions = {"semgrep-rules": "demo-rules", "trivy-db": "demo-db"}
         if key in {"portal-134", "portal-135"}:
             security.decision = evaluate_policy([], policy)
-        if key == "portal-133":
-            decisions.append(HumanDecision(stage="qa", decision="reject", by="qa", reason="qa-return-demo"))
         if key == "portal-135":
             decisions.append(HumanDecision(stage="security", decision="approve", by="security", reason="ready-demo"))
         stages = [qa] if RELEASES[key]["active"] == "qa" else [qa, security]
@@ -146,9 +144,6 @@ class DemoServer(ThreadingHTTPServer):
             "subject": "deadline-demo", "commit": "a3f82c1", "members": ["security", "developer"], "finding": "semgrep-demo-001",
             "deadline": {"original": "2026-11-10", "requested": "2026-11-12", "status": "pending", "reason": "deadline-reason-demo"},
             "messages": [{"by": "security", "role": "security", "text": "deadline-message-demo", "at": "2026-11-08T09:00:00+00:00"}]}}
-        self.threads["qa-return-133"] = {"id": "qa-return-133", "release": "portal-133", "build": 133,
-            "subject": "developer-inbox-demo", "members": ["qa", "developer"], "finding": "playwright-demo-001",
-            "messages": [{"by": "qa", "role": "qa", "text": "developer-message-demo", "at": "2026-11-08T10:00:00+00:00"}]}
         self.lock = threading.RLock()
         super().__init__(address, Handler)
 
@@ -191,9 +186,16 @@ class Handler(BaseHTTPRequestHandler):
         role = ACCOUNTS[account]["role"]
         if role == "developer":
             return meta["owner"] == account
+        if role not in {"qa", "security"}:
+            return False
+        record = self.server.store.get(key)
         if role == "security":
-            return meta["active"] == "security"
-        return role == "qa"
+            last_qa = next((item for item in reversed(record.human_decisions) if item.stage.value == "qa"), None)
+            return meta["active"] == "security" and bool(last_qa and last_qa.decision == "approve")
+        qa_stage = next((stage for stage in record.stages if stage.name.value == "qa"), None)
+        runs = RUNS.get(key, {}).get("qa", [])
+        return bool(qa_stage and qa_stage.decision and qa_stage.decision.result == "pass"
+                    and runs and all(run["state"] == "completed" for run in runs))
 
     def developer_stages(self, key, record):
         stages = {}
@@ -221,8 +223,9 @@ class Handler(BaseHTTPRequestHandler):
         outcome = stage.decision.model_dump() if stage and stage.decision else None
         runs = [] if role == "developer" else RUNS.get(key, {}).get(stage_name, [])
         completed = bool(runs) and all(run["state"] == "completed" for run in runs)
-        approved = bool(decisions) and decisions[-1]["decision"] == "approve"
         previous_qa = qa[-1] if qa else None
+        review_ready = completed and bool(outcome and outcome["result"] == "pass")
+        review_pending = role == stage_name == meta["active"] and review_ready and not decisions
         return {
             "id": key, **{k: v for k, v in meta.items() if k != "owner"}, "demo": True,
             "stage": stage_name, "outcome": outcome, "runs": runs,
@@ -234,15 +237,14 @@ class Handler(BaseHTTPRequestHandler):
             "decisions": decisions, "previousQA": previous_qa if role == "security" else None,
             "verification": self.server.verification if key == "portal-129" and stage_name == "security" else None,
             "prior": {"id": "portal-128", "build": 128, "commit": "a3f82c1"} if key == "portal-129" and stage_name == "security" else None,
-            "canApprove": role == stage_name == meta["active"] and completed and not approved and outcome is not None
-                and outcome["result"] == "pass" and (role != "security" or bool(previous_qa and previous_qa["decision"] == "approve")),
+            "canApprove": review_pending,
             "exceptionEligible": [finding.fingerprint for finding in stage.findings
                 if stage_name == "security" and finding.status.value == "open"
                 and (not self.server.policy.exceptions.allowed_for
                      or finding.reported_as in self.server.policy.exceptions.allowed_for)] if stage else [],
             "requestDecisions": [item.model_dump(mode="json") for item in record.review_request_decisions]
                 if stage_name == "security" else [],
-            "canReject": role == stage_name == meta["active"] and bool(outcome) and not approved,
+            "canReject": review_pending,
         }
 
     def do_GET(self):
@@ -276,7 +278,8 @@ class Handler(BaseHTTPRequestHandler):
                 if role == "company-admin":
                     return self.json(200, {"account": account, "role": role, "demo": True,
                         "accounts": [{"name": name, "role": data["role"], "active": data["active"]}
-                            for name, data in ACCOUNTS.items() if not data.get("deleted")],
+                            for name, data in ACCOUNTS.items()
+                            if data["role"] != "company-admin" and not data.get("deleted")],
                         "audit": self.server.audit})
                 releases = []
                 for key, meta in RELEASES.items():
@@ -286,7 +289,8 @@ class Handler(BaseHTTPRequestHandler):
                             **({"stages": view["stages"], "project": meta["project"]} if role == "developer" else {}),
                             "active": meta["active"], "day": DEMO_RUN_DATES.get(key), "outcome": view["outcome"]["result"] if view["outcome"] else None,
                             "returnReason": view["decisions"][-1]["reason"] if role == "developer" and view["decisions"] and view["decisions"][-1]["decision"] == "reject" else None,
-                            **({"reviewed": bool(view["decisions"])} if role == "qa" else {}),
+                            **({"blockReasons": view["outcome"]["reasons"] if view["outcome"] and view["outcome"]["result"] == "fail" else []} if role == "developer" else {}),
+                            **({"reviewed": bool(view["decisions"])} if role in {"qa", "security"} else {}),
                             "pendingReview": view["canApprove"], "failedRuns": sum(run["state"] == "error" for run in view["runs"])})
                 return self.json(200, {"account": account, "role": role, "demo": True, "releases": releases,
                     "reviewAlerts": self.qa_review_alerts(account) if role == "qa" else []})

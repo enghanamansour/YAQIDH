@@ -2,9 +2,14 @@ function developerStageHeading(stage){
   return '<b class="'+(stage==='qa'?'dev-stage-qa':'dev-stage-security')+'">'+safe(stageText(stage))+'</b>';
 }
 
+function developerReturnReason(item){
+  return item.returnReason?demoText(item.returnReason)
+    :item.blockReasons?.map(displayReason).join(' · ')||copy('لم يُسجّل سبب للإرجاع','No return reason recorded');
+}
+
 function developerPriority(returned){
   return '<section class="panel dev-priority"><h2>'+copy('يحتاج إجراء منك','Needs your action')+'</h2>'
-    +(returned.length?returned.map(item=>'<article class="note dev-return"><div><b class="dev-finding-title">'+safe(requestName(item.pr))+'</b> · <b class="'+(item.active==='qa'?'dev-stage-qa':'dev-stage-security')+'">'+safe(stageText(item.active))+'</b><p><b class="dev-return-label">'+copy('سبب الإرجاع','Return reason')+'</b> · '+safe(item.returnReason?demoText(item.returnReason):copy('لم يُسجّل سبب للإرجاع','No return reason recorded'))+'</p><small>'+copy('عالج الملاحظة وارفع التعديل لإعادة الفحص.','Address the finding and resubmit the change for checking.')+'</small></div>'
+    +(returned.length?returned.map(item=>'<article class="note dev-return"><div><b class="dev-finding-title">'+safe(requestName(item.pr))+'</b> · <b class="'+(item.active==='qa'?'dev-stage-qa':'dev-stage-security')+'">'+safe(stageText(item.active))+'</b><p><b class="dev-return-label">'+copy('سبب الإرجاع','Return reason')+'</b> · '+safe(developerReturnReason(item))+'</p><small>'+copy('عالج الملاحظة وارفع التعديل لإعادة الفحص.','Address the finding and resubmit the change for checking.')+'</small></div>'
     +action('returned-build',copy('عرض سبب الإرجاع','View return reason'),'data-id="'+safe(item.id)+'"')+'</article>').join(''):'<p>'+copy('لا توجد تعديلات معادة إليك.','No changes have been returned to you.')+'</p>')+'</section>';
 }
 
@@ -32,7 +37,7 @@ function developerResultLabel(status){
 function developerReturnRecord(item){
   return '<article class="note"><b>'+safe(requestName(item.pr)+' · '+developerBuildName(item))+'</b><dl>'
     +'<dt>'+copy('المرحلة','Stage')+'</dt><dd>'+developerStageHeading(item.active)+'</dd>'
-    +'<dt>'+copy('سبب الإرجاع','Return reason')+'</dt><dd>'+safe(item.returnReason?demoText(item.returnReason):copy('لم يُسجّل سبب للإرجاع','No return reason recorded'))+'</dd>'
+    +'<dt>'+copy('سبب الإرجاع','Return reason')+'</dt><dd>'+safe(developerReturnReason(item))+'</dd>'
     +'<dt>'+copy('المطلوب منك','Next action')+'</dt><dd>'+copy('عالج الملاحظة وارفع التعديل على طلب الدمج نفسه لإعادة الفحص.','Address the finding and update the same pull request to rerun checks.')+'</dd></dl>'
     +action('queue',copy('عرض الملاحظات والأدلة','View findings and evidence'),'data-id="'+safe(item.id)+'"')+'</article>';
 }
@@ -146,7 +151,7 @@ function developerView(){
     const key=item.project+'/'+item.pr;
     if(!latestByRequest.has(key)||latestByRequest.get(key).build<item.build)latestByRequest.set(key,item);
   }
-  const currentReturns=[...latestByRequest.values()].filter(item=>item.stages?.[item.active]?.decision?.decision==='reject');
+  const currentReturns=[...latestByRequest.values()].filter(item=>item.outcome==='fail'||item.stages?.[item.active]?.decision?.decision==='reject');
   const returns=currentReturns.filter(item=>assigned.includes(item));
   const requests=[...new Map(assigned.map(item=>[item.project+'/'+item.pr,item])).values()];
   const findings=selected?matched():[];

@@ -42,27 +42,27 @@ function toolRunChart(runs,developer=false){
     return result;
   }).join('');
   const selectedCount=bins.find(([id])=>id===selected)?.[3];
-  return '<section class="panel"><h2>'+(developer?copy('نتائج الأبنية المسندة','Assigned build outcomes'):copy('اكتمال تشغيل الأدوات','Tool run completion'))+'</h2><div class="chart-ring-layout">'
+  return '<section class="panel"><h2>'+(developer?copy('نتائج الأبنية المسندة','Assigned build outcomes'):profile.role==='qa'?copy('حالات تشغيل أدوات الفحص','Scan tool run status'):copy('اكتمال تشغيل الأدوات','Tool run completion'))+'</h2><div class="chart-ring-layout">'
     +'<svg viewBox="0 0 108 108" class="chart-donut" role="group" aria-label="'+copy('توزيع الحالات','Status distribution')+'"><circle class="chart-ring-track" cx="54" cy="54" r="39"/>'+segments+'<text x="54" y="58">'+(selectedCount??runs.length)+'</text></svg>'
     +'<div>'+bins.map(([id,label,tone,count])=>'<p>'+(interactive?action(act,label+' · '+count,'class="badge '+tone+'" data-id="'+id+'" aria-pressed="'+(selected===id)+'" title="'+label+' · '+fraction(count,runs.length)+'"'):badge(label+' · '+count,tone))+'</p>').join('')+'</div></div>'
-    +'<small>'+(runs.length?(developer?copy('التوزيع لكل الأبنية المسندة؛ الرقم يبيّن الحالة المختارة.','Distribution of all assigned builds; the number reflects the selection.'):copy('اكتمال التشغيل منفصل عن اجتياز الفحص.','Run completion is separate from passing a check.')):copy('لا توجد تشغيلات في النطاق المحدد.','No runs in the selected scope.'))+'</small></section>';
+    +(runs.length&&profile.role==='qa'?'':'<small>'+(runs.length?(developer?copy('التوزيع لكل الأبنية المسندة؛ الرقم يبيّن الحالة المختارة.','Distribution of all assigned builds; the number reflects the selection.'):copy('اكتمال التشغيل منفصل عن اجتياز الفحص.','Run completion is separate from passing a check.')):copy('لا توجد تشغيلات في النطاق المحدد.','No runs in the selected scope.'))+'</small>')+'</section>';
 }
 
 function shieldChart(){
   const tone=release.outcome?.result==='pass'?'good':release.outcome?.result==='fail'?'bad':'wait';
-  return '<section class="panel"><h2>'+copy('درع نتيجة المرحلة','Stage outcome shield')+'</h2>'
+  return '<section class="panel"><h2>'+(profile.role==='qa'?copy('نتيجة فحص الجودة','QA check result'):copy('درع نتيجة المرحلة','Stage outcome shield'))+'</h2>'
     +'<div class="shield-chart '+tone+'"><svg viewBox="0 0 140 145" aria-hidden="true"><path class="shield-outer" d="M70 6 131 26v46c0 35-26 53-61 68C35 125 9 107 9 72V26Z"/><path class="shield-inner" d="M70 15 122 32v40c0 30-22 46-52 59C40 118 18 102 18 72V32Z"/></svg>'
-    +'<div class="shield-content"><strong>'+outcomeText()+'</strong><small>'+safe(buildName(release.build))+'</small></div></div><small>'+copy('محرك القواعد · البناء كاملًا','Policy engine · full build')+'</small></section>';
+    +'<div class="shield-content"><strong>'+outcomeText()+'</strong><small>'+safe(buildName(release.build))+'</small></div></div>'+(profile.role==='qa'?'':'<small>'+copy('محرك القواعد · البناء كاملًا','Policy engine · full build')+'</small>')+'</section>';
 }
 
-function findingLabel(key){return ({open:copy('قيد التنفيذ','In progress'),fixed:copy('مغلقة','Closed'),excepted:copy('مستثناة','Excepted')})[key]||''}
+function findingLabel(key){return ({open:profile.role==='qa'?copy('تحتاج معالجة','Needs remediation'):copy('قيد التنفيذ','In progress'),fixed:copy('مغلقة','Closed'),excepted:copy('مستثناة','Excepted')})[key]||''}
 
 function bugChart(rows){
-  const counts=[['open',copy('قيد التنفيذ','In progress'),'bad'],['fixed',copy('مغلقة','Closed'),'good'],['excepted',copy('مستثناة','Excepted'),'wait']];
+  const counts=[['open',findingLabel('open'),'bad'],['fixed',copy('مغلقة','Closed'),'good'],['excepted',copy('مستثناة','Excepted'),'wait']];
   return '<section class="panel"><h2>'+(profile.role==='qa'?copy('حالة ملاحظات الجودة','QA finding status'):copy('حالة الثغرات والملاحظات','Vulnerability and finding status'))+'</h2><div class="bug-chart">'
     +'<svg viewBox="0 0 230 140" preserveAspectRatio="none" aria-hidden="true"><path d="M41 51 20 39H5m36 32H5m36 25-21 14H5m184-59 21-12h15m-36 32h36m-36 25 21 14h15M55 25h120l14 15v72l-14 15H55l-14-15V40Z"/><path class="bug-head" d="M89 24 101 8h28l12 16v16H89Z"/></svg><b class="bug-total" title="'+copy('إجمالي الملاحظات المطابقة','Total matching findings')+'">'+rows.length+'</b><div class="bug-counts">'
     +counts.map(([key,label,tone])=>'<button type="button" data-action="finding-group" data-id="'+key+'" class="'+tone+'" aria-pressed="'+(findingFilter===key)+'" title="'+label+' · '+fraction(rows.filter(f=>findingGroup(f)===key).length,rows.length)+'"><span>'+label+'</span><progress value="'+rows.filter(f=>findingGroup(f)===key).length+'" max="'+Math.max(rows.length,1)+'"></progress><b>'+rows.filter(f=>findingGroup(f)===key).length+'</b></button>').join('')
-    +'</div></div><small>'+copy('تتغير مع فلتر الأداة والخطورة','Updates with tool and severity filters')+'</small></section>';
+    +'</div></div>'+(profile.role==='qa'?'':'<small>'+copy('تتغير مع فلتر الأداة والخطورة','Updates with tool and severity filters')+'</small>')+'</section>';
 }
 
 function qaChart(rows,title=copy('حالة ملاحظات الجودة','QA finding status')){

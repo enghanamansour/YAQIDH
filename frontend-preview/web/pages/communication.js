@@ -76,7 +76,7 @@ function communicationView(){
 function startThread(finding,releaseId=release.id){
   const extensionOnly=profile.role==='developer'&&release.stage==='security';
   const destination=profile.role==='developer'?stageText(release.stage):copy('المطور المسند إليه التعديل','Assigned developer');
-  const builds=profile.role==='qa'?qaReviewBuilds('all'):profile.releases.filter(item=>item.active==='qa');
+  const builds=profile.role==='qa'?reviewBuilds('all'):profile.releases.filter(item=>item.active==='qa');
   const buildLabel=item=>safe(copy('طلب الدمج','Pull request')+' #'+item.pr+' · '+copy('النسخة','Build')+' #'+item.build);
   const context=extensionOnly?'<p><b>'+buildLabel(release)+'</b></p>':
     '<label class="field">'+copy('طلب الدمج والنسخة','Pull request and build')+'<select name="release" required>'

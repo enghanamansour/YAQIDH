@@ -166,12 +166,12 @@ async function load(){
     const preferred=sampleBuild(requestedSample==='ready'?'ready':requestedSample==='issue'?'issue':profile.role==='qa'?'ready':'issue');
     const linked=profile.releases.find(r=>r.id===new URLSearchParams(location.search).get('build'));
     const sample=profile.releases.find(r=>r.id===preferred);
-    if(profile.role==='qa'){
+    if(['qa','security'].includes(profile.role)){
       const requested=linked||(['ready','issue'].includes(requestedSample)?sample:null);
-      const explicit=qaReviewBuilds('all').find(item=>item.id===requested?.id);
-      const pending=qaReviewBuilds('pending');
-      qaReviewFilter=pending.length&&(!explicit||explicit.pendingReview)?'pending':'all';
-      const selected=explicit||qaReviewBuilds()[0];
+      const explicit=reviewBuilds('all').find(item=>item.id===requested?.id);
+      const pending=reviewBuilds('pending');
+      reviewBuildFilter=pending.length&&(!explicit||explicit.pendingReview)?'pending':'all';
+      const selected=explicit||reviewBuilds()[0];
       if(selected)await selectRelease(selected.id);
       else{release=null;render()}
     }else await selectRelease((linked||sample||profile.releases[0]).id);
@@ -238,21 +238,27 @@ async function handleAction(button){
     }finally{button.disabled=false}
     return;
   }
-  if(id==='qa-review-filter'&&profile?.role==='qa'){
-    qaReviewFilter=button.dataset.id;
-    const rows=qaReviewBuilds();
+  if(id==='review-build-filter'&&['qa','security'].includes(profile?.role)){
+    reviewBuildFilter=button.dataset.id;
+    const rows=reviewBuilds();
     if(rows.length&&!rows.some(item=>item.id===release?.id))await selectRelease(rows[0].id);
     else{requestNumber++;render()}
-    app.querySelector('[data-action="qa-review-filter"][aria-pressed="true"]')?.focus();
+    app.querySelector('[data-action="review-build-filter"][aria-pressed="true"]')?.focus();
     return;
   }
   if(!release)return;
-  if(id==='queue'||id==='returned-build'){if(dialog.open)dialog.close();await selectRelease(button.dataset.id);if(id==='returned-build')modal(copy('سبب الإرجاع','Return reason'),decisionList());else if(profile.role==='developer')developerFindingTarget();return}
+  if(id==='queue'||id==='returned-build'){
+    if(dialog.open)dialog.close();
+    await selectRelease(button.dataset.id);
+    if(id==='returned-build'&&release.decisions.at(-1)?.decision==='reject')modal(copy('سبب الإرجاع','Return reason'),decisionList());
+    else if(profile.role==='developer')developerFindingTarget();
+    return;
+  }
   if(id==='new-exception')return startExceptionRequest(button.dataset.id);
   if(id==='new-thread')return startThread(button.dataset.id||'');
   if(['sample-approved','sample-issue','sample-ready'].includes(id)){
     const target=sampleBuild(id.slice(7));
-    if(profile.role==='qa'&&!qaReviewBuilds().some(item=>item.id===target))qaReviewFilter='all';
+    if(['qa','security'].includes(profile.role)&&!reviewBuilds().some(item=>item.id===target))reviewBuildFilter='all';
     return selectRelease(target);
   }
   if(id==='clear'||id==='bar'||id==='finding-group'){if(id==='clear'){tool='all';severity='all';findingFilter='all';runFilter='all';developerOutcome='all';developerStage='all'}else if(id==='bar')severity=severity===button.dataset.id?'all':button.dataset.id;else findingFilter=findingFilter===button.dataset.id?'all':button.dataset.id;refreshChart(button);return}
@@ -265,7 +271,7 @@ async function handleAction(button){
     const qa=release.previousQA;
     return modal(copy('موافقة الجودة للقراءة','Read-only QA decision'),qa?'<p>'+statusText(qa.decision)+' · '+safe(demoText(qa.by))+' · '+mon(release.commit)+'</p><p>'+safe(demoText(qa.reason))+'</p>':'<p>—</p>');
   }
-  if(id==='prior')return selectRelease(release.prior.id);
+  if(id==='prior'){reviewBuildFilter='all';return selectRelease(release.prior.id)}
   if(id==='evidence'){
     return modal(copy('ملف الأدلة','Evidence')+' · '+safe(buildName(release.build)),'<p>'+stageText(release.stage)+' · '+outcomeText()+'</p><p>'+mon(release.commit)+'</p>'
       +'<p>'+Object.entries(release.toolVersions).map(([key,value])=>safe(versionName(key))+' · '+mon(versionValue(value))).join(' ')+'</p>'
@@ -374,14 +380,14 @@ document.addEventListener('submit',async event=>{
     if(form.id==='decision-form'){
       const key=form.dataset.release;
       const updated=await api('/api/releases/'+encodeURIComponent(key)+'/decision',{decision:form.dataset.choice,reason:data.reason,commit:form.dataset.commit});
-      if(profile.role==='qa'){
+      if(['qa','security'].includes(profile.role)){
         const item=profile.releases.find(build=>build.id===key);
         if(item){item.pendingReview=updated.canApprove;item.reviewed=Boolean(updated.decisions.length)}
       }
       if(release?.id===key){
         release=updated;
         dialog.close();
-        const next=profile.role==='qa'&&!qaReviewBuilds().some(item=>item.id===key)?qaReviewBuilds()[0]:null;
+        const next=['qa','security'].includes(profile.role)&&!reviewBuilds().some(item=>item.id===key)?reviewBuilds()[0]:null;
         if(next)await selectRelease(next.id);
         else render();
       }

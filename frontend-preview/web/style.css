@@ -225,7 +225,7 @@ html{scroll-behavior:smooth}
 .qa-review-selection{display:flex;align-items:flex-end;gap:8px 16px;flex-wrap:wrap}
 .qa-review-build-picker{flex:1 1 240px;min-width:0;max-width:420px}
 .qa-review-build-picker select{width:100%;min-width:0;text-overflow:ellipsis}
-.qa-review-selection .actions button,.qa-evidence-filters select{padding-block:5px}
+.qa-review-selection .actions button,.review-evidence-filters select{padding-block:5px}
 @media(max-width:600px){.qa-review-build-picker{flex-basis:100%;max-width:none}}
 
 .tool-playwright{color:#f1a8d2}
@@ -235,13 +235,13 @@ html{scroll-behavior:smooth}
 [data-theme=light] .tool-semgrep{color:#903e24}
 [data-theme=light] .tool-trivy{color:#465363}
 
-.qa-review-filters>h2{margin-bottom:10px}
-.qa-review-filters h3{margin:0 0 8px}
-.qa-evidence-filters{padding-block:12px}
+.review-build-filters>h2{margin-bottom:10px}
+.review-build-filters h3{margin:0 0 8px}
+.review-evidence-filters{padding-block:12px}
 
-.qa-build-details{margin-top:8px}
-.qa-build-details summary{cursor:pointer;color:var(--brand)}
-.qa-build-details .details-grid{margin-top:8px}
+.review-build-details{margin-top:8px}
+.review-build-details summary{cursor:pointer;color:var(--brand)}
+.review-build-details .details-grid{margin-top:8px}
 
 .chart-ring-static{cursor:default}
 
