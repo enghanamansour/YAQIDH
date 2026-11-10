@@ -142,3 +142,9 @@ main>*:nth-child(4){animation-delay:.18s}main>*:nth-child(5){animation-delay:.24
 [data-theme=light] button.primary,[data-theme=light] button.primary:hover{color:#fff}
 .login h1{padding-inline-end:52px}
 .login button.primary,.login form>button{padding-block:12px;font-size:16px}
+
+/* buttons keep their text on one line (a narrow table cell squeezed "الدليل" into a circle) */
+button,a.action{white-space:nowrap}
+.result-actions .big,.queue-item{white-space:normal}
+td button,td a.action{padding:7px 16px}
+td:last-child,th:last-child{white-space:nowrap}

@@ -111,7 +111,7 @@ function changeAppearance(id){
 }
 
 function introduction(){
-  return '<section class="intro"><div class="hello"><div><h1>'+copy('أهلًا، ','Welcome, ')+roleNames(profile.role)+'</h1>'+squiggle()+'<small>'+copy('معاينة محلية · بيانات تشغيل ومستخدمون تجريبيون','Local preview · Demo runs and users')+'</small></div>'+eyeMark()+'</div>'+badge(safe(accountName(profile.role)))+'</section>';
+  return '<section class="intro"><div class="hello"><div><h1>'+copy('أهلًا، ','Welcome, ')+roleNames(profile.role)+'</h1>'+squiggle()+'<small>'+copy('معاينة محلية · بيانات تشغيل ومستخدمون تجريبيون','Local preview · Demo runs and users')+'</small></div>'+'</div>'+badge(safe(accountName(profile.role)))+'</section>';
 }
 let adminProject='all',adminRole='all',adminActive='all',adminStage='all';
 
