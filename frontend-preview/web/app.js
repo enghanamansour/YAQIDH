@@ -217,6 +217,7 @@ async function handleAction(button){
   if(id==='admin-message')return startThread('',button.dataset.id);
   if(id==='edit-account')return editAccount(button.dataset.id);
   if(!release)return;
+  if(id==='jump'){document.getElementById(button.dataset.target)?.scrollIntoView({behavior:'smooth',block:'start'});return}
   if(id==='toggle-findings'){showAllFindings=!showAllFindings;render();return}
   if(id==='queue'||id==='returned-build'){if(dialog.open)dialog.close();await selectRelease(button.dataset.id);if(id==='queue')document.querySelector('.summary')?.scrollIntoView({behavior:'smooth',block:'start'});if(id==='returned-build')modal(copy('سبب الإرجاع','Return reason'),decisionList());return}
   if(id==='new-thread')return startThread(button.dataset.id||'');

@@ -190,3 +190,6 @@ tbody tr:nth-child(even){background:color-mix(in srgb,var(--card) 40%,transparen
 .role-charts{align-items:start}
 .exception-list{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
 .exception-list li{background:var(--card);border-radius:8px;padding:6px 10px}
+.result-actions{display:flex;flex-wrap:wrap;gap:12px;border-width:2px}
+.result-actions .big{flex:1 1 200px;padding:16px 18px;font-size:16px;font-weight:600;border-radius:12px;border-color:var(--tone,var(--line));color:var(--tone,var(--text));background:var(--card)}
+.result-actions .big:hover{background:var(--surface);outline:2px solid var(--tone,var(--line))}
