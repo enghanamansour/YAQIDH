@@ -168,12 +168,12 @@ def test_the_security_reviewer_accepts_a_medium_finding_in_the_dashboard_but_nev
     assert view["live"] is True and {f["fingerprint"] for f in view["findings"]} == {"F-1", "F-2"}
 
     path = "/api/releases/r1/exception"
-    assert sec.call("POST", path, {"fingerprint": "F-1", "justification": "short"})[0] == 400  # a written reason is required
-    assert Browser(dash).login("qa").call("POST", path, {"fingerprint": "F-1", "justification": "a long enough reason"})[0] == 403
-    assert sec.call("POST", path, {"fingerprint": "F-2", "justification": "a long enough reason"})[0] == 409  # high: never
+    assert sec.call("POST", path, {"fingerprints": ["F-1"], "justification": "short"})[0] == 400  # a written reason is required
+    assert Browser(dash).login("qa").call("POST", path, {"fingerprints": ["F-1"], "justification": "a long enough reason"})[0] == 403
+    assert sec.call("POST", path, {"fingerprints": ["F-1", "F-2"], "justification": "a long enough reason"})[0] == 409  # high: never
     assert stack.service.store.get("r1").stage(__import__("src.schema", fromlist=["StageName"]).StageName.SECURITY).findings[1].exception is None
 
-    status, after = sec.call("POST", path, {"fingerprint": "F-1", "justification": "isolated, fix scheduled next sprint"})
+    status, after = sec.call("POST", path, {"fingerprints": ["F-1"], "justification": "isolated, fix scheduled next sprint"})
     assert status == 200
     f1 = next(f for f in after["findings"] if f["fingerprint"] == "F-1")
     assert f1["status"] == "excepted" and f1["exception"]["approved_by"] == "security"  # recorded under the account, not typed
@@ -212,11 +212,11 @@ def test_the_real_pages_render_for_the_developer_and_the_security_reviewer(world
         assert errors == [] and "تقرير المطوّر" in text and "حسب خطورة الأداة" in text and "OWASP" in text
 
         page, errors = _page_after_login(browser, dash, "security")
-        assert errors == [] and "الملاحظات المتوسطة" in page.inner_text("body")
+        assert errors == [] and "الملاحظات المتوسطة" in page.inner_text("body") and page.locator("form#exception-form input[name=finding]").count() == 1
         assert page.locator("form#exception-form").count() == 1  # only the medium one, never the high
         page.fill("form#exception-form textarea", "isolated component, fix is scheduled")
         page.click("form#exception-form button")
         page.wait_for_timeout(1500)
-        assert "مقبولة بتبرير" in page.inner_text("body")
+        assert "مقبولة سابقًا" in page.inner_text("body")
         browser.close()
     assert stack.service.store.get("r1").stage(__import__("src.schema", fromlist=["StageName"]).StageName.SECURITY).findings[0].exception

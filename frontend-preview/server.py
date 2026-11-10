@@ -442,17 +442,21 @@ class Handler(BaseHTTPRequestHandler):
         """The security reviewer accepts a finding the tool rated medium, with a written reason. Live mode only."""
         if key not in RELEASES or ACCOUNTS[account]["role"] != "security" or not self.visible(account, key) or RELEASES[key]["active"] != "security":
             return self.fail(403, "forbidden")
-        fingerprint, reason = data.get("fingerprint"), data.get("justification")
-        if not isinstance(fingerprint, str) or not isinstance(reason, str) or not 10 <= len(reason.strip()) <= 1000:
+        chosen = data.get("fingerprints") if isinstance(data.get("fingerprints"), list) else [data.get("fingerprint")]
+        reason = data.get("justification")
+        if not chosen or len(chosen) > 50 or not all(isinstance(x, str) for x in chosen) or not isinstance(reason, str)                 or not 10 <= len(reason.strip()) <= 1000:
             return self.fail(400, "invalid_input")
         if not self.server.live:
             return self.fail(409, "live_only")
-        target = next((f for f in self.release_view(account, key)["findings"] if f["fingerprint"] == fingerprint), None)
-        if target is None or target["reported_as"] != "medium" or target["status"] != "open":
-            return self.fail(409, "exception_refused")  # only an open finding the tool itself rated medium; never high
+        findings = {f["fingerprint"]: f for f in self.release_view(account, key)["findings"]}
+        for fingerprint in chosen:  # check them all first: only open findings the tool itself rated medium, never high
+            target = findings.get(fingerprint)
+            if target is None or target["reported_as"] != "medium" or target["status"] != "open":
+                return self.fail(409, "exception_refused")
         from live import LiveError
         try:
-            self.server.live.grant_exception(key, "security", fingerprint, reason.strip(), account)
+            for fingerprint in chosen:
+                self.server.live.grant_exception(key, "security", fingerprint, reason.strip(), account)
         except LiveError as e:
             return self.fail(409 if e.status in (409, 422) else 502, "exception_refused")
         self.refresh_live()

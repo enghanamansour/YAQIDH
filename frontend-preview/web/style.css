@@ -167,3 +167,5 @@ html{scroll-behavior:smooth}
 
 .report-dist{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin:12px 0}
 .report-dist h3{margin:0 0 6px}
+
+.exception-list{list-style:none;padding:0;margin:0 0 10px;display:grid;gap:6px}

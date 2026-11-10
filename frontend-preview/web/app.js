@@ -320,7 +320,7 @@ document.addEventListener('submit',async event=>{
     if(form.id==='account-edit'){await api('/api/company/accounts',{account:form.dataset.id,role:data.role,active:data.active==='on',assigned:new FormData(form).getAll('projects').length>0,projects:new FormData(form).getAll('projects')});dialog.close();await load()}
     if(form.id==='exception-form'){
       const key=form.dataset.release;
-      const updated=await api('/api/releases/'+encodeURIComponent(key)+'/exception',{fingerprint:form.dataset.finding,justification:data.justification});
+      const updated=await api('/api/releases/'+encodeURIComponent(key)+'/exception',{fingerprints:new FormData(form).getAll('finding'),justification:data.justification});
       if(release?.id===key){release=updated;render()}
       notify(copy('سُجّل قرار الاستثناء مع تبريرك','The exception decision was recorded with your reason'));
     }
