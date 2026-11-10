@@ -77,6 +77,9 @@ def _finding_row(f: Finding, stage: str, first_scan: datetime | None, rescans: l
         "seconds_open": _seconds(first, end) if closed_at is None else None,
         "rounds": rounds,
         "explained": bool(f.explanation), "owasp": _owasp(f),
+        "explanation": f.explanation.text if f.explanation else "",
+        "exception": ({"justification": f.exception.justification, "approved_by": f.exception.approved_by,
+                       "at": f.exception.timestamp.isoformat()} if f.exception else None),
     }
 
 

@@ -94,3 +94,16 @@ def test_the_report_counts_by_the_level_the_tool_gave_and_by_owasp_category():
 
     assert _count([{"reported_as": "HIGH"}, {"reported_as": "high"}, {"reported_as": ""}], "reported_as") == {"high": 2, "unknown": 1}
     assert OWASP_BY_CWE["CWE-89"].startswith("A03") and OWASP_BY_CWE["CWE-798"].startswith("A07")
+
+
+def test_a_finding_row_carries_its_explanation_and_the_exception_that_let_it_through(tmp_path):
+    from src.schema import ExceptionRecord, Explanation, Finding, Severity, StageName
+
+    svc, history = _run_release(tmp_path)
+    ev = svc.store.get("r1")
+    ev.stage(StageName.QA).findings.append(Finding(
+        fingerprint="F-x", tool="semgrep", severity=Severity.HIGH, reported_as="medium", location="a.py:1",
+        explanation=Explanation(text="plain words"), exception=ExceptionRecord(justification="reviewed", approved_by="Sara")))
+    row = next(r for r in build_report(ev, history.entries("r1"))["findings"] if r["fingerprint"] == "F-x")
+    assert row["explanation"] == "plain words"
+    assert row["exception"]["approved_by"] == "Sara" and row["exception"]["justification"] == "reviewed" and row["exception"]["at"]

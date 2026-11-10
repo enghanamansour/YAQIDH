@@ -49,6 +49,8 @@ function reportName(row){
   return row.component?base+' · '+row.component:base;
 }
 const reportPlace=row=>String(row.location||'').startsWith('qa_checks/')?'':'<br><small>'+mon(row.location)+'</small>';
+const reportTone=level=>({critical:'bad',high:'bad',medium:'wait',low:'good'})[level]||'wait';
+const reportRated=row=>reportLevel(String(row.reported_as||'unknown').toLowerCase());
 
 function reportTile(label,value,tone,note){
   return '<div class="metric report-tile '+tone+'"><strong>'+safe(value)+'</strong><span>'+label+'</span>'+(note?'<small>'+safe(note)+'</small>':'')+'</div>';
@@ -88,10 +90,34 @@ function reportBar(s){
     +'<div class="legend">'+parts.map(p=>'<span class="'+p[1]+'">'+p[2]+' <b>'+p[0]+'</b></span>').join('')+'</div>';
 }
 
-function reportRow(row){
-  const tip=[row.owasp,reportStage(row.stage),reportDate(row.first_seen)].filter(Boolean).join(' · ');
-  const time=row.closed_at?reportTime(row.seconds_to_close):row.seconds_open!==null?reportTime(row.seconds_open)+' · '+copy('مفتوحة','open'):'—';
-  return '<tr title="'+safe(tip)+'"><td>'+safe(reportName(row))+reportPlace(row)+'</td><td>'+reportSeverity(row.severity)+'</td><td>'+safe(reportStatus(row))+'</td><td>'+safe(time)+'</td></tr>';
+/* The share of each rating the tool gave (critical, high, medium, low): always visible. */
+function reportRatings(s){
+  const order=['critical','high','medium','low','unknown'],by=s.by_reported||{};
+  const chips=order.filter(k=>by[k]).map(k=>'<span class="rating '+reportTone(k)+'"><b>'+Math.round(100*by[k]/s.findings)+'%</b> '+safe(reportLevel(k))+' <small>('+by[k]+')</small></span>').join('');
+  return chips?'<div class="ratings"><small class="muted">'+copy('نسبة الخطورة حسب تصنيف الأداة','Severity share, by the tool’s rating')+'</small>'+chips+'</div>':'';
+}
+
+/* One finding, explained: what it is, how serious, when it closed and how long it took. */
+function reportCard(row){
+  const closed=row.closed_at!==null&&row.closed_at!==undefined;
+  const state=closed?'good':row.status==='excepted'?'wait':'bad';
+  const time=closed?reportTime(row.seconds_to_close):row.seconds_open!==null?reportTime(row.seconds_open)+' · '+copy('ما زالت مفتوحة','still open'):'—';
+  const fact=(label,value)=>value?'<div><small>'+label+'</small><b>'+value+'</b></div>':'';
+  const exc=row.exception?'<div class="exc"><small>'+copy('استثناء من الأمن','Security exception')+'</small><b>'+safe(row.exception.approved_by)+' · '+safe(reportDate(row.exception.at))+'</b><p>'+safe(row.exception.justification)+'</p></div>':'';
+  return '<details class="finding-card '+state+'"><summary><span class="fc-name">'+safe(reportName(row))+reportPlace(row)+'</span>'
+    +'<span class="badge '+reportTone(String(row.reported_as||'').toLowerCase())+'">'+safe(reportRated(row))+'</span><span class="fc-state">'+safe(reportStatus(row))+'</span><span class="fc-time">'+safe(time)+'</span></summary>'
+    +'<div class="fc-body">'+(row.explanation?'<p class="fc-explain">'+safe(row.explanation)+'</p>':'')
+    +'<div class="facts">'
+    +fact(copy('تصنيف الأداة','Tool rating'),safe(reportRated(row))+' · '+safe(toolName(row.tool)))
+    +fact(copy('تصنيف يقظ','Yaqidh rating'),row.severity==='high'?copy('مانعة','Blocking'):copy('تمر بتوعية','Passes with awareness'))
+    +fact(copy('المرحلة','Stage'),safe(reportStage(row.stage)))
+    +fact('OWASP',safe(row.owasp))+fact('CWE',safe(row.cwe))
+    +fact(copy('النسخة المصلحة','Fixed version'),safe(row.fixed_version))
+    +fact(copy('أول ظهور','First seen'),safe(reportDate(row.first_seen)))
+    +fact(copy('وقت الإغلاق','Closed at'),closed?safe(reportDate(row.closed_at)):'')
+    +fact(copy('المدة حتى الإغلاق','Time to close'),closed?safe(reportTime(row.seconds_to_close)):'')
+    +fact(copy('جولات الفحص','Scan rounds'),safe(row.rounds))
+    +'</div>'+exc+'</div></details>';
 }
 
 function developerReport(){
@@ -99,23 +125,19 @@ function developerReport(){
   const title='<h2>'+copy('تقرير البناء','Build report')+'</h2>';
   if(!report)return '<section class="panel">'+title+'<p class="muted">'+copy('يظهر التقرير عند تشغيل اللوحة على واجهة يقظ الحية.','The report appears when the dashboard runs against the live Yaqidh API.')+'</p></section>';
   const s=report.summary,avg=s.time_to_close.average_seconds;
-  const head='<div class="section-head"><div>'+title+'<small>'+safe(requestName(release.pr))+' · '+mon((report.head_commit||'').slice(0,8))+'</small></div></div>';
+  const picker=profile.releases.length>1?'<label class="field">'+copy('البناء','Build')+'<select id="release-select">'+profile.releases.map(item=>'<option value="'+safe(item.id)+'" '+(item.id===release.id?'selected':'')+'>'+safe(requestName(item.pr))+' · '+safe(buildName(item.build))+'</option>').join('')+'</select></label>':'';
+  const head='<div class="section-head"><div>'+title+'<small>'+safe(requestName(release.pr))+' · '+mon((report.head_commit||'').slice(0,8))+'</small></div>'+picker+'</div>';
   const tiles='<div class="metric-row">'
     +reportTile(copy('ملاحظات وُجدت','Findings found'),s.findings,'')
     +reportTile(copy('مغلقة بإثبات','Closed, proven'),s.closed,'good',s.closed_percent==null?'':s.closed_percent+'%')
     +reportTile(copy('تمنع الدمج الآن','Blocking now'),s.open_blocking,s.open_blocking?'bad':'good')
     +reportTile(copy('متوسط زمن الإغلاق','Average time to close'),reportTime(avg),'wait',s.time_to_close.count?copy('الأطول: ','longest: ')+reportTime(s.time_to_close.max_seconds):copy('لا إغلاقات بعد','nothing closed yet'))
     +'</div>';
-  const blockers=report.findings.filter(r=>r.status==='open'&&r.severity==='high');
-  const blocking=blockers.length?'<div class="blockers"><h3>'+copy('وش يمنع الدمج؟','What blocks the merge?')+'</h3><ul>'
-    +blockers.slice(0,6).map(r=>'<li>'+safe(reportName(r))+reportPlace(r).replace('<br>',' ')+'</li>').join('')
-    +(blockers.length>6?'<li class="muted">+ '+(blockers.length-6)+' '+copy('أخرى','more')+'</li>':'')+'</ul></div>':'';
-  const rows=report.findings.map(reportRow).join('');
-  const table=rows?'<div class="table-wrap"><table class="report-table"><thead><tr><th>'+copy('الملاحظة','Finding')+'</th><th>'+copy('الخطورة','Severity')+'</th><th>'+copy('الحالة','Status')+'</th><th>'+copy('الزمن','Time')+'</th></tr></thead><tbody>'+rows+'</tbody></table></div>':'<p class="muted">'+copy('لا توجد ملاحظات مسجلة.','No findings recorded.')+'</p>';
+  const cards=report.findings.length?'<h3 class="fc-title">'+copy('كل ملاحظة بالتفصيل','Every finding in detail')+' <small class="muted">'+copy('اضغط على الملاحظة لتفتح تفاصيلها','click a finding to open its details')+'</small></h3><div class="finding-cards">'+report.findings.map(reportCard).join('')+'</div>':'<p class="muted">'+copy('لا توجد ملاحظات مسجلة.','No findings recorded.')+'</p>';
   const decided=report.approvals.length?report.approvals.map(item=>safe(reportStage(item.stage))+': '+(item.decision==='approve'?copy('وافق','approved'):copy('أرجع','returned'))+' · '+safe(item.by)).join(' · '):copy('لا قرارات بشرية بعد','No human decisions yet');
   const waits=s.approval_waits.map(item=>safe(reportStage(item.stage))+': '+safe(reportTime(item.seconds))).join(' · ');
   const notes=report.notes.map(code=>reportNotes[code]?reportNotes[code]():'').filter(Boolean).map(text=>'<li>'+safe(text)+'</li>').join('');
-  const more='<details class="more-details"><summary>'+copy('كيف تُحسب هذه الأرقام؟ وتفاصيل التصنيف','How are these numbers worked out? Classification details')+'</summary>'
-    +(s.findings?reportDistribution(report):'')+(waits?'<p class="muted">'+copy('انتظار الموافقة بعد نجاح الفحص: ','Wait for approval after a passing scan: ')+waits+'</p>':'')+'<ul class="report-notes">'+notes+'</ul></details>';
-  return '<section class="panel report">'+head+reportStepper(report)+tiles+reportBar(s)+blocking+table+'<p class="muted decided">'+decided+'</p>'+more+'</section>';
+  const more='<details class="more-details"><summary>'+copy('كيف تُحسب هذه الأرقام؟','How are these numbers worked out?')+'</summary>'
+    +(waits?'<p class="muted">'+copy('انتظار الموافقة بعد نجاح الفحص: ','Wait for approval after a passing scan: ')+waits+'</p>':'')+'<ul class="report-notes">'+notes+'</ul></details>';
+  return '<section class="panel report">'+head+reportStepper(report)+tiles+reportBar(s)+reportRatings(s)+cards+'<p class="muted decided">'+decided+'</p>'+more+'</section>';
 }

@@ -145,7 +145,7 @@ function render(){
   metricDetails.clear();
   const page=location.pathname;
   if(page==='/'){app.innerHTML=header()+landing();if(location.hash==='#about')document.getElementById('about').scrollIntoView();return}
-  const content=page==='/signup'?signup():!profile?login():page==='/communication'?communicationView():'<main>'+introduction()+(profile.role==='company-admin'?adminView():dashboardView())+'</main>';
+  const content=page==='/signup'?signup():!profile?login():page==='/communication'?communicationView():page==='/exceptions'?exceptionsView():'<main>'+introduction()+(profile.role==='company-admin'?adminView():dashboardView())+'</main>';
   app.innerHTML=header()+(profile?sidebar():'')+'<div class="'+(profile?'shell':'public-shell')+'">'+content+'</div>';
 }
 async function selectRelease(id){

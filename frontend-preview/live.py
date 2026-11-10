@@ -43,13 +43,13 @@ class LiveBackend:
                 self._report[key] = None
         return self._report[key]
 
-    def _call(self, method: str, path: str, body: dict | None = None):
+    def _call(self, method: str, path: str, body: dict | None = None, timeout: int = 15):
         request = urllib.request.Request(
             self.base_url + path, method=method, headers={"X-API-Token": self.token, "Content-Type": "application/json"},
             data=json.dumps(body).encode() if body is not None else None,
         )
         try:
-            with urllib.request.urlopen(request, timeout=15) as response:
+            with urllib.request.urlopen(request, timeout=timeout) as response:
                 return json.loads(response.read() or b"null")
         except urllib.error.HTTPError as e:
             try:
@@ -108,7 +108,8 @@ class LiveBackend:
                    {"fingerprint": fingerprint, "justification": justification, "approved_by": by})
 
     def decide(self, key: str, role: str, choice: str, reason: str, by: str) -> None:
-        self._call("POST", f"/releases/{key}/stages/{role}/{choice}", {"by": by, "reason": reason})
+        # approving QA makes the API scan security before it answers (real tools: about a minute), so wait longer here
+        self._call("POST", f"/releases/{key}/stages/{role}/{choice}", {"by": by, "reason": reason}, timeout=180)
 
 
 class LiveStore:

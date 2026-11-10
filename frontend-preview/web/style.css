@@ -195,10 +195,10 @@ tbody tr:nth-child(even){background:color-mix(in srgb,var(--card) 40%,transparen
 .result-actions .big:hover{background:var(--surface);outline:2px solid var(--tone,var(--line))}
 
 /* developer report: a path, one sentence, four numbers, one bar */
-.stepper{list-style:none;display:flex;gap:0;margin:14px 0 6px;padding:0;overflow-x:auto}
-.stepper .step{flex:1 1 0;min-width:90px;display:grid;justify-items:center;gap:4px;position:relative;color:var(--muted);text-align:center;font-size:13px}
+.stepper{list-style:none;display:flex;gap:0;margin:14px 0 6px;padding:0}
+.stepper .step{flex:1 1 0;min-width:0;padding-inline:2px;display:grid;justify-items:center;gap:4px;position:relative;color:var(--muted);text-align:center;font-size:13px}
 .stepper .step i{font-style:normal;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;border:2px solid var(--line);background:var(--surface);position:relative;z-index:1}
-.stepper .step::before{content:"";position:absolute;top:15px;inset-inline:-50%;height:2px;background:var(--line)}
+.stepper .step::before{content:"";position:absolute;top:15px;inset-inline-end:50%;width:100%;height:2px;background:var(--line)}
 .stepper .step:first-child::before{display:none}
 .stepper .step.done{color:var(--good)}.stepper .step.done i{border-color:var(--good);background:var(--good);color:var(--bg)}.stepper .step.done::before{background:var(--good)}
 .stepper .step.now{color:var(--tone);font-weight:700}.stepper .step.now i{border-color:var(--tone);color:var(--tone);box-shadow:0 0 0 4px color-mix(in srgb,var(--tone) 25%,transparent)}
@@ -209,3 +209,19 @@ tbody tr:nth-child(even){background:color-mix(in srgb,var(--card) 40%,transparen
 .decided{margin-top:10px}
 .more-details>summary{cursor:pointer;color:var(--brand);padding:8px 0}
 details.panel.more-details{padding:10px 15px}
+
+.ratings{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:4px 0 14px}
+.rating{border:1px solid var(--tone);border-radius:20px;padding:3px 12px;color:var(--tone)}.rating b{font-size:15px}
+.fc-title{margin:14px 0 8px;font-size:15px}.fc-title small{margin-inline-start:8px;font-weight:400}
+.finding-cards{display:grid;gap:8px}
+.finding-card{border:1px solid color-mix(in srgb,var(--line) 70%,transparent);border-inline-start:4px solid var(--tone);border-radius:10px;background:var(--card)}
+.finding-card>summary{display:grid;grid-template-columns:minmax(0,1fr) auto auto auto;gap:12px;align-items:center;padding:10px 14px;cursor:pointer;list-style:none}
+.finding-card>summary::-webkit-details-marker{display:none}
+.finding-card .fc-state,.finding-card .fc-time{font-size:13px;color:var(--muted);white-space:nowrap}
+.finding-card .badge.bad{color:var(--bad)}.finding-card .badge.wait{color:var(--wait)}.finding-card .badge.good{color:var(--good)}
+.fc-body{padding:4px 14px 14px;display:grid;gap:10px}.fc-explain{background:var(--surface);border-radius:8px;padding:10px 12px;white-space:pre-line}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px}
+.facts>div{background:var(--surface);border-radius:8px;padding:8px 10px;display:grid;gap:2px}.facts small{color:var(--muted)}
+.exc{border:1px dashed var(--wait);border-radius:8px;padding:8px 12px}.exc p{margin-top:4px}
+.exception-card{display:grid;gap:10px}
+@media(max-width:760px){.finding-card>summary{grid-template-columns:1fr auto}}

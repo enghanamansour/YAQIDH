@@ -80,6 +80,7 @@ STATIC = {
     "/pages/admin.js": "pages/admin.js",
     "/pages/dashboard/report.js": "pages/dashboard/report.js",
     "/pages/dashboard/exceptions.js": "pages/dashboard/exceptions.js",
+    "/pages/exceptions.js": "pages/exceptions.js",
     "/pages/dashboard/developer.js": "pages/dashboard/developer.js",
     "/pages/dashboard/review.js": "pages/dashboard/review.js",
     "/pages/dashboard/index.js": "pages/dashboard/index.js",
@@ -233,7 +234,7 @@ class Handler(BaseHTTPRequestHandler):
             "id": key, **{k: v for k, v in meta.items() if k != "owner"}, "demo": True,
             "stage": stage_name, "outcome": outcome, "runs": runs, "live": live is not None,
             # the developer's report is worked out by the Yaqidh API (live mode only; the demo has no history to measure)
-            "report": live.report(key) if live and role == "developer" else None,
+            "report": live.report(key) if live else None,
             "findings": [clean_finding(finding) for finding in stage.findings] if stage else [],
             "blockerIds": [finding.fingerprint for finding in stage.findings
                 if evaluate_policy([finding], self.server.policy).result == "fail"] if stage and outcome else [],
@@ -252,7 +253,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         path = urlsplit(self.path).path
-        if path in {"/", "/about", "/login", "/signup", "/dashboard", "/communication"} or path in STATIC:
+        if path in {"/", "/about", "/login", "/signup", "/dashboard", "/communication", "/exceptions"} or path in STATIC:
             target = ROOT / "web" / STATIC.get(path, "index.html")
             self.send_data(200, target.read_bytes(), MIME[target.suffix])
             return

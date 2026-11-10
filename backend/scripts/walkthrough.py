@@ -252,10 +252,11 @@ class Walk:
                          f"{sorted({f['reported_as'] for f in open_})})")
         body = {"justification": "accepted for the test: not a high finding, reviewed by security", "approved_by": self.args.security_reviewer}
         before = self.status()
-        self.call("POST", f"/releases/{self.release}/stages/security/exceptions", json={**body, "fingerprint": high["fingerprint"]})
-        after_high = self.status()
-        if after_high["reasons"] == ["no blocking findings"] or "no blocking" in " ".join(after_high["reasons"]):
-            raise Failed("an exception on a HIGH finding was accepted, it must never count")
+        if not self.args.exception_in_dashboard:  # the demo skips this probe so it does not leave a fake exception on the page
+            self.call("POST", f"/releases/{self.release}/stages/security/exceptions", json={**body, "fingerprint": high["fingerprint"]})
+            after_high = self.status()
+            if after_high["reasons"] == ["no blocking findings"] or "no blocking" in " ".join(after_high["reasons"]):
+                raise Failed("an exception on a HIGH finding was accepted, it must never count")
         if self.args.exception_in_dashboard:  # a person decides: wait until a medium finding is accepted in the dashboard
             mediums = {f["fingerprint"]: f for f in open_ if f["reported_as"] == "medium"}
             names = ", ".join(f"{f['rule'].split('.')[-1]} ({f['location']})" for f in mediums.values())
