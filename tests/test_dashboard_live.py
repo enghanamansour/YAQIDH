@@ -213,6 +213,9 @@ def test_the_real_pages_render_for_the_developer_and_the_security_reviewer(world
 
         page, errors = _page_after_login(browser, dash, "security")
         assert errors == [] and "الملاحظات المتوسطة" in page.inner_text("body") and page.locator("form#exception-form input[name=finding]").count() == 1
+        # the approve button is always there; while findings block it is disabled and says why
+        assert page.locator("button.big.good[disabled]").count() == 1
+        assert "تمنع الدمج" in page.locator(".result-actions .why").first.inner_text()
         assert page.locator("form#exception-form").count() == 1  # only the medium one, never the high
         page.fill("form#exception-form textarea", "isolated component, fix is scheduled")
         page.click("form#exception-form button")

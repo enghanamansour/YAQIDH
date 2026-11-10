@@ -148,3 +148,12 @@ button,a.action{white-space:nowrap}
 .result-actions .big,.queue-item{white-space:normal}
 td button,td a.action{padding:7px 16px}
 td:last-child,th:last-child{white-space:nowrap}
+
+/* decision buttons are always there; when they are not available they say why */
+.result-actions .act{flex:1 1 200px;display:grid;gap:6px;align-content:start}
+.result-actions .act .big{width:100%}
+.result-actions .why{color:var(--muted);text-align:center;font-size:13px}
+.result-actions .big:disabled{opacity:.45;cursor:not-allowed;transform:none;box-shadow:none;background:var(--card)}
+.result-actions .big:disabled:hover{outline:none;background:var(--card)}
+.result-actions .big.static{display:grid;place-items:center;pointer-events:none;border:1px solid var(--good);color:var(--good);background:color-mix(in srgb,var(--good) 12%,var(--card))}
+.result-actions .big.static{gap:0;line-height:1.4}.result-actions .big.static small{font-size:12px;font-weight:400;color:var(--muted)}

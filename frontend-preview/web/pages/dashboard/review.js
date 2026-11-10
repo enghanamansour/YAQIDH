@@ -9,11 +9,34 @@ function resultActions(){
   const blockers=release.blockerIds?release.blockerIds.length:0;
   const mediumOpen=release.live&&profile.role==='security'?release.findings.filter(f=>f.reported_as==='medium'&&f.status==='open').length:0;
   const big=(name,label,tone,extra='')=>'<button type="button" data-action="'+name+'" class="big '+tone+'" '+extra+'>'+label+'</button>';
+  const reviewer=profile.role==='qa'||profile.role==='security';
+  const last=(release.decisions||[]).slice(-1)[0];
+  const approved=last&&last.decision==='approve';
+  /* why the decision buttons are not available right now, in words */
+  const whyNot=()=>{
+    if(approved)return copy('تم اعتماد هذا البناء مسبقًا.','This build was already approved.');
+    if(release.stage!==profile.role)return copy('البناء الآن في مرحلة أخرى.','The build is in another stage now.');
+    if(!release.outcome)return copy('بانتظار نتيجة الفحص.','Waiting for the scan result.');
+    if(release.outcome.result==='fail')return blockers?copy('غير متاح: ','Not available: ')+blockers+' '+copy('ملاحظة تمنع الدمج.','findings block the merge.'):copy('غير متاح: الفحص لم يجتز.','Not available: the scan did not pass.');
+    return copy('غير متاح الآن.','Not available now.');
+  };
+  const act=(button,note)=>'<div class="act">'+button+(note?'<small class="why">'+note+'</small>':'')+'</div>';
+  let decide='';
+  if(reviewer){
+    const approveLabel=profile.role==='security'?copy('اعتماد البناء','Approve build'):copy('تسجيل الموافقة','Record approval');
+    if(approved){
+      decide+=act('<div class="big good static"><b>'+copy('معتمد','Approved')+'</b><small><bdi>'+safe(last.by)+'</bdi>'+(last.timestamp?' · <bdi>'+safe(reportDate(last.timestamp))+'</bdi>':'')+'</small></div>','');
+    }else if(release.canApprove){
+      decide+=act(big('approve',approveLabel,'good'),'');
+    }else{
+      decide+=act('<button type="button" class="big good" disabled>'+approveLabel+'</button>',whyNot());
+    }
+    decide+=release.canReject?act(big('reject',copy('إرجاع مع السبب','Return with reason'),'bad'),''):act('<button type="button" class="big bad" disabled>'+copy('إرجاع مع السبب','Return with reason')+'</button>',approved?'':whyNot());
+  }
   return '<section class="panel result-actions" aria-label="'+copy('إجراءات النتيجة','Result actions')+'">'
-    +(release.canApprove?big('approve',profile.role==='security'?copy('اعتماد البناء','Approve build'):copy('تسجيل الموافقة','Record approval'),'good'):'')
-    +(release.canReject?big('reject',copy('إرجاع مع السبب','Return with reason'),'bad'):'')
-    +big('jump',copy('الملاحظات المانعة','Blocking findings')+' · '+blockers,blockers?'bad':'good','data-target="findings-table"')
-    +(mediumOpen?big('jump',copy('قرار الملاحظات المتوسطة','Decide on medium findings')+' · '+mediumOpen,'wait','data-target="medium-panel"'):'')
+    +decide
+    +act(big('jump',copy('الملاحظات المانعة','Blocking findings')+' · '+blockers,blockers?'bad':'good','data-target="findings-table"'),'')
+    +(mediumOpen?act(big('jump',copy('قرار الملاحظات المتوسطة','Decide on medium findings')+' · '+mediumOpen,'wait','data-target="medium-panel"'),''):'')
     +'</section>';
 }
 
