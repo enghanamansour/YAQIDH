@@ -222,6 +222,9 @@ class Walk:
 
     def s_approve_qa(self):
         self.runs_before_approval = len(self.agent_runs())  # the 'approved' agent run is the next one to appear
+        if self.args.human_approvals:
+            st = self.wait_for_person("QA", "qa", lambda s: s["status"].startswith("security_") or s["status"] == "awaiting_security_approval")
+            return f"approved by a person in the dashboard; status {st['status']}; staging is open"
         resp = self.call("POST", f"/releases/{self.release}/stages/qa/approve",
                          json={"by": self.args.qa_reviewer, "reason": "QA checks reviewed, no blocking findings left"})
         if resp.status_code != 200:
@@ -287,7 +290,27 @@ class Walk:
             raise Failed(f"expected awaiting_security_approval, got {st['status']}: {st['reasons']}")
         return f"both stages re-scanned on {commit}; status {st['status']}"
 
+    def wait_for_person(self, label: str, account: str, done) -> dict:
+        print("")
+        print(f"      >>> Open the dashboard as '{account}' and APPROVE the {label} stage (or return it with a reason).")
+        print("      >>> Waiting...", flush=True)
+        deadline = time.monotonic() + self.args.human_timeout
+        while time.monotonic() < deadline:
+            st = self.status()
+            if done(st):
+                return st
+            if st["status"] in ("qa_rejected", "security_rejected"):
+                raise Failed(f"the {label} reviewer returned the build: {st['reasons']}")
+            time.sleep(3)
+        raise Failed(f"nobody decided on the {label} stage in the dashboard in time")
+
     def s_approve_security(self):
+        if self.args.human_approvals:
+            self.wait_for_person("Security", "security", lambda s: s["status"] == "ready_to_merge")
+            ok = self.gate(self.commit, "main")
+            if not ok["allowed"]:
+                raise Failed(f"main should be open for the approved commit, the gate said: {ok}")
+            return f"approved by a person in the dashboard; main open for {self.commit}"
         resp = self.call("POST", f"/releases/{self.release}/stages/security/approve",
                          json={"by": self.args.security_reviewer, "reason": "Security findings reviewed, nothing blocking left"})
         if resp.status_code != 200:
@@ -332,6 +355,10 @@ class Walk:
         ]
         print(f"release: {self.release}   api: {self.url}")
         for name, fn in steps:
+            if self.args.stop_before_approvals and fn == self.s_approve_qa:
+                print("")
+                print("stopping here on purpose: the build waits for the QA decision in the dashboard")
+                return 0
             if not self.step(name, fn) and not self.args.keep_going:
                 print("\nstopped at the first failure (use --keep-going to continue)")
                 break
@@ -356,6 +383,10 @@ def main() -> int:
     ap.add_argument("--exception-in-dashboard", action="store_true",
                     help="do not grant the medium exception from the script: wait for the security reviewer to do it in the dashboard")
     ap.add_argument("--human-timeout", type=int, default=900, help="seconds to wait for that human decision")
+    ap.add_argument("--human-approvals", action="store_true",
+                    help="the QA and Security approvals are made by people in the dashboard, not by the script")
+    ap.add_argument("--stop-before-approvals", action="store_true",
+                    help="run the first steps, then leave the build waiting for the QA decision (to try approve/return by hand)")
     ap.add_argument("--keep-going", action="store_true", help="do not stop at the first failing step")
     args = ap.parse_args()
     if hasattr(sys.stdout, "reconfigure"):

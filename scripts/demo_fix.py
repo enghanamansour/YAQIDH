@@ -19,6 +19,8 @@ APP = ROOT / "demo_app"
 def sub(name: str, old: str, new: str) -> None:
     path = APP / name
     text = path.read_text(encoding="utf-8")
+    if new in text:  # already fixed: running a fix twice is harmless
+        return
     if old not in text:
         raise SystemExit(f"cannot fix {name}: the expected code is not there (run 'reset' first?)")
     path.write_text(text.replace(old, new, 1), encoding="utf-8", newline="")
