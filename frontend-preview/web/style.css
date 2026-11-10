@@ -225,3 +225,12 @@ details.panel.more-details{padding:10px 15px}
 .exc{border:1px dashed var(--wait);border-radius:8px;padding:8px 12px}.exc p{margin-top:4px}
 .exception-card{display:grid;gap:10px}
 @media(max-width:760px){.finding-card>summary{grid-template-columns:1fr auto}}
+
+.catalog{border:1px solid color-mix(in srgb,var(--line) 70%,transparent);border-radius:12px;margin:14px 0;background:var(--surface)}
+.catalog>summary{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 18px;cursor:pointer;list-style:none;font-size:16px}
+.catalog>summary::-webkit-details-marker{display:none}
+.catalog>summary span{color:var(--muted);font-size:13px}
+.catalog>summary::after{content:"▾";color:var(--brand);font-size:18px;transition:transform .2s}
+.catalog[open]>summary::after{transform:rotate(180deg)}
+.catalog[open]>summary{border-bottom:1px solid color-mix(in srgb,var(--line) 70%,transparent)}
+.catalog>.finding-cards{padding:12px}
