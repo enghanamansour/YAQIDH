@@ -18,10 +18,10 @@ const reportStage=stage=>stage==='qa'?copy('الجودة','QA'):copy('الأمن
 const reportSeverity=level=>level==='high'?'<span class="badge" style="color:var(--bad)">'+copy('عالية','High')+'</span>':'<span class="badge" style="color:var(--wait)">'+copy('منخفضة','Low')+'</span>';
 const reportLevel=name=>({critical:copy('حرجة','Critical'),high:copy('عالية','High'),medium:copy('متوسطة','Medium'),low:copy('منخفضة','Low'),unknown:copy('غير محددة','Unrated')})[name]||name;
 function reportDistribution(report){
-  const s=report.summary,order=['critical','high','medium','low','unknown'];
-  const levels=order.filter(k=>s.by_reported[k]).map(k=>'<li>'+safe(reportLevel(k))+': <b>'+s.by_reported[k]+'</b> ('+Math.round(100*s.by_reported[k]/s.findings)+'%)</li>').join('');
-  const tools=Object.entries(s.by_tool).map(([k,v])=>'<li>'+safe(toolName?toolName(k):k)+': <b>'+v+'</b></li>').join('');
-  const owasp=Object.entries(s.by_owasp).filter(([k])=>k!=='none').map(([k,v])=>'<li>'+safe(k)+': <b>'+v+'</b></li>').join('');
+  const s=report.summary,order=['critical','high','medium','low','unknown'],byLevel=s.by_reported||{};
+  const levels=order.filter(k=>byLevel[k]).map(k=>'<li>'+safe(reportLevel(k))+': <b>'+byLevel[k]+'</b> ('+Math.round(100*byLevel[k]/s.findings)+'%)</li>').join('');
+  const tools=Object.entries(s.by_tool||{}).map(([k,v])=>'<li>'+safe(toolName?toolName(k):k)+': <b>'+v+'</b></li>').join('');
+  const owasp=Object.entries(s.by_owasp||{}).filter(([k])=>k!=='none').map(([k,v])=>'<li>'+safe(k)+': <b>'+v+'</b></li>').join('');
   return '<div class="report-dist"><div><h3>'+copy('حسب خطورة الأداة','By tool rating')+'</h3><ul class="metric-records">'+levels+'</ul></div><div><h3>'+copy('حسب الأداة','By tool')+'</h3><ul class="metric-records">'+tools+'</ul></div><div><h3>OWASP Top 10</h3><ul class="metric-records">'+(owasp||'<li class="muted">—</li>')+'</ul></div></div>';
 }
 const reportStatus=row=>row.status==='open'?copy('مفتوحة','Open'):row.status==='excepted'?copy('مستثناة','Excepted'):copy('مغلقة بإثبات','Closed, verified');
@@ -56,7 +56,7 @@ function developerReport(){
     +reportTile(copy('ملاحظات مانعة مفتوحة','Open blocking findings'),s.open_blocking,s.open_blocking?'bad':'good',copy('من إجمالي ','of ')+s.findings)
     +reportTile(copy('إغلاقات مثبتة بإعادة الفحص','Closed, proven by a re-scan'),s.closed,'good',s.excepted?copy('مستثناة: ','excepted: ')+s.excepted:'')
     +reportTile(copy('متوسط زمن الإغلاق','Average time to close'),reportTime(avg),'wait',s.time_to_close.count?copy('الأطول: ','longest: ')+reportTime(s.time_to_close.max_seconds):copy('لا إغلاقات بعد','nothing closed yet'))
-    +reportTile(copy('نسبة الإغلاق','Closed share'),s.closed_percent===null?'—':s.closed_percent+'%','good',copy('مفتوحة: ','still open: ')+(s.open_blocking+s.open_low))
+    +reportTile(copy('نسبة الإغلاق','Closed share'),s.closed_percent==null?'—':s.closed_percent+'%','good',copy('مفتوحة: ','still open: ')+(s.open_blocking+s.open_low))
     +reportTile(copy('منخفضة تمر بتوعية','Low, passes with awareness'),s.open_low,'wait',copy('تمر ولا تُنسى','passes, not forgotten'))
     +reportTile(copy('جولات الفحص','Scan rounds'),s.rounds.qa+' / '+s.rounds.security,'',copy('الجودة / الأمن','QA / Security'))
     +'</div>';

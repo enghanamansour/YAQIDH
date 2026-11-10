@@ -28,6 +28,7 @@ def free_port():
 @pytest.fixture
 def world(tmp_path, monkeypatch):
     monkeypatch.setenv("API_TOKEN", "secret")
+    monkeypatch.setenv("YAQIDH_DEMO_PASSWORD", "test-demo-password")
     stack = Stack(tmp_path)
     api_port = free_port()
     api = uvicorn.Server(uvicorn.Config(create_app(stack.service, stack.history, stack.agent), host="127.0.0.1",
@@ -73,7 +74,7 @@ class Browser:
         return resp.status, (json.loads(data) if data else None)
 
     def login(self, account):
-        assert self.call("POST", "/api/login", {"account": account, "password": "YaqidhDemo-2026"})[0] == 200
+        assert self.call("POST", "/api/login", {"account": account, "password": "test-demo-password"})[0] == 200
         return self
 
 
@@ -177,3 +178,45 @@ def test_the_security_reviewer_accepts_a_medium_finding_in_the_dashboard_but_nev
     f1 = next(f for f in after["findings"] if f["fingerprint"] == "F-1")
     assert f1["status"] == "excepted" and f1["exception"]["approved_by"] == "security"  # recorded under the account, not typed
     assert next(f for f in after["findings"] if f["fingerprint"] == "F-2")["status"] == "open"
+
+
+def _page_after_login(browser, dash, account):
+    ctx = browser.new_context(locale="en-US")
+    page = ctx.new_page()
+    errors = []
+    page.on("pageerror", lambda e: errors.append(str(e)))
+    page.goto(f"http://127.0.0.1:{dash.server_port}/login")
+    page.fill("input[name=account]", account)
+    page.fill("input[name=password]", "test-demo-password")
+    page.click("form#sign-in button")
+    page.wait_for_url("**/dashboard", timeout=10000)
+    page.wait_for_timeout(1500)
+    return page, errors
+
+
+def test_the_real_pages_render_for_the_developer_and_the_security_reviewer(world):
+    """Opens the real dashboard in a browser: no script error, the report and the exception form are on the page."""
+    playwright = pytest.importorskip("playwright.sync_api")
+    from src.schema import Severity
+    from tests.test_service import finding
+
+    stack, dash, _ = world
+    stack.sec.findings = [finding("F-1", Severity.HIGH).model_copy(update={"reported_as": "medium"}),
+                          finding("F-2", Severity.HIGH).model_copy(update={"reported_as": "high"})]
+    open_pr(stack)
+    Browser(dash).login("qa").call("POST", "/api/releases/r1/decision", {"decision": "approve", "reason": "fine", "commit": "aaaaaaa"})
+    with playwright.sync_playwright() as p:
+        browser = p.chromium.launch()
+        page, errors = _page_after_login(browser, dash, "developer")
+        text = page.inner_text("body")
+        assert errors == [] and "تقرير المطوّر" in text and "حسب خطورة الأداة" in text and "OWASP" in text
+
+        page, errors = _page_after_login(browser, dash, "security")
+        assert errors == [] and "الملاحظات المتوسطة" in page.inner_text("body")
+        assert page.locator("form#exception-form").count() == 1  # only the medium one, never the high
+        page.fill("form#exception-form textarea", "isolated component, fix is scheduled")
+        page.click("form#exception-form button")
+        page.wait_for_timeout(1500)
+        assert "مقبولة بتبرير" in page.inner_text("body")
+        browser.close()
+    assert stack.service.store.get("r1").stage(__import__("src.schema", fromlist=["StageName"]).StageName.SECURITY).findings[0].exception

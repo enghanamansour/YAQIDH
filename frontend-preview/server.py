@@ -24,7 +24,16 @@ from src.schema import Evidence, Finding, HumanDecision, StageRecord
 from src.storage import EvidenceStore
 from src.verifier import verify
 
-PASSWORD = "YaqidhDemo-2026"
+try:  # the password may live in the local .env (never in the repository)
+    from src.envfile import load_env
+
+    load_env()
+except ImportError:
+    pass
+# One shared password for the demo accounts. It is NOT written in the code: set YAQIDH_DEMO_PASSWORD (in .env or the
+# environment), or a random one is made for this run and printed in the console that started the server.
+PASSWORD_FROM_ENV = bool(os.environ.get("YAQIDH_DEMO_PASSWORD"))
+PASSWORD = os.environ.get("YAQIDH_DEMO_PASSWORD") or secrets.token_urlsafe(12)
 ACCOUNTS = {
     "developer": {"role": "developer", "projects": ["portal"], "active": True},
     "qa": {"role": "qa", "projects": ["portal"], "active": True},
@@ -551,6 +560,11 @@ class Handler(BaseHTTPRequestHandler):
             self.server.store.save(evidence)
             self.json(200, self.release_view(account, key))
 
+def announce_password():
+    print("demo accounts: developer, qa, security, company-admin", flush=True)
+    print("password: from YAQIDH_DEMO_PASSWORD" if PASSWORD_FROM_ENV else f"password (random for this run): {PASSWORD}", flush=True)
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, default=8765)
@@ -565,6 +579,7 @@ def main():
         backend = live_module.from_env(Evidence, [n for n, a in ACCOUNTS.items() if a["role"] == "developer"])
         with DemoServer(("127.0.0.1", args.port), live_module.LiveStore(backend), {}, policy, backend) as server:
             print(f"YAQIDH dashboard (live, API {backend.base_url}): http://127.0.0.1:{server.server_port}/dashboard", flush=True)
+            announce_password()
             server.serve_forever()
         return
     policy = load_policy(ROOT / "backend/config/policy.yaml")
@@ -573,6 +588,7 @@ def main():
         verification = seed(store, policy)
         with DemoServer(("127.0.0.1", args.port), store, verification, policy) as server:
             print(f"YAQIDH local demo: http://127.0.0.1:{server.server_port}/dashboard", flush=True)
+            announce_password()
             server.serve_forever()
 
 if __name__ == "__main__":

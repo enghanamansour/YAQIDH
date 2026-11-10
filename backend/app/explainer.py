@@ -245,8 +245,14 @@ _NOT_SAUDI = frozenset({"ده", "دي", "دا", "كده", "كدا", "هادي", 
                         "بتاعت", "إزاي", "ازاي", "برضو", "برضه", "بقى", "بقا"})
 
 
+# A present-tense plural verb that drops its final ن (يكتشفوا، يقدروا) is Egyptian/Levantine; Saudi keeps it (يكتشفون).
+_DROPPED_NOON = re.compile(r"^ي[ء-ي]{2,}وا$")
+
+
 def _not_saudi_word(text: str) -> str | None:
     for word in _ARABIC_WORD.findall(text):
+        if _DROPPED_NOON.match(word):
+            return word
         for candidate in (word, word[1:] if len(word) > 2 and word[0] in "وفب" else ""):
             if candidate in _NOT_SAUDI:
                 return candidate

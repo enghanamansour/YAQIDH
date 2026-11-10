@@ -170,3 +170,11 @@ async def test_an_explanation_with_an_egyptian_word_is_sent_back_to_the_model(se
     assert run.calls[0]["error"]
     assert "Saudi" in chat.sent[1][0][-1]["content"]
     assert explained(service)["F-5"]["explanation"] is None  # nothing was stored
+
+
+def test_a_plural_verb_that_drops_its_noon_is_not_accepted_as_saudi():
+    from src.agent.dialect import non_saudi_word
+
+    assert non_saudi_word("ممكن يكتشفوا الثغرة") == "يكتشفوا"
+    assert non_saudi_word("ممكن يكتشفون الثغرة") is None
+    assert non_saudi_word("المهاجم يقدر يقرأ البيانات") is None
