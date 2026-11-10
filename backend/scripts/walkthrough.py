@@ -223,7 +223,7 @@ class Walk:
     def s_approve_qa(self):
         self.runs_before_approval = len(self.agent_runs())  # the 'approved' agent run is the next one to appear
         resp = self.call("POST", f"/releases/{self.release}/stages/qa/approve",
-                         json={"by": self.args.qa_reviewer, "reason": "walkthrough"})
+                         json={"by": self.args.qa_reviewer, "reason": "QA checks reviewed, no blocking findings left"})
         if resp.status_code != 200:
             raise Failed(f"approve QA -> HTTP {resp.status_code}: {resp.text[:300]}")
         st = resp.json()
@@ -247,7 +247,7 @@ class Walk:
         if not high or not medium:
             raise Failed(f"need one high and one medium finding to test exceptions (found reported_as: "
                          f"{sorted({f['reported_as'] for f in open_})})")
-        body = {"justification": "walkthrough: accepted for the test", "approved_by": self.args.security_reviewer}
+        body = {"justification": "accepted for the test: not a high finding, reviewed by security", "approved_by": self.args.security_reviewer}
         before = self.status()
         self.call("POST", f"/releases/{self.release}/stages/security/exceptions", json={**body, "fingerprint": high["fingerprint"]})
         after_high = self.status()
@@ -289,7 +289,7 @@ class Walk:
 
     def s_approve_security(self):
         resp = self.call("POST", f"/releases/{self.release}/stages/security/approve",
-                         json={"by": self.args.security_reviewer, "reason": "walkthrough"})
+                         json={"by": self.args.security_reviewer, "reason": "Security findings reviewed, nothing blocking left"})
         if resp.status_code != 200:
             raise Failed(f"approve security -> HTTP {resp.status_code}: {resp.text[:300]}")
         ok = self.gate(self.commit, "main")
@@ -346,9 +346,9 @@ class Walk:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--url", default="http://127.0.0.1:8000")
-    ap.add_argument("--release", default=f"walkthrough-{uuid.uuid4().hex[:6]}")
-    ap.add_argument("--qa-reviewer", default="walkthrough-qa")
-    ap.add_argument("--security-reviewer", default="walkthrough-security")
+    ap.add_argument("--release", default=f"pr-{uuid.uuid4().hex[:6]}")
+    ap.add_argument("--qa-reviewer", default="qa")
+    ap.add_argument("--security-reviewer", default="security")
     ap.add_argument("--on-fix-qa", help="command that fixes the QA problems (otherwise the script pauses for you)")
     ap.add_argument("--on-fix-security", help="command that fixes the security problems")
     ap.add_argument("--timeout", type=int, default=900, help="seconds to wait for each agent run")

@@ -73,7 +73,31 @@ function qaChart(rows,title=copy('حالة ملاحظات الجودة','QA find
     +'<small>'+copy('يعرض الملاحظات المطابقة للفلاتر الحالية','Shows findings matching the active filters')+'</small></section>';
 }
 
+function flowChart(){
+  const rows=matched(),total=rows.length;
+  const count=key=>rows.filter(f=>findingGroup(f)===key).length;
+  const blocked=new Set(release.blockerIds||[]);  // what the policy engine still counts, e.g. an exception on a HIGH finding does not count
+  const fixed=count('fixed'),excepted=rows.filter(f=>findingGroup(f)==='excepted'&&!blocked.has(f.fingerprint)).length;
+  const open=total-fixed-excepted,blocking=blocked.size;
+  const runs=release.runs.filter(run=>tool==='all'||run.tool===tool),ran=runs.filter(r=>r.state==='completed').length;
+  const tone=release.outcome?.result==='pass'?'good':release.outcome?.result==='fail'?'bad':'wait';
+  const pct=n=>total?Math.round(100*n/total)+'%':'—';
+  const node=(cls,label,value,sub,key)=>'<'+(key?'button type="button" data-action="finding-group" data-id="'+key+'"':'div')+' class="flow-node '+cls+'"'+(key?' aria-pressed="'+(findingFilter===key)+'"':'')+'><small>'+label+'</small><b>'+value+'</b>'+(sub?'<span>'+sub+'</span>':'')+'</'+(key?'button':'div')+'>';
+  return '<section class="panel flow"><h2>'+copy('مسار الفحص إلى القرار','From scan to decision')+'</h2><div class="flow-chart">'
+    +node('wait',copy('الفحص','Scanning'),ran+' / '+runs.length,copy('أدوات اكتمل تشغيلها','tools finished'))
+    +'<i class="flow-arrow" aria-hidden="true"></i>'
+    +node('accent',copy('ملاحظات وُجدت','Findings found'),total,'')
+    +'<i class="flow-arrow" aria-hidden="true"></i>'
+    +'<div class="flow-row">'
+    +node('bad',copy('مفتوحة','Open'),open,pct(open),'open')
+    +node('good',copy('مغلقة بإثبات','Closed, proven'),fixed,pct(fixed),'fixed')
+    +node('wait',copy('مستثناة','Excepted'),excepted,pct(excepted),'excepted')
+    +'</div><i class="flow-arrow" aria-hidden="true"></i>'
+    +node(tone+' decision',copy('قرار محرك القواعد','Policy decision'),outcomeText(),blocking?blocking+' '+copy('ملاحظة عالية تمنع الدمج','high findings block the merge'):copy('لا ملاحظات مانعة','no blocking findings'))
+    +'</div></section>';
+}
+
 function stageCharts(){
   const runs=release.runs.filter(run=>tool==='all'||run.tool===tool);
-  return '<div class="role-charts three">'+shieldChart()+bugChart(matched())+toolRunChart(runs)+'</div>';
+  return '<div class="role-charts">'+flowChart()+toolRunChart(runs)+'</div>';
 }

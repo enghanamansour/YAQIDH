@@ -16,6 +16,7 @@ const demoText=value=>({
 const mon=value=>'<bdi class="mono">'+safe(value)+'</bdi>';
 
 const requestedSample=new URLSearchParams(location.search).get('sample');
+const FINDINGS_SHOWN=8;let showAllFindings=false;
 let profile=null,release=null,tool='all',severity='all',findingFilter='all',runFilter='all',adminDay='all',developerOutcome='all',developerDay='all';
 let requestNumber=0;
 const roleNames=role=>({
@@ -151,7 +152,7 @@ async function selectRelease(id){
   const turn=++requestNumber;
   const next=await api('/api/releases/'+encodeURIComponent(id));
   if(turn!==requestNumber)return;
-  release=next;tool='all';severity='all';findingFilter='all';runFilter='all';render();
+  release=next;tool='all';severity='all';findingFilter='all';runFilter='all';showAllFindings=false;render();
 }
 async function load(){
   if(location.pathname==='/about')history.replaceState(null,'','/#about');
@@ -216,7 +217,8 @@ async function handleAction(button){
   if(id==='admin-message')return startThread('',button.dataset.id);
   if(id==='edit-account')return editAccount(button.dataset.id);
   if(!release)return;
-  if(id==='queue'||id==='returned-build'){if(dialog.open)dialog.close();await selectRelease(button.dataset.id);if(id==='returned-build')modal(copy('سبب الإرجاع','Return reason'),decisionList());return}
+  if(id==='toggle-findings'){showAllFindings=!showAllFindings;render();return}
+  if(id==='queue'||id==='returned-build'){if(dialog.open)dialog.close();await selectRelease(button.dataset.id);if(id==='queue')document.querySelector('.summary')?.scrollIntoView({behavior:'smooth',block:'start'});if(id==='returned-build')modal(copy('سبب الإرجاع','Return reason'),decisionList());return}
   if(id==='new-thread')return startThread(button.dataset.id||'');
   if(id==='sample-approved')return selectRelease(sampleBuild('approved'));
   if(id==='sample-issue'||id==='sample-ready')return selectRelease(sampleBuild(id==='sample-issue'?'issue':'ready'));
