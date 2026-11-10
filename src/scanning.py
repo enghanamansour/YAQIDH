@@ -17,6 +17,7 @@ class ScanResult:
     tools_run: set[str]
     components: set[str] = field(default_factory=set)
     flaky: list[str] = field(default_factory=list)
+    raw: dict[str, str] = field(default_factory=dict)  # tool name -> the tool's own report, byte for byte
 
 
 Runner = Callable[[Path], ScanResult]
@@ -39,7 +40,8 @@ def security_runner(semgrep, trivy) -> Runner:
         trivy_scan = trivy.scan(target)
         findings = semgrep.run(target) + trivy_scan.findings
         versions = {"semgrep-rules": semgrep.rules_version(), **trivy.versions()}
-        return ScanResult(dedupe(findings), versions, {"semgrep", "trivy"}, trivy_scan.components)
+        raw = {"semgrep": semgrep.last_raw, "trivy": trivy.last_raw}
+        return ScanResult(dedupe(findings), versions, {"semgrep", "trivy"}, trivy_scan.components, raw={k: v for k, v in raw.items() if v})
 
     return run
 

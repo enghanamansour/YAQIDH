@@ -1,79 +1,89 @@
 # Requirements for the demo shop (Maktabti). The QA reviewer checks each release against them.
-# Each requirement lists the QA checks (see qa_checks/) that cover it. The status is computed by code from the real check results:
+# Each requirement has its own QA check (one to one: 14 requirements, 14 checks). It lists the QA checks (see qa_checks/) that cover it. The status is computed by code from the real check results:
 #   all its checks passed -> met; any failed -> failed; no checks listed -> uncovered (a coverage gap, shown as such).
 # These are sample requirements for the demo: replace them with the real requirements document.
 requirements:
 - id: R-01
-  ar: ما أحد يدخل إلا بتسجيل دخول صحيح
-  en: Nobody gets in without a correct sign-in
+  ar: السلة ما تنفتح إلا بتسجيل دخول
+  en: The cart opens only after signing in
   source: متطلبات العرض التجريبي · Demo requirements
   checks:
   - cart_requires_login
-  - wrong_password_is_rejected
 - id: R-02
+  ar: كلمة المرور الخاطئة ما تدخل أحد
+  en: A wrong password does not let anyone in
+  source: متطلبات العرض التجريبي · Demo requirements
+  checks:
+  - wrong_password_is_rejected
+- id: R-03
   ar: البحث ما يسمح لأحد يخرّب قاعدة البيانات
   en: Search cannot be used to break the database
   source: متطلبات العرض التجريبي · Demo requirements
   checks:
   - search_resists_sql_injection
-- id: R-03
+- id: R-04
   ar: رسائل الخطأ ما تكشف أسرار النظام
   en: Error messages do not reveal system secrets
   source: متطلبات العرض التجريبي · Demo requirements
   checks:
   - errors_do_not_leak_internals
-- id: R-04
+- id: R-05
   ar: المتصفح يستلم إعدادات الحماية
   en: The browser receives protection settings
   source: متطلبات العرض التجريبي · Demo requirements
   checks:
   - security_headers_are_set
-- id: R-05
+- id: R-06
   ar: كلمات المرور محفوظة مشفّرة
   en: Passwords are stored encrypted
   source: متطلبات العرض التجريبي · Demo requirements
   checks:
   - passwords_are_stored_hashed
-- id: R-06
+- id: R-07
   ar: بيانات البطاقات ما تُحفظ
   en: Card data is not stored
   source: متطلبات العرض التجريبي · Demo requirements
   checks:
   - card_data_is_not_stored
-- id: R-07
+- id: R-08
   ar: كل مستخدم يشوف طلباته بس
   en: Each user sees only their own orders
   source: متطلبات العرض التجريبي · Demo requirements
   checks:
   - other_users_orders_are_not_visible
-- id: R-08
+- id: R-09
   ar: الجلسة تنتهي إذا المستخدم تركها
   en: The session ends when the user leaves it
   source: متطلبات العرض التجريبي · Demo requirements
   checks:
   - session_expires_after_inactivity
-- id: R-09
+- id: R-10
   ar: البحث ما يشغّل أكواد خبيثة
   en: Search does not run malicious code
   source: متطلبات العرض التجريبي · Demo requirements
   checks:
   - search_output_is_escaped
-- id: R-10
+- id: R-11
   ar: رفع الصور يقبل الصور فقط
   en: Image upload accepts images only
   source: متطلبات العرض التجريبي · Demo requirements
   checks:
   - upload_accepts_images_only
-- id: R-11
+- id: R-12
   ar: السلة تضيف الكتب وتحسب الكمية
   en: The cart adds books and counts quantity
   source: متطلبات العرض التجريبي · Demo requirements
   checks:
   - cart_add_and_quantity_work
-- id: R-12
-  ar: البحث يلقى الكتب والصفحة سريعة
-  en: Search finds books and the page is fast
+- id: R-13
+  ar: البحث يلقى الكتب بالعنوان والمؤلف
+  en: Search finds books by title and author
   source: متطلبات العرض التجريبي · Demo requirements
   checks:
   - search_finds_books_by_title_and_author
+- id: R-14
+  ar: الصفحة الرئيسية تفتح بسرعة
+  en: The home page loads fast
+  source: متطلبات العرض التجريبي · Demo requirements
+  checks:
   - home_page_loads_fast

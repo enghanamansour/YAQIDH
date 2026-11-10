@@ -63,6 +63,20 @@ def test_run_scan_stores_findings_versions_and_components(service):
     assert stage.components == ["flask==0.12.2"]
 
 
+def test_the_tools_own_reports_are_kept_byte_for_byte_and_listed(service, scanner):
+    raw = '{"version":"1.2","results":[ ]}\n'  # odd spacing on purpose: the report must come back exactly as printed
+    scanner.__class__.__call__ = lambda self, target: ScanResult(
+        list(self.findings), dict(self.versions), {"semgrep", "trivy"}, set(), raw={"semgrep": raw})
+    service.run_scan("r1", "security")
+    assert service.read_report("r1", "semgrep") == raw
+    meta = service.list_reports("r1")
+    assert set(meta) == {"semgrep"} and meta["semgrep"]["bytes"] == len(raw.encode())
+    with pytest.raises(ServiceError, match="no trivy report"):
+        service.read_report("r1", "trivy")
+    with pytest.raises(ServiceError, match="no report for tool"):
+        service.read_report("r1", "../etc/passwd")
+
+
 def test_run_scan_twice_is_refused_so_history_is_not_overwritten(service):
     service.run_scan("r1", "security")
     with pytest.raises(ServiceError, match="already scanned"):

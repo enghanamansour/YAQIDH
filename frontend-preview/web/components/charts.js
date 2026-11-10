@@ -1,7 +1,7 @@
 function adminTimeline(runs,developer=false){
   const heading=developer?copy('اتجاه نتائج الأبنية المسندة','Assigned build trend'):copy('اتجاه تشغيل الفحوصات','Check run trend');
   const totalLabel=developer?copy('إجمالي الأبنية','Total builds'):copy('إجمالي التشغيلات','Total runs');
-  const failureLabel=developer?copy('أبنية أخفقت','Failed builds'):copy('تشغيلات متعطلة','Failed runs');
+  const failureLabel=developer?copy('طلبات فشلت','Failed builds'):copy('تشغيلات متعطلة','Failed runs');
   const actionName=developer?'developer-day':'admin-day';
   const selectedDay=developerDay;
   const days=[...new Set(runs.map(run=>run.day).filter(Boolean))].sort();
@@ -25,7 +25,7 @@ function adminTimeline(runs,developer=false){
 
 function toolRunChart(runs,developer=false){
   const keys=developer?['pass','fail','pending']:['completed','error','pending'];
-  const labels=developer?[copy('اجتاز','Passed'),copy('أخفق','Failed'),copy('قيد الانتظار','Pending')]:stateLabels().map(([,label])=>label);
+  const labels=developer?[copy('نجح','Passed'),copy('فشل','Failed'),copy('قيد الانتظار','Pending')]:stateLabels().map(([,label])=>label);
   const selected=developer?developerOutcome:runFilter;
   const act=developer?'developer-outcome':'run-state';
   const states=['completed','error','pending'];
@@ -65,8 +65,8 @@ function bugChart(rows){
 
 function qaChart(rows,title=copy('حالة ملاحظات الجودة','QA finding status')){
   const resolved=rows.filter(f=>f.closure?.result==='closed').length;
-  const groups=[[copy('تحتاج معالجة','Needs remediation'),rows.filter(f=>f.status!=='excepted'&&f.closure?.result!=='closed').length,'bad'],
-    [copy('إغلاق مثبت','Verified closed'),resolved,'good'],
+  const groups=[[copy('قيد التنفيذ','In progress'),rows.filter(f=>f.status!=='excepted'&&f.closure?.result!=='closed').length,'bad'],
+    [copy('أُغلقت','Closed'),resolved,'good'],
     [copy('مستثناة','Excepted'),rows.filter(f=>f.status==='excepted'&&f.closure?.result!=='closed').length,'wait']];
   return '<section class="panel"><h2>'+title+'</h2>'
     +groups.map(([label,count,tone])=>'<div class="bar-row '+tone+'"><span>'+label+' <b>'+count+'</b></span><progress value="'+count+'" max="'+Math.max(1,rows.length)+'"></progress></div>').join('')

@@ -18,7 +18,7 @@ function adjustReviewDeadline(id){
   const proposed=request.requested.includes('T')?request.requested:request.requested+'T09:00';
   modal(copy('تعديل موعد التمديد','Adjust extension deadline'),
     '<form id="review-deadline-form" data-id="'+safe(id)+'">'
-    +'<p>'+copy('موعد المطور المقترح','Developer proposed deadline')+' · '+displayReviewDeadline(request.requested)+'</p>'
+    +'<p>'+copy('موعد المطوّر المقترح','Developer proposed deadline')+' · '+displayReviewDeadline(request.requested)+'</p>'
     +'<label class="field">'+copy('التاريخ والوقت الجديدان · بتوقيت الرياض','New date and time · Riyadh time')
     +'<input type="datetime-local" name="approvedDeadline" value="'+safe(proposed)+'" required></label>'
     +'<button class="primary">'+copy('اعتماد الموعد المعدّل','Approve adjusted deadline')+'</button></form>');
@@ -32,7 +32,7 @@ function reviewRequestDetails(thread){
   return '<section class="note"><h3>'+(exception?copy('طلب استثناء أمني','Security exception request'):copy('طلب تمديد المهلة','Deadline extension request'))+'</h3><div class="details-grid">'
     +(exception?'':detail(copy('الموعد الساري','Effective deadline'),displayReviewDeadline(request.status==='approved'?(request.approvedDeadline||request.requested):request.original))
       +detail(copy('الموعد الأصلي','Original deadline'),mon(request.original))
-      +detail(copy('موعد المطور المقترح','Developer proposed deadline'),displayReviewDeadline(request.requested)))
+      +detail(copy('موعد المطوّر المقترح','Developer proposed deadline'),displayReviewDeadline(request.requested)))
     +detail(copy('الحالة','Status'),statuses[request.status])
     +detail(copy('المبرر','Justification'),safe(threadText(request.reason)))
     +(request.by?detail(copy('قرار المراجع','Reviewed by'),safe(accountName(request.by))):'')+'</div>'
@@ -63,7 +63,7 @@ function startThread(finding,releaseId=release.id){
   const simple=!extensionOnly;
   const optional=extensionOnly?'':' '+copy('(اختياري)','(optional)');
   const required=extensionOnly?' required':'';
-  const destination=profile.role==='developer'?stageText(release.stage):copy('المطور المسند إليه التعديل','Assigned developer');
+  const destination=profile.role==='developer'?stageText(release.stage):copy('المطوّر المسند إليه التعديل','Assigned developer');
   modal(extensionOnly?copy('طلب تمديد المهلة','Request deadline extension'):(profile.role==='qa'?copy('مراسلة المطوّر بخصوص هذا الطلب','Message the developer about this request'):copy('فتح نقاش مرتبط بالبناء','Start a build discussion')),
     '<form id="thread-new" data-finding="'+safe(finding)+'" data-release="'+safe(releaseId)+'">'+(simple?'':'<div class="note"><b>'+copy('المرسل','Sender')+'</b> '+safe(accountName(profile.account))+' · '+roleNames(profile.role)+'<br><b>'+copy('التوجيه التلقائي','Automatically routed to')+'</b> '+destination+'</div>')
     +'<label class="field">'+(simple?copy('العنوان','Title'):copy('موضوع النقاش','Subject'))+'<input name="subject" required maxlength="100"></label>'

@@ -14,6 +14,7 @@ from collections import Counter, OrderedDict
 from typing import Awaitable, Callable, Literal
 
 from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException, Request
+from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
 from src.gate import check_gate
@@ -203,6 +204,19 @@ def create_app(
     def get_history(release_id: str) -> list[dict]:
         release_or_404(release_id)
         return history.entries(release_id)
+
+    @app.get("/releases/{release_id}/reports", dependencies=auth)
+    def list_tool_reports(release_id: str) -> dict:
+        release_or_404(release_id)
+        return service.list_reports(release_id)
+
+    @app.get("/releases/{release_id}/reports/{tool}", dependencies=auth)
+    def get_tool_report(release_id: str, tool: str) -> Response:
+        release_or_404(release_id)
+        try:
+            return Response(service.read_report(release_id, tool), media_type="application/json")
+        except ServiceError as e:
+            raise HTTPException(404, str(e)) from None
 
     @app.get("/releases/{release_id}/history/verify", dependencies=auth)
     def verify_history(release_id: str) -> dict:

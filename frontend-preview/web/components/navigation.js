@@ -26,6 +26,7 @@ function sidebar(){
     +'<nav aria-label="'+copy('التنقل','Navigation')+'"><p class="sb-title">'+copy('القائمة','Menu')+'</p>'
     +nav(profile?.role==='company-admin'?'/admin':'/dashboard',dashLabel,'grid',waiting||'')
     +(profile?nav('/communication',profile.role==='company-admin'?copy('مراسلات الموظفين','Employee messages'):copy('التواصل','Communication'),'chat',unreadCount()||''):'')
+    +(profile?.role==='security'?nav('/exceptions',copy('الاستثناءات','Exceptions'),'shield',''):'')
     +(profile?.role==='company-admin'?nav('/admin#accounts',copy('إدارة الحسابات','Account administration'),'users',''):'')
     +'</nav><div class="sidebar-account">'+account+'</div></aside>';
 }

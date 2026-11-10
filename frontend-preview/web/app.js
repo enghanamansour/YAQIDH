@@ -20,7 +20,7 @@ const requestedSample=new URLSearchParams(location.search).get('sample');
 let profile=null,release=null,tool='all',severity='all',findingFilter='all',runFilter='all',developerOutcome='all',developerDay='all';
 let requestNumber=0;
 const roleNames=role=>({
-  developer:copy('المطور','Developer'),
+  developer:copy('المطوّر','Developer'),
   qa:copy('مراجع الجودة','QA reviewer'),
   security:copy('مراجع الأمن السيبراني','Security reviewer'),'company-admin':copy('مسؤول إدارة الشركة','Company admin'),
 }[role]||role);
@@ -31,7 +31,7 @@ const severityName=id=>({
   critical:copy('حرجة','Critical'),info:copy('معلومة','Info'),unknown:copy('غير محددة','Unknown')
 }[id]||'—');
 const accountName=id=>({
-  developer:copy('حساب المطور التجريبي','developer'),
+  developer:copy('حساب المطوّر التجريبي','developer'),
   qa:copy('مراجع الجودة','QA reviewer'),
   security:copy('حساب الأمن التجريبي','security'),
   'company-admin':copy('حساب إدارة الشركة التجريبي','company-admin'),
@@ -126,7 +126,7 @@ let adminQuery='',adminActive='all';
 function outcomeText(){return release.outcome?(release.outcome.result==='pass'?copy('نجح','PASS'):copy('فشل','FAIL')):release.runs.some(run=>run.state==='error')?copy('تعطل فحص مطلوب','Required check failed to run'):copy('بانتظار نتيجة صالحة','Awaiting a valid result')}
 function stageText(stage){return stage==='qa'?copy('فحص الجودة','Quality check'):copy('الفحص الأمني','Security check')}
 function statusText(status){return ({
-  open:copy('تحتاج معالجة','Needs remediation'),fixed:copy('مُصلحة','Fixed'),excepted:copy('مستثناة','Excepted'),
+  open:copy('قيد التنفيذ','In progress'),fixed:copy('أُغلقت','Closed'),excepted:copy('مستثناة','Excepted'),
   completed:copy('مكتمل','Completed'),error:copy('تعطل','Failed to run'),
   approve:copy('موافقة مسجلة','Approval recorded'),reject:copy('إرجاع مع السبب','Returned with reason')
 })[status]||copy('بانتظار القرار','Awaiting decision')}
@@ -135,10 +135,10 @@ function decisionText(){return statusText(lastDecision()?.decision)}
 function displayReason(reason){
   if(reason==='no blocking findings')return copy('لا توجد ملاحظات مانعة وفق السياسة','No blocking findings');
   const count=reason.match(/^(\d+) high open$/);
-  return count?copy(count[1]==='1'?'ملاحظة واحدة مرتفعة الخطورة تمنع التقدّم':count[1]+' ملاحظات مرتفعة الخطورة تمنع التقدّم',count[1]+' blocking HIGH findings'):safe(reason);
+  return count?copy(count[1]==='1'?'ملاحظة واحدة عالية الخطورة تمنع التقدّم':count[1]+' ملاحظات عالية الخطورة تمنع التقدّم',count[1]+' blocking HIGH findings'):safe(reason);
 }
 function sampleBuild(sample){if(profile.role==='developer')return sample==='issue'?'portal-133':'portal-129';if(sample==='approved')return profile.role==='qa'?'portal-129':'portal-135';return profile.role==='qa'?(sample==='issue'?'portal-133':'portal-132'):(sample==='issue'?'portal-128':'portal-134')}
-function findingState(f){return f.closure?.result==='closed'?copy('إغلاق مثبت','Verified closed'):f.closure?.result==='still_open'?copy('ما زالت تحتاج معالجة','Still needs remediation'):statusText(f.status)}
+function findingState(f){return f.closure?.result==='closed'?copy('أُغلقت','Closed'):f.closure?.result==='still_open'?copy('ما زالت قيد التنفيذ','Still in progress'):statusText(f.status)}
 function findingGroup(f){return f.closure?.result==='closed'?'fixed':f.status==='excepted'?'excepted':'open'}
 function matched(){return release.findings.filter(f=>(runFilter==='all'||release.runs.filter(run=>run.tool===f.tool).length===1&&release.runs.some(run=>run.tool===f.tool&&run.state===runFilter))&&(findingFilter==='all'||findingGroup(f)===findingFilter)&&(tool==='all'||tool===f.tool)&&(severity==='all'||severity===f.severity))}
 
@@ -151,7 +151,7 @@ function render(){
   metricDetails.clear();
   const page=location.pathname;
   if(page==='/'){app.innerHTML=header()+landing();startTyping();if(location.hash==='#about')document.getElementById('about').scrollIntoView();return}
-  const content=page==='/signup'?signup():!profile?login():page==='/communication'?communicationView():'<main>'+(profile.role==='qa'||profile.role==='developer'?'':introduction())+(profile.role==='company-admin'?adminView():dashboardView())+'</main>';
+  const content=page==='/signup'?signup():!profile?login():page==='/communication'?communicationView():page==='/exceptions'?exceptionsView():'<main>'+(['qa','developer','security'].includes(profile.role)?'':introduction())+(profile.role==='company-admin'?adminView():dashboardView())+'</main>';
   app.innerHTML=header()+(profile?sidebar():'')+'<div class="'+(profile?'shell':'public-shell')+'">'+content+'</div>';
 }
 async function selectRelease(id){
@@ -186,7 +186,7 @@ const eventName=id=>({
 function eventDetail(e){
   const d=e.data||{};
   if(e.event==='scan')return (d.stage||'')+' · '+copy('ملاحظات','findings')+' '+d.findings;
-  if(e.event==='rescan')return (d.stage||'')+' · '+copy('انقفل','closed')+' '+(d.closed||[]).length+' · '+copy('لسا مفتوح','still open')+' '+(d.still_open||[]).length+' · '+copy('جديد','new')+' '+(d.new||[]).length;
+  if(e.event==='rescan')return (d.stage||'')+' · '+copy('أُغلقت','closed')+' '+(d.closed||[]).length+' · '+copy('لسا مفتوح','still open')+' '+(d.still_open||[]).length+' · '+copy('جديد','new')+' '+(d.new||[]).length;
   if(e.event==='policy_decision')return (d.stage||'')+' · '+(d.result==='pass'?copy('نجح','PASS'):copy('فشل','FAIL'));
   if(e.event==='human_decision')return (d.stage||'')+' · '+statusText(d.decision)+(d.reason?' · '+d.reason:'');
   if(e.event==='explanation')return (d.stage||'')+' · '+(d.fingerprint||'');
@@ -211,43 +211,44 @@ function decisionList(){
 function findingModal(id){
   const f=release.findings.find(item=>item.fingerprint===id);
   if(!f)return;
-  const flags={closed:copy('إغلاق مثبت','Verified closure'),still_open:copy('ما زالت تحتاج معالجة','Still needs remediation'),new:copy('ملاحظة جديدة','New finding'),new_from_db_update:copy('جديدة بسبب تحديث قاعدة تريفي','New after Trivy DB update'),reopened:copy('عادت بعد الإغلاق','Reopened')};
+  const flags={closed:copy('أُغلقت','Closed'),still_open:copy('ما زالت قيد التنفيذ','Still in progress'),new:copy('ملاحظة جديدة','New finding'),new_from_db_update:copy('جديدة بسبب تحديث قاعدة تريفي','New after Trivy DB update'),reopened:copy('عادت بعد الإغلاق','Reopened')};
   const history=Object.entries(flags).filter(([key])=>release.verification?.[key]?.includes(id)).map(([,label])=>label).join(' · ');
   modal(copy('دليل الملاحظة','Finding evidence'),'<div class="details-grid">'
     +detail(copy('البصمة','Fingerprint'),mon(f.fingerprint))+(profile.role==='developer'?'':detail(copy('الأداة','Tool'),safe(toolName(f.tool))))
     +'<div class="sev-big '+(f.severity==='high'?'bad':'good')+'"><small>'+copy('مستوى الخطورة','Severity')+'</small><strong>'+severityName(f.severity)+'</strong><span>'+(f.severity==='high'?copy('تمنع الإطلاق حتى تنحل','Blocks the release until fixed'):copy('لا تمنع الإطلاق','Does not block the release'))+'</span></div>'
     +detail(copy('القاعدة والموقع','Rule and location'),mon(f.rule)+' · '+mon(f.location))
-    +(profile.role==='qa'?'':detail(copy('المكوّن وإصداره','Component and version'),mon(f.component||'—')))
+    +(profile.role==='security'?detail(copy('المكوّن وإصداره','Component and version'),mon(f.component||'—')):'')
     +(f.fixed_version?detail(copy('النسخة المصلحة','Fixed version'),mon(f.fixed_version)):'')
     +(f.cwe?detail(copy('التصنيف (CWE)','CWE'),mon(f.cwe)):'')
     +(f.confidence?detail(copy('ثقة الأداة','Tool confidence'),safe(({high:copy('عالية','High'),medium:copy('متوسطة','Medium'),low:copy('منخفضة (قد تكون إنذارًا كاذبًا)','Low (may be a false alarm)')}[f.confidence])||f.confidence)):'')
     +(f.detail&&!f.explanation?detail(copy('ملاحظة الأداة','Tool message'),safe(f.detail)):'')
     +detail(copy('حالة الطلب','Request status'),safe(statusText(f.status)))
     +detail(copy('إعادة التحقق','Reverification'),safe(history||(f.closure?findingState(f):copy('لا يوجد دليل إعادة فحص','No rescan evidence'))))
-    +(profile.role==='qa'?'':detail(copy('قبل / بعد','Before / after'),release.prior&&history?mon('#'+release.prior.build+' → #'+release.build):'—'))+'</div>'
+    +(profile.role==='security'?detail(copy('قبل / بعد','Before / after'),release.prior&&history?mon('#'+release.prior.build+' → #'+release.build):'—'):'')+'</div>'
+    +((profile.role==='developer'||profile.role==='security')&&release.reports&&release.reports[f.tool]?'<p><a class="action rep-dl" href="/api/releases/'+encodeURIComponent(release.id)+'/reports/'+encodeURIComponent(f.tool)+'" download>'+copy('تنزيل تقرير ','Download the report of ')+safe(toolName(f.tool))+'</a></p>':'')
     +rescanHistory(f)
     +(id==='playwright-demo-001'?'<p class="note">'+copy('المتوقع: يظهر تأكيد الطلب بعد الإرسال. الفعلي: لم يظهر التأكيد في عينة الاختبار.','Expected: order confirmation appears after submission. Actual: the confirmation was absent in the demo run.')+'</p>':'')
     +(f.closure?'<p>'+copy('وقت تحقق الإغلاق','Verification time')+' '+mon(f.closure.timestamp)+'</p>':'')
     +(f.exception?'<p class="note"><b>'+copy('استثناء مسجل','Recorded exception')+'</b><br>'+safe(demoText(f.exception.justification))+' · '+safe(demoText(f.exception.approved_by))+'</p>':'')
     +(profile.role==='security'||(profile.role==='developer'&&release.stage==='security'&&!release.blockerIds.includes(f.fingerprint))?'':'<p>'+action('new-thread',release.stage==='security'?copy('طلب تمديد المهلة','Request deadline extension'):(profile.role==='qa'?copy('مراسلة المطوّر عن هذه المشكلة','Message the developer about this problem'):copy('ناقش هذه الملاحظة','Discuss this finding')),'data-id="'+safe(f.fingerprint)+'"')+'</p>')
-    +(profile.role==='developer'&&release.exceptionEligible.includes(f.fingerprint)?'<p>'+action('new-exception',copy('طلب استثناء أمني','Request security exception'),'data-id="'+safe(f.fingerprint)+'"')+'</p>':'')
+    +(profile.role==='developer'&&f.status==='open'?'<p>'+action(release.exceptionEligible.includes(f.fingerprint)?'new-exception':'exception-refused',copy('طلب استثناء','Request an exception'),'data-id="'+safe(f.fingerprint)+'"')+'</p>':'')
     +(f.explanation?'<div class="note explain"><b>'+copy('شرح يقظ للمطوّر','YAQIDH explanation for the developer')+'</b><br>'+safe(demoText(f.explanation.text))+'</div>':'')
     +(isLive()&&profile.role==='security'&&release.stage==='security'&&(release.exceptionEligible||[]).includes(f.fingerprint)&&f.status==='open'?'<p>'+action('exception',copy('منح استثناء','Grant exception'),'data-id="'+safe(f.fingerprint)+'"')+'</p>':''));
 }
 const gateStatusText=code=>({
   not_started:copy('لم يبدأ الفحص','Not started'),qa_blocked:copy('الجودة: فيه ملاحظات مانعة، يرجع للمطوّر','QA: blocking findings, back to the developer'),
   awaiting_qa_approval:copy('الجودة نجحت، بانتظار موافقة مراجع الجودة','QA passed, waiting for the QA reviewer'),
-  qa_rejected:copy('مراجع الجودة أرجع التعديل','The QA reviewer returned the change'),
+  qa_rejected:copy('مراجع الجودة أرجع الطلب','The QA reviewer returned the request'),
   awaiting_security_scan:copy('وافقت الجودة، الفحص الأمني لم يعمل بعد','QA approved, security not scanned yet'),
   security_blocked:copy('الأمن: فيه ملاحظات مانعة، يرجع للمطوّر','Security: blocking findings, back to the developer'),
   awaiting_security_approval:copy('الأمن نجح، بانتظار موافقة مراجع الأمن','Security passed, waiting for the security reviewer'),
-  security_rejected:copy('مراجع الأمن أرجع التعديل','The security reviewer returned the change'),
+  security_rejected:copy('مراجع الأمن أرجع الطلب','The security reviewer returned the request'),
   ready_to_merge:copy('اكتمل كل شي، الدمج مسموح','Everything passed and was approved: merge allowed')}[code]||code);
 function statusPanel(){
   const g=release&&release.gate;
   if(!g)return '';
   const row=(label,ok)=>'<p>'+badge(ok?copy('مسموح','Allowed'):copy('ممنوع','Blocked'),ok?'good':'bad')+' '+label+'</p>';
-  return '<section class="panel gate"><h2>'+copy('حالة الإصدار والدمج','Release status and merge')+'</h2><p><b>'+safe(gateStatusText(g.status))+'</b></p>'
+  return '<section class="panel gate"><h2>'+copy('حالة الطلب','Request status')+'</h2><p><b>'+safe(gateStatusText(g.status))+'</b></p>'
     +row(copy('الدمج على staging','Merge to staging'),g.staging)+row(copy('الدمج على main','Merge to main'),g.main)
     +(g.reasons&&g.reasons.length?'<p class="muted">'+g.reasons.map(r=>safe(displayReason(r))).join(' · ')+'</p>':'')+'</section>';
 }
@@ -311,6 +312,12 @@ async function handleAction(button){
   if(!release)return;
   if(id==='queue'||id==='returned-build'){qaTab=null;if(dialog.open)dialog.close();await selectRelease(button.dataset.id);if(id==='returned-build')modal(copy('سبب الإرجاع','Return reason'),decisionList());return}
   if(id==='new-exception')return startExceptionRequest(button.dataset.id);
+  if(id==='exception-refused'){
+    const f=release.findings.find(x=>x.fingerprint===button.dataset.id);
+    const why=f&&f.severity==='high'?copy('هذي ملاحظة عالية الخطورة، وما تُستثنى. عالجها وارفع تعديلًا على نفس الطلب، ويعيد يقظ الفحص تلقائيًا.','This is a high-severity finding and cannot be excepted. Fix it and push a change to the same request; Yaqidh re-checks automatically.')
+      :copy('هذي ملاحظة منخفضة الخطورة، وما تمنع الإطلاق، فما تحتاج استثناء.','This is a low-severity finding. It does not block the release, so it needs no exception.');
+    return modal(copy('طلب استثناء','Request an exception'),'<p>'+why+'</p><p class="muted">'+copy('الاستثناء متاح فقط للملاحظات المتوسطة، وقراره لمراجع الأمن.','Exceptions are only for medium findings, and the security reviewer decides.')+'</p>');
+  }
   if(id==='new-thread')return startThread(button.dataset.id||'');
   if(id==='sample-approved')return selectRelease(sampleBuild('approved'));
   if(id==='sample-issue'||id==='sample-ready')return selectRelease(sampleBuild(id==='sample-issue'?'issue':'ready'));
@@ -330,11 +337,18 @@ async function handleAction(button){
       +'<p>'+Object.entries(release.toolVersions).map(([key,value])=>safe(versionName(key))+' · '+mon(versionValue(value))).join(' ')+'</p>'
       +'<a class="action" href="/api/releases/'+encodeURIComponent(release.id)+'/evidence">'+copy('تصدير الأدلة المصرّح بها','Export authorized evidence')+'</a>');
   }
-  if(id==='approve'||id==='reject'){
-    return modal(id==='approve'?copy('تسجيل الموافقة','Record approval'):copy('إرجاع التعديل','Return change'),
-      '<p>'+safe(buildName(release.build))+' · '+mon(release.commit)+'</p><form id="decision-form" data-choice="'+id+'" data-release="'+safe(release.id)+'" data-commit="'+safe(release.commit)+'">'
+  if(id==='approve'){
+    const key=release.id;
+    const updated=await api('/api/releases/'+encodeURIComponent(key)+'/decision',{decision:'approve',reason:copy('موافقة','Approved'),commit:release.commit});
+    if(release?.id===key){release=updated;render()}
+    notify(copy('تمت الموافقة','Approved'));
+    return;
+  }
+  if(id==='reject'){
+    return modal(id==='approve'?copy('موافقة','Approve'):copy('إرجاع الطلب','Return request'),
+      '<p>'+safe(requestName(release.pr))+' · '+mon(release.commit)+'</p><form id="decision-form" data-choice="'+id+'" data-release="'+safe(release.id)+'" data-commit="'+safe(release.commit)+'">'
       +'<label class="field">'+copy('السبب','Reason')+'<textarea name="reason" required minlength="3" maxlength="1000"></textarea></label>'
-      +'<button class="primary">'+copy('حفظ القرار','Save decision')+'</button></form>');
+      +'<button class="primary">'+(id==='reject'?copy('إرجاع الطلب','Return request'):copy('حفظ القرار','Save decision'))+'</button></form>');
   }
 }
 const metricTip=document.createElement('div');
@@ -426,7 +440,10 @@ document.addEventListener('submit',async event=>{
     }
     if(form.id==='exception-form'){
       const key=form.dataset.release;
-      const updated=await api('/api/releases/'+encodeURIComponent(key)+'/exception',{fingerprint:form.dataset.finding,justification:data.justification});
+      const picked=form.dataset.finding?[form.dataset.finding]:new FormData(form).getAll('finding');
+      if(!picked.length){notify(copy('اختاري ملاحظة واحدة على الأقل','Pick at least one finding'));return}
+      let updated=null;
+      for(const fingerprint of picked)updated=await api('/api/releases/'+encodeURIComponent(key)+'/exception',{fingerprint,justification:data.justification||copy('قبلها مراجع الأمن','Accepted by the security reviewer')});
       if(release?.id===key){release=updated;dialog.close();render()}
       notify(copy('تم تسجيل الاستثناء','Exception recorded'));
     }

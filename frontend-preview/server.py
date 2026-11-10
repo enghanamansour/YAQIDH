@@ -70,6 +70,10 @@ STATIC = {
     "/pages/communication.js": "pages/communication.js",
     "/pages/admin.js": "pages/admin.js",
     "/pages/dashboard/developer.js": "pages/dashboard/developer.js",
+    "/pages/dashboard/report.js": "pages/dashboard/report.js",
+    "/pages/dashboard/security.js": "pages/dashboard/security.js",
+    "/pages/exceptions.js": "pages/exceptions.js",
+    "/pages/dashboard/exceptions.js": "pages/dashboard/exceptions.js",
     "/pages/dashboard/review.js": "pages/dashboard/review.js",
     "/pages/dashboard/qa.js": "pages/dashboard/qa.js",
     "/pages/dashboard/index.js": "pages/dashboard/index.js",
@@ -170,7 +174,7 @@ def qa_checks(stage):
                       "state": state, "finding": f.fingerprint if f is not None else None})
     for rule, f in by_rule.items():  # any other check that produced a finding
         closed = f.closure is not None and f.closure.result == "closed"
-        items.append({"id": rule, "titleAr": finding_title(f), "titleEn": finding_title(f), "descAr": f.detail or "", "descEn": f.detail or "",
+        items.append({"id": rule, "titleAr": finding_title(f), "titleEn": finding_title(f), "descAr": getattr(f, "detail", "") or "", "descEn": getattr(f, "detail", "") or "",
                       "state": "fixed" if closed or f.status.value == "fixed" else "failed", "finding": f.fingerprint})
     return items
 
@@ -227,8 +231,9 @@ def requirement_status(checks, entries):
 def finding_title(finding):
     """A readable name for a real finding (the tools give rule ids like python.flask.security.audit.debug-enabled)."""
     rule = finding.rule or ""
-    if finding.tool == "trivy" and finding.detail:
-        return f"{rule}: {finding.detail}" if rule else finding.detail
+    detail = getattr(finding, "detail", "")
+    if finding.tool == "trivy" and detail:
+        return f"{rule}: {detail}" if rule else detail
     if finding.tool == "playwright":
         return rule.replace("_", " ")
     if finding.tool == "semgrep":
@@ -316,6 +321,39 @@ class Handler(BaseHTTPRequestHandler):
             return meta["active"] == "security"
         return role == "qa"
 
+    def stage_summary(self, record, key):
+        """For the developer: how each stage stands (tests failed, problems still open and how serious, who must still decide)."""
+        live = self.server.live
+        out = {}
+        for item in record.stages:
+            name = item.name.value
+            findings = list(item.findings)
+            is_open = [f for f in findings if f.status.value == "open"]
+            fixed = [f for f in findings if f.status.value == "fixed" or (f.closure is not None and f.closure.result == "closed")]
+            decided = [d for d in record.human_decisions if d.stage.value == name]
+            last = decided[-1].decision if decided else None
+            result = item.decision.result if item.decision else None
+            scanned = bool(getattr(item, "scanned_at", None) or item.decision or item.tool_versions)
+            waiting = live.can_decide(key, name) if live else (result == "pass" and last != "approve")
+            tools = {}
+            for f in findings:
+                row = tools.setdefault(f.tool, {"total": 0, "open": 0, "high": 0, "low": 0})
+                row["total"] += 1
+                if f.status.value == "open":
+                    row["open"] += 1
+                    row["high" if f.severity.value == "high" else "low"] += 1
+            if name == "qa":
+                checks = qa_checks(item)
+                passed, total = sum(c["state"] in ("passed", "fixed") for c in checks), len(checks)
+            else:
+                passed, total = len(fixed), len(findings)
+            out[name] = {"scanned": scanned, "result": result, "failed": len(is_open) if name == "qa" else 0, "open": len(is_open),
+                         "passed": passed, "total": total,
+                         "openHigh": sum(f.severity.value == "high" for f in is_open), "openLow": sum(f.severity.value != "high" for f in is_open),
+                         "fixed": len(fixed), "decision": last, "awaitingHuman": bool(waiting), "tools": tools,
+                         "versions": dict(item.tool_versions or {})}
+        return out
+
     def release_view(self, account, key):
         role = ACCOUNTS[account]["role"]
         record = self.server.store.get(key)
@@ -336,6 +374,10 @@ class Handler(BaseHTTPRequestHandler):
             "qaChecks": qa_checks(stage) if stage_name == "qa" else [],
             "requirements": requirement_status(qa_checks(stage), requirements_entries) if stage_name == "qa" else [],
             "requirementsSource": requirements_source,
+            "stages": self.stage_summary(record, key) if role == "developer" else {},
+            "reports": live.reports(key) if live and role in ("developer", "security") else {},
+            "report": live.report(key) if live and role in ("developer", "security") else None,
+            "live": live is not None,
             "gate": {"status": status["status"], "staging": status["can_merge_to_staging"], "main": status["can_merge_to_main"],
                      "reasons": status["reasons"]} if status else None,
             "id": key, **{k: v for k, v in meta.items() if k != "owner"}, "demo": True,
@@ -364,7 +406,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         path = urlsplit(self.path).path
-        if path in {"/", "/about", "/login", "/signup", "/dashboard", "/communication"} or path in STATIC:
+        if path in {"/", "/about", "/login", "/signup", "/dashboard", "/communication", "/exceptions"} or path in STATIC:
             target = ROOT / "web" / STATIC.get(path, "index.html")
             self.send_data(200, target.read_bytes(), MIME[target.suffix])
             return
@@ -409,6 +451,21 @@ class Handler(BaseHTTPRequestHandler):
                     "reviewAlerts": self.qa_review_alerts(account) if role == "qa" else [],
                     "liveError": self.server.live.error if self.server.live else ""})
             parts = path.strip("/").split("/")
+            if len(parts) in {4, 5} and parts[:2] == ["api", "releases"] and parts[3] == "reports":
+                key = parts[2]
+                if not self.server.live or role not in ("developer", "security") or not self.visible(account, key):
+                    return self.fail(403, "forbidden")
+                if len(parts) == 4:
+                    return self.json(200, self.server.live.reports(key))
+                tool = parts[4]
+                if tool not in ("semgrep", "trivy"):
+                    return self.fail(404, "not_found")
+                from live import LiveError
+                try:
+                    data = self.server.live.report_bytes(key, tool)
+                except LiveError:
+                    return self.fail(404, "not_found")
+                return self.send_data(200, data, "application/json", [("Content-Disposition", f'attachment; filename="{key}-{tool}-report.json"')])
             if len(parts) in {3, 4} and parts[:2] == ["api", "releases"]:
                 key = parts[2]
                 if not self.visible(account, key):
@@ -701,7 +758,8 @@ class Handler(BaseHTTPRequestHandler):
         path = urlsplit(self.path).path
         origin = self.headers.get("Origin")
         host = self.headers.get("Host", "")
-        if host not in {f"127.0.0.1:{self.server.server_port}", f"localhost:{self.server.server_port}"}:
+        # three names for the same machine: a browser keeps a separate session for each (developer, QA and security side by side)
+        if host not in {f"127.0.0.1:{self.server.server_port}", f"localhost:{self.server.server_port}", f"localhost.:{self.server.server_port}"}:
             return self.fail(403, "forbidden")
         if origin != f"http://{host}" or self.headers.get_content_type() != "application/json":
             return self.fail(403, "forbidden")

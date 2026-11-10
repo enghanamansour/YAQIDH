@@ -5,6 +5,7 @@ for a decision, and add explanation text. It cannot: choose tools or targets, se
 write a closure, record an exception, or record a human decision.
 """
 
+import json
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -71,9 +72,46 @@ class ReleaseService:
     def _run(self, runner: Runner, release_id: str) -> ScanResult:
         token = CURRENT_RELEASE.set(release_id)
         try:
-            return runner(self.target)
+            result = runner(self.target)
         finally:
             CURRENT_RELEASE.reset(token)
+        if result.raw:
+            self._keep_reports(release_id, result)
+        return result
+
+    # --- the tools' own reports (what Semgrep and Trivy printed), kept as they are so they can be downloaded ---
+    def _reports_dir(self, release_id: str) -> Path:
+        return self.store.data_dir / "reports" / release_id
+
+    def _keep_reports(self, release_id: str, result: ScanResult) -> None:
+        try:
+            folder = self._reports_dir(release_id)
+            folder.mkdir(parents=True, exist_ok=True)
+            meta_path = folder / "meta.json"
+            meta = json.loads(meta_path.read_text(encoding="utf-8")) if meta_path.exists() else {}
+            commit = self.store.get(release_id).head_commit if self.store.exists(release_id) else ""
+            for tool, text in result.raw.items():
+                (folder / f"{tool}.json").write_text(text, encoding="utf-8")
+                meta[tool] = {"commit": commit, "at": utcnow().isoformat(), "bytes": len(text.encode("utf-8")),
+                              "versions": {k: v for k, v in result.versions.items() if k.startswith(tool)}}
+            meta_path.write_text(json.dumps(meta), encoding="utf-8")
+        except OSError:  # a report that cannot be saved must never stop the scan
+            pass
+
+    def list_reports(self, release_id: str) -> dict:
+        meta_path = self._reports_dir(release_id) / "meta.json"
+        try:
+            return json.loads(meta_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return {}
+
+    def read_report(self, release_id: str, tool: str) -> str:
+        if tool not in ("semgrep", "trivy"):
+            raise ServiceError(f"no report for tool '{tool}'")
+        try:
+            return (self._reports_dir(release_id) / f"{tool}.json").read_text(encoding="utf-8")
+        except OSError:
+            raise ServiceError(f"no {tool} report for {release_id} yet") from None
 
     def _runner(self, stage: StageName) -> Runner:
         runner = self.runners.get(stage)

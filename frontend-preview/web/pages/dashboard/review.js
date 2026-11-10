@@ -78,6 +78,7 @@ function reviewView(){
   const visibleRuns=release.runs.filter(r=>(tool==='all'||r.tool===tool)&&(runFilter==='all'||r.state===runFilter));
   const completed=visibleRuns.filter(r=>r.state==='completed');
   const unread=threads.filter(thread=>thread.release===release.id&&thread.unread);
+  if(profile.role==='security')return securityView();
   if(profile.role==='qa'){
     const shown=qaShowsRelease();
     const main=shown?qaResult(open,closed):qaEmptyResult();
@@ -90,7 +91,7 @@ function reviewView(){
     +(thread.exceptionRequest?copy('مراجعة طلب استثناء','Review exception request'):copy('مراجعة طلب تمديد','Review extension request'))+'</a>').join('');
   return greeting()+reviewQueue()+releaseHeader()
     +(profile.role==='qa'?qaMetrics(open,closed):'<div class="metric-row">'+(profile.role==='security'?metric(copy('ملاحظات مانعة','Blocking findings'),release.outcome?blockers.length:'—',blockers.length?'bad':'',blockers,buildScope(release.outcome?.reasons.map(displayReason).join(' · ')||copy('بانتظار نتيجة محرك القواعد.','Awaiting a policy outcome.')),findingRecord):metric(copy('مشاكل مفتوحة','Open problems'),open.length,open.length?'wait':'',open,buildScope(copy('الملاحظات المطابقة التي تحتاج متابعة.','Matching findings that need follow-up.')),findingRecord))
-    +metric(copy('مشاكل انحلّت','Problems fixed'),closed.length,'good',closed,buildScope(copy('الإغلاقات المثبتة ضمن الفلاتر الحالية.','Verified closures within active filters.')),findingRecord)
+    +metric(copy('مشاكل انحلّت','Problems fixed'),closed.length,'good',closed,buildScope(copy('ما أُغلق ضمن الفلاتر الحالية.','Closed within active filters.')),findingRecord)
     +metric(copy('تشغيلات مكتملة في السجل','Completed recorded runs'),visibleRuns.length?fraction(completed.length,visibleRuns.length):'—','',visibleRuns,buildScope(copy('المكتمل من التشغيلات المطابقة للأداة وحالة التشغيل.','Completed runs out of those matching tool and run-state filters.')),runRecord)
     +metric(copy('محادثات تنتظر الاطلاع','Unread conversations'),unread.length,'',unread,buildScope(copy('المحادثات غير المقروءة لهذا البناء.','Unread conversations for this build.')),thread=>'<a href="/communication?thread='+encodeURIComponent(thread.id)+'">'+safe(threadText(thread.subject))+'</a>')+'</div>')
     +'<section class="panel"><div class="section-head"><h2>'+copy('أدلة المرحلة والإجراءات','Stage evidence and actions')+'</h2><div class="actions">'
@@ -98,13 +99,13 @@ function reviewView(){
     +(profile.role==='security'?action('previous-qa',copy('موافقة الجودة السابقة','Previous QA approval')):'')+(release.prior?action('prior',copy('البناء السابق','Previous build')):'')
     +reviewLinks
     +(release.canReject?action('reject',copy('إرجاع مع السبب','Return with reason')):'')
-    +(release.canApprove?action('approve',profile.role==='security'?copy('اعتماد البناء','Approve build'):copy('تسجيل الموافقة','Record approval'),'class="primary"'):'')
+    +(release.canApprove?action('approve',profile.role==='security'?copy('موافقة','Approve'):copy('موافقة','Approve'),'class="primary"'):'')
     +'</div></div></section>'+findingsView()+'<section class="panel"><h2>'+copy('السجل','History')+'</h2>'+historyView()+'</section>';
 }
 
 function greeting(){
-  if(profile.role!=='qa'&&profile.role!=='developer')return '';
-  return '<header class="greet"><p class="greet-hi">'+copy('أهلًا بك','Welcome')+(profile.display?'، '+safe(profile.display):'')+'</p><h1 class="greet-title">'+(profile.role==='developer'?copy('لوحة متابعة المطوّر','Developer dashboard'):copy('لوحة متابعة الجودة','QA dashboard'))+'</h1></header>';
+  if(!['qa','developer','security'].includes(profile.role))return '';
+  return '<header class="greet"><p class="greet-hi">'+copy('أهلًا بك','Welcome')+(profile.display?'، '+safe(profile.display):'')+'</p><h1 class="greet-title">'+(profile.role==='developer'?copy('لوحة متابعة المطوّر','Developer dashboard'):profile.role==='security'?copy('لوحة متابعة الأمن السيبراني','Cybersecurity dashboard'):copy('لوحة متابعة الجودة','QA dashboard'))+'</h1></header>';
 }
 
 function qaMetrics(open,closed){
@@ -117,7 +118,6 @@ function qaMetrics(open,closed){
   const fixedRecord=f=>'<b>'+safe(findingName(f))+'</b><br><small>'+copy('انحلّت · تأكّد النظام بعد إعادة الفحص','Fixed · confirmed by the system after a re-check')+(f.closure&&f.closure.timestamp?' · '+mon(String(f.closure.timestamp).slice(0,16).replace('T',' ')):'')+'</small> '+action('finding',copy('كل التفاصيل','All details'),'data-id="'+safe(f.fingerprint)+'"');
   const requestRecord=r=>safe(requestName(r.pr))+' '+action('queue',copy('فتح الطلب','Open request'),'data-id="'+safe(r.id)+'"');
   return '<div class="metric-row five">'
-    +metric(copy('العدد الإجمالي للاختبارات الفاشلة','Total failed tests'),failedTests.length,failedTests.length?'bad':'',failedTests,buildScope(copy('الاختبارات التي فشلت في هذا الطلب.','Tests that failed in this request.')),testRecord)
     +metric(copy('العدد الإجمالي للاختبارات الناجحة','Total passed tests'),passedTests.length,'good',passedTests,buildScope(copy('الاختبارات التي نجحت في هذا الطلب.','Tests that passed in this request.')),testRecord)
     +metric(copy('عدد المشاكل المفتوحة','Open problems'),open.length,open.length?'wait':'',open,buildScope(copy('كل مشكلة ودليلها.','Each problem with its evidence.')),issueRecord)
     +metric(copy('عدد المشاكل التي انحلّت','Problems fixed'),closed.length,'good',closed,buildScope(copy('مشاكل تأكّد النظام من إصلاحها.','Problems the system confirmed as fixed.')),fixedRecord)
@@ -128,7 +128,7 @@ function qaDecision(){
   return '<section class="panel"><div class="section-head"><h2>'+copy('قرارك','Your decision')+'</h2><div class="actions">'
     +action('new-thread',copy('مراسلة المطوّر','Message the developer'))
     +(release.canReject?action('reject',copy('إرجاع مع السبب','Return with reason')):'')
-    +(release.canApprove?action('approve',copy('تسجيل الموافقة','Record approval'),'class="primary"'):'')
+    +(release.canApprove?action('approve',copy('موافقة','Approve'),'class="primary"'):'')
     +'</div></div>'+(release.canApprove||release.canReject?'':'<p class="muted">'+copy('لا قرار مطلوب منك الحين.','No decision is needed from you now.')+'</p>')+'</section>';
 }
 
@@ -149,7 +149,7 @@ function qaResult(open,closed){
   const bar=reqs.length?'<svg viewBox="0 0 100 8" preserveAspectRatio="none" aria-hidden="true">'+seg(metR,'good',0)+seg(failedR,'bad',metR.length/reqs.length*100)+seg(restR,'wait',(metR.length+failedR.length)/reqs.length*100)+'</svg>':'';
   const shield='<div class="shield-chart qa-shield '+tone+'"><svg viewBox="0 0 140 145" aria-hidden="true"><path class="shield-outer" d="M70 6 131 26v46c0 35-26 53-61 68C35 125 9 107 9 72V26Z"/><path class="shield-inner" d="M70 15 122 32v40c0 30-22 46-52 59C40 118 18 102 18 72V32Z"/></svg><div class="shield-content"><strong>'+outcomeText()+'</strong></div></div>';
   const ring='<div class="qa-ring-wrap"><svg viewBox="0 0 108 108" class="chart-donut qa-ring" role="img" aria-label="'+ok+' / '+count+'"><circle class="qa-ring-track" cx="54" cy="54" r="39" pathLength="100"/><circle class="qa-ring-ok" cx="54" cy="54" r="39" pathLength="100" stroke-dasharray="100" stroke-dashoffset="'+(100-pct)+'"/><text x="54" y="60">'+ok+'/'+count+'</text></svg></div>';
-  const decide=(release.canReject?action('reject',copy('إرجاع مع السبب','Return with reason')):'')+(release.canApprove?action('approve',copy('تسجيل الموافقة','Record approval'),'class="primary"'):'');
+  const decide=(release.canReject?action('reject',copy('إرجاع مع السبب','Return with reason')):'')+(release.canApprove?action('approve',copy('موافقة','Approve'),'class="primary"'):'');
   const summary=reqs.length?'<b>'+failedR.length+'</b> '+copy('من','of')+' <b>'+reqs.length+'</b> '+copy('متطلب لم يتحقق','requirements are not met'):'';
   const key=reqs.length?'<div class="qa-req-key"><span class="good">'+copy('تحققت','Met')+' '+metR.length+'</span><span class="bad">'+copy('لم تتحقق','Not met')+' '+failedR.length+'</span><span class="wait">'+copy('غير مغطّاة','Not covered')+' '+restR.length+'</span><span class="fixed">'+copy('مشاكل انحلّت','Problems fixed')+' '+closed.length+'</span></div>':'<div class="qa-req-key"><span class="fixed">'+copy('مشاكل انحلّت','Problems fixed')+' '+closed.length+'</span></div>';
   const source=release.requirementsSource&&release.requirementsSource.kind==='github'?'<p class="req-source">'+copy('المصدر: GitHub','Source: GitHub')+' · <span dir="ltr">'+safe(release.requirementsSource.repo)+'/'+safe(release.requirementsSource.path)+'</span></p>':'';
@@ -174,7 +174,7 @@ function qaEmptyResult(){
 }
 function qaZeroMetrics(){
   const z=(label,tone)=>metric(label,0,tone,[],'',safe);
-  return '<div class="metric-row five">'+z(copy('العدد الإجمالي للاختبارات الفاشلة','Total failed tests'),'')+z(copy('العدد الإجمالي للاختبارات الناجحة','Total passed tests'),'')+z(copy('عدد المشاكل المفتوحة','Open problems'),'')+z(copy('عدد المشاكل التي انحلّت','Problems fixed'),'')+z(copy('عدد الطلبات التي تنتظر موافقتك','Requests awaiting your approval'),'')+'</div>';
+  return '<div class="metric-row five">'+z(copy('العدد الإجمالي للاختبارات الناجحة','Total passed tests'),'')+z(copy('عدد المشاكل المفتوحة','Open problems'),'')+z(copy('عدد المشاكل التي انحلّت','Problems fixed'),'')+z(copy('عدد الطلبات التي تنتظر موافقتك','Requests awaiting your approval'),'')+'</div>';
 }
 
 let qaTab=null;
@@ -185,15 +185,15 @@ function qaGroup(item){
 const qaDefaultTab=()=>profile.role==='developer'?'action':'open';
 function qaRail(){
   const all=profile.releases||[];
-  const groups=profile.role==='developer'?[['action',copy('تحتاج إجراءك','Needs you')],['review',copy('قيد المراجعة','In review')],['done',copy('جاهزة','Ready')]]:[['awaiting',copy('تنتظر موافقتك','Awaiting you')],['open',copy('مفتوحة','Open')],['closed',copy('مغلقة','Closed')]];
+  const groups=profile.role==='developer'?[['action',copy('تحتاج إلى معالجتك','Needs your fix')],['review',copy('قيد المراجعة','In review')],['done',copy('جاهزة','Ready')]]:[['awaiting',copy('تنتظر موافقتك','Awaiting you')],['open',copy('مفتوحة','Open')],['closed',copy('مغلقة','Closed')]];
   const current=qaCurrentTab();
   const rows=all.filter(r=>qaGroup(r)===current);
   const status=item=>item.outcome==='fail'?['bad',copy('فشل','Failed')]:item.pendingReview?['wait',copy('ينتظر قرارك','Awaiting you')]:item.outcome==='pass'?['good',copy('نجح','Passed')]:['wait',copy('بانتظار الفحص','Waiting')];
   const pick='<label class="rail-pick"><span>'+copy('اختاري الطلب','Choose a request')+'</span><select class="request-pick">'+(release?'':'<option value="">—</option>')
-    +groups.map(([id,label])=>{const list=all.filter(r=>qaGroup(r)===id);return list.length?'<optgroup label="'+label+'">'+list.map(item=>'<option value="'+safe(item.id)+'" '+(release&&item.id===release.id?'selected':'')+'>'+safe(requestName(item.pr))+' · '+status(item)[1]+'</option>').join('')+'</optgroup>':''}).join('')+'</select></label>';
+    +groups.map(([id,label])=>{const list=all.filter(r=>qaGroup(r)===id);return list.length?'<optgroup label="'+label+'">'+list.map(item=>'<option value="'+safe(item.id)+'" '+(release&&item.id===release.id?'selected':'')+'>'+safe(requestName(item.pr))+'</option>').join('')+'</optgroup>':''}).join('')+'</select></label>';
   return '<aside class="qa-rail"><span class="eyebrow">'+copy('الطلبات','Requests')+'</span>'+pick+'<div class="rail-tabs" role="tablist">'
     +groups.map(([id,label])=>'<button type="button" role="tab" aria-selected="'+(id===current)+'" class="'+(id===current?'on':'')+'" data-action="qa-tab" data-id="'+id+'">'+label+'<b>'+all.filter(r=>qaGroup(r)===id).length+'</b></button>').join('')+'</div>'
-    +'<div class="rail-list">'+(rows.length?rows.map(item=>{const [t,l]=status(item);return '<div class="rail-item"><button type="button" class="rail-row '+t+(release&&item.id===release.id?' on':'')+'" data-action="queue" data-id="'+safe(item.id)+'"><i></i><span class="rail-name">'+safe(requestName(item.pr))+'</span><small>'+safe(branchName(item.branch||''))+'</small><em>'+l+'</em></button>'+'</div>'}).join(''):'<p class="muted rail-empty">'+copy('لا توجد طلبات هنا.','No requests here.')+'</p>')+'</div>'+(current==='awaiting'&&profile.role==='qa'?'<button type="button" class="rail-approve" data-action="approve" '+(release&&release.canApprove&&qaShowsRelease()?'':'disabled ')+'title="'+copy('تتفعّل لما يوصلك طلب ناجح ينتظر موافقتك','Enabled when a passing request is waiting for you')+'">'+copy('موافقة','Approve')+'</button>':'')+'</aside>';
+    +'<div class="rail-list">'+(rows.length?rows.map(item=>{const [t,l]=status(item);return '<div class="rail-item"><button type="button" class="rail-row '+t+(release&&item.id===release.id?' on':'')+'" data-action="queue" data-id="'+safe(item.id)+'"><i></i><span class="rail-name">'+safe(requestName(item.pr))+'</span><small>'+safe(branchName(item.branch||''))+'</small></button>'+'</div>'}).join(''):'<p class="muted rail-empty">'+copy('لا توجد طلبات هنا.','No requests here.')+'</p>')+'</div>'+(current==='awaiting'&&(profile.role==='qa'||profile.role==='security')?'<div class="rail-decide"><button type="button" class="rail-approve" data-action="approve" '+(release&&release.canApprove&&qaShowsRelease()?'':'disabled ')+'title="'+copy('تتفعّل لما يوصلك طلب ناجح ينتظر موافقتك','Enabled when a passing request is waiting for you')+'">'+copy('موافقة','Approve')+'</button><button type="button" class="rail-return" data-action="reject" '+(release&&release.canReject&&qaShowsRelease()?'':'disabled ')+'title="'+copy('تتفعّل لما يوصلك طلب ينتظر قرارك','Enabled when a request is waiting for your decision')+'">'+copy('إرجاع مع السبب','Return with reason')+'</button></div>':'')+'</aside>';
 }
 
 function reqModal(id){
@@ -208,7 +208,7 @@ function reqModal(id){
 }
 
 function qaStory(){
-  const entries=((release.log||{}).entries||[]).filter(e=>profile.role==='developer'||!(e.data||{}).stage||(e.data||{}).stage==='qa');
+  const entries=((release.log||{}).entries||[]).filter(e=>profile.role==='developer'||!(e.data||{}).stage||(e.data||{}).stage===(profile.role==='security'?'security':'qa'));
   const findingOf=fp=>release.findings.find(f=>f.fingerprint===fp);
   const line=e=>{const d=e.data||{};
     if(e.event==='event')return ['wait',d.event==='pull_request_opened'?copy('المطوّر فتح الطلب على GitHub','The developer opened the request on GitHub'):copy('المطوّر رفع تعديلًا جديدًا','The developer pushed a new change'),''];
@@ -216,7 +216,7 @@ function qaStory(){
     if(e.event==='rescan')return ['good',copy('أعاد يقظ الفحص','Yaqidh re-checked'),copy('انحلّت','Fixed')+' '+(d.closed||[]).length+' · '+copy('بقيت','Still open')+' '+(d.still_open||[]).length+' · '+copy('جديدة','New')+' '+(d.new||[]).length];
     if(e.event==='policy_decision')return [d.result==='pass'?'good':'bad',d.result==='pass'?copy('قرر النظام: نجح','The system decided: passed'):copy('قرر النظام: فشل','The system decided: failed'),(d.reasons||[]).map(displayReason).join(' · ')];
     if(e.event==='explanation'){const f=findingOf(d.fingerprint);return ['wait',copy('شرح الوكيل المشاكل للمطوّر','The agent explained the problems to the developer'),f?findingName(f)+(((f.explanation&&f.explanation.text)||d.text)?': '+((f.explanation&&f.explanation.text)||d.text):''):(d.text||'')];}
-    if(e.event==='human_decision')return [d.decision==='approve'?'good':'bad',d.decision==='approve'?copy('وافق مراجع الجودة','The QA reviewer approved'):copy('أرجع مراجع الجودة الطلب','The QA reviewer returned the request'),d.reason||''];
+    if(e.event==='human_decision')return [d.decision==='approve'?'good':'bad',d.decision==='approve'?(profile.role==='security'?copy('وافق مراجع الأمن','The security reviewer approved'):copy('وافق مراجع الجودة','The QA reviewer approved')):(profile.role==='security'?copy('أرجع مراجع الأمن الطلب','The security reviewer returned the request'):copy('أرجع مراجع الجودة الطلب','The QA reviewer returned the request')),d.reason||''];
     return null};
   const rows=[];
   let prev='';

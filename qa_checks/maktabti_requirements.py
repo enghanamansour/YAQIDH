@@ -44,8 +44,9 @@ def search_output_is_escaped(page, base_url):
 
 def cart_add_and_quantity_work(page, base_url):
     _login(page, base_url)
-    for _ in range(2):
-        page.request.post(f"{base_url}/cart/add/1")
+    for _ in range(2):  # like a person: open the book and press the button (so a CSRF token in the form is sent too)
+        page.goto(f"{base_url}/books/1")
+        page.click("[data-testid=add-to-cart]")
     page.goto(f"{base_url}/cart")
     quantity = page.locator("[data-testid=cart-table] tbody tr td:nth-child(2)").first.inner_text().strip()
     assert quantity == "2", f"adding the same book twice gave quantity {quantity!r}, expected 2"

@@ -32,6 +32,7 @@ class LiveBackend:
         self.owners = tuple(owners)
         self._evidence: dict[str, dict] = {}
         self._status: dict[str, dict] = {}
+        self._report: dict[str, dict | None] = {}
         self.error = ""  # why the last refresh failed ("" = fine), shown to the user instead of an empty page
 
     def _call(self, method: str, path: str, body: dict | None = None):
@@ -56,6 +57,7 @@ class LiveBackend:
         """Rebuilds the dashboard's release tables from the API. Called once per request."""
         self._evidence.clear()
         self._status.clear()
+        self._report.clear()
         releases.clear(), runs.clear(), dates.clear()
         self.error = ""
         try:
@@ -97,6 +99,33 @@ class LiveBackend:
 
     def can_decide(self, key: str, role: str) -> bool:
         return self.status(key) == f"awaiting_{role}_approval"
+
+    def report(self, key: str):
+        """The developer's report for one release, worked out by the API. None if the API cannot give it."""
+        if key not in self._report:
+            try:
+                self._report[key] = self._call("GET", f"/releases/{key}/report")
+            except LiveError:
+                self._report[key] = None
+        return self._report[key]
+
+    def reports(self, key: str) -> dict:
+        """Which tool reports were kept for this release (tool -> commit, time, size, versions)."""
+        try:
+            return self._call("GET", f"/releases/{key}/reports") or {}
+        except LiveError:
+            return {}
+
+    def report_bytes(self, key: str, tool: str) -> bytes:
+        """A tool's own report, exactly as the tool printed it."""
+        request = urllib.request.Request(self.base_url + f"/releases/{key}/reports/{tool}", headers={"X-API-Token": self.token})
+        try:
+            with urllib.request.urlopen(request, timeout=15) as response:
+                return response.read()
+        except urllib.error.HTTPError as e:
+            raise LiveError(e.code, "no such report") from None
+        except (urllib.error.URLError, TimeoutError) as e:
+            raise LiveError(503, f"the Yaqidh API is not reachable: {e}") from None
 
     def history(self, key: str) -> dict:
         """The release's event log and whether its hash chain is intact (fetched only for the detail view)."""
