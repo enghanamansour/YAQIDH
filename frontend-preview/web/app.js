@@ -25,14 +25,14 @@ const roleNames=role=>({
   security:copy('مراجع الأمن السيبراني','Security reviewer'),'company-admin':copy('مسؤول إدارة الشركة','Company admin'),
 }[role]||role);
 const projectName=id=>id==='portal'?copy('بوابة الخدمات','Services Portal'):id==='research'?copy('مشروع المختبر','Lab project'):id;
-const toolName=id=>({semgrep:copy('سيم غريب','Semgrep'),trivy:copy('تريفي','Trivy'),playwright:copy('بلاي رايت','Playwright')}[id]||id);
+const toolName=id=>({semgrep:'Semgrep',trivy:'Trivy',playwright:'Playwright'}[id]||id);
 const severityName=id=>({
   high:copy('مرتفعة','HIGH'),low:copy('منخفضة','LOW'),medium:copy('متوسطة','Medium'),
   critical:copy('حرجة','Critical'),info:copy('معلومة','Info'),unknown:copy('غير محددة','Unknown')
 }[id]||'—');
 const accountName=id=>({
   developer:copy('حساب المطور التجريبي','developer'),
-  qa:copy('حساب الجودة التجريبي','qa'),
+  qa:copy('مراجع الجودة','QA reviewer'),
   security:copy('حساب الأمن التجريبي','security'),
   'company-admin':copy('حساب إدارة الشركة التجريبي','company-admin'),
 
@@ -43,10 +43,15 @@ const versionName=id=>({
   trivy:toolName('trivy')
 }[id]||id);
 const versionValue=value=>['demo-rules','demo-db'].includes(value)?copy('نسخة تجريبية',value):value;
-const buildName=id=>copy('طلب الدمج #'+id,'PR #'+id);
-const requestName=id=>copy('طلب الدمج #'+id,'PR #'+id);
+const buildName=id=>copy('الطلب #'+id,'Request #'+id);
+const requestName=id=>copy('الطلب #'+id,'Request #'+id);
 const branchName=id=>id==='staging'?copy('فرع ما قبل الإطلاق','staging'):id;
-const findingName=f=>({
+const findingName=f=>{
+  const check=((typeof release!=='undefined'&&release&&release.qaChecks)||[]).find(c=>c.finding===f.fingerprint);
+  if(check)return copy(check.titleAr,check.titleEn);
+  return findingNameMap(f);
+};
+const findingNameMap=f=>({
   'demo.sql-query':copy('استعلام يستخدم مدخلات الطلب','Query uses request input'),
   'demo.order-confirmation':copy('لم يظهر تأكيد الطلب','Order confirmation missing'),
   'DEMO-ADVISORY-01':copy('ملاحظة في مكتبة مستخدمة','Dependency finding'),
@@ -118,7 +123,7 @@ let adminQuery='',adminActive='all';
 
 
 
-function outcomeText(){return release.outcome?(release.outcome.result==='pass'?copy('اجتاز','PASS'):copy('أخفق','FAIL')):release.runs.some(run=>run.state==='error')?copy('تعطل فحص مطلوب','Required check failed to run'):copy('بانتظار نتيجة صالحة','Awaiting a valid result')}
+function outcomeText(){return release.outcome?(release.outcome.result==='pass'?copy('نجح','PASS'):copy('فشل','FAIL')):release.runs.some(run=>run.state==='error')?copy('تعطل فحص مطلوب','Required check failed to run'):copy('بانتظار نتيجة صالحة','Awaiting a valid result')}
 function stageText(stage){return stage==='qa'?copy('فحص الجودة','Quality check'):copy('الفحص الأمني','Security check')}
 function statusText(status){return ({
   open:copy('تحتاج معالجة','Needs remediation'),fixed:copy('مُصلحة','Fixed'),excepted:copy('مستثناة','Excepted'),
@@ -146,7 +151,7 @@ function render(){
   metricDetails.clear();
   const page=location.pathname;
   if(page==='/'){app.innerHTML=header()+landing();startTyping();if(location.hash==='#about')document.getElementById('about').scrollIntoView();return}
-  const content=page==='/signup'?signup():!profile?login():page==='/communication'?communicationView():'<main>'+(profile.role==='qa'?'':introduction())+(profile.role==='company-admin'?adminView():dashboardView())+'</main>';
+  const content=page==='/signup'?signup():!profile?login():page==='/communication'?communicationView():'<main>'+(profile.role==='qa'||profile.role==='developer'?'':introduction())+(profile.role==='company-admin'?adminView():dashboardView())+'</main>';
   app.innerHTML=header()+(profile?sidebar():'')+'<div class="'+(profile?'shell':'public-shell')+'">'+content+'</div>';
 }
 async function selectRelease(id){
@@ -182,7 +187,7 @@ function eventDetail(e){
   const d=e.data||{};
   if(e.event==='scan')return (d.stage||'')+' · '+copy('ملاحظات','findings')+' '+d.findings;
   if(e.event==='rescan')return (d.stage||'')+' · '+copy('انقفل','closed')+' '+(d.closed||[]).length+' · '+copy('لسا مفتوح','still open')+' '+(d.still_open||[]).length+' · '+copy('جديد','new')+' '+(d.new||[]).length;
-  if(e.event==='policy_decision')return (d.stage||'')+' · '+(d.result==='pass'?copy('اجتاز','PASS'):copy('أخفق','FAIL'));
+  if(e.event==='policy_decision')return (d.stage||'')+' · '+(d.result==='pass'?copy('نجح','PASS'):copy('فشل','FAIL'));
   if(e.event==='human_decision')return (d.stage||'')+' · '+statusText(d.decision)+(d.reason?' · '+d.reason:'');
   if(e.event==='explanation')return (d.stage||'')+' · '+(d.fingerprint||'');
   if(e.event==='agent_run')return (d.stopped||'')+' · '+copy('خطوات','steps')+' '+(d.steps??'');
@@ -210,22 +215,23 @@ function findingModal(id){
   const history=Object.entries(flags).filter(([key])=>release.verification?.[key]?.includes(id)).map(([,label])=>label).join(' · ');
   modal(copy('دليل الملاحظة','Finding evidence'),'<div class="details-grid">'
     +detail(copy('البصمة','Fingerprint'),mon(f.fingerprint))+(profile.role==='developer'?'':detail(copy('الأداة','Tool'),safe(toolName(f.tool))))
-    +detail(copy('خطورة يقظ / التصنيف الأصلي','YAQIDH severity / original rating'),safe(severityName(f.severity)+' / '+severityName(f.reported_as)))
+    +'<div class="sev-big '+(f.severity==='high'?'bad':'good')+'"><small>'+copy('مستوى الخطورة','Severity')+'</small><strong>'+severityName(f.severity)+'</strong><span>'+(f.severity==='high'?copy('تمنع الإطلاق حتى تنحل','Blocks the release until fixed'):copy('لا تمنع الإطلاق','Does not block the release'))+'</span></div>'
     +detail(copy('القاعدة والموقع','Rule and location'),mon(f.rule)+' · '+mon(f.location))
-    +detail(copy('المكوّن وإصداره','Component and version'),mon(f.component||'—'))
+    +(profile.role==='qa'?'':detail(copy('المكوّن وإصداره','Component and version'),mon(f.component||'—')))
     +(f.fixed_version?detail(copy('النسخة المصلحة','Fixed version'),mon(f.fixed_version)):'')
     +(f.cwe?detail(copy('التصنيف (CWE)','CWE'),mon(f.cwe)):'')
     +(f.confidence?detail(copy('ثقة الأداة','Tool confidence'),safe(({high:copy('عالية','High'),medium:copy('متوسطة','Medium'),low:copy('منخفضة (قد تكون إنذارًا كاذبًا)','Low (may be a false alarm)')}[f.confidence])||f.confidence)):'')
     +(f.detail&&!f.explanation?detail(copy('ملاحظة الأداة','Tool message'),safe(f.detail)):'')
-    +detail(copy('حالة الملاحظة','Finding status'),safe(statusText(f.status)))
+    +detail(copy('حالة الطلب','Request status'),safe(statusText(f.status)))
     +detail(copy('إعادة التحقق','Reverification'),safe(history||(f.closure?findingState(f):copy('لا يوجد دليل إعادة فحص','No rescan evidence'))))
-    +detail(copy('قبل / بعد','Before / after'),release.prior&&history?mon('#'+release.prior.build+' → #'+release.build):'—')+'</div>'
+    +(profile.role==='qa'?'':detail(copy('قبل / بعد','Before / after'),release.prior&&history?mon('#'+release.prior.build+' → #'+release.build):'—'))+'</div>'
+    +rescanHistory(f)
     +(id==='playwright-demo-001'?'<p class="note">'+copy('المتوقع: يظهر تأكيد الطلب بعد الإرسال. الفعلي: لم يظهر التأكيد في عينة الاختبار.','Expected: order confirmation appears after submission. Actual: the confirmation was absent in the demo run.')+'</p>':'')
     +(f.closure?'<p>'+copy('وقت تحقق الإغلاق','Verification time')+' '+mon(f.closure.timestamp)+'</p>':'')
     +(f.exception?'<p class="note"><b>'+copy('استثناء مسجل','Recorded exception')+'</b><br>'+safe(demoText(f.exception.justification))+' · '+safe(demoText(f.exception.approved_by))+'</p>':'')
-    +(profile.role==='security'||(profile.role==='developer'&&release.stage==='security'&&!release.blockerIds.includes(f.fingerprint))?'':'<p>'+action('new-thread',release.stage==='security'?copy('طلب تمديد المهلة','Request deadline extension'):copy('ناقش هذه الملاحظة','Discuss this finding'),'data-id="'+safe(f.fingerprint)+'"')+'</p>')
+    +(profile.role==='security'||(profile.role==='developer'&&release.stage==='security'&&!release.blockerIds.includes(f.fingerprint))?'':'<p>'+action('new-thread',release.stage==='security'?copy('طلب تمديد المهلة','Request deadline extension'):(profile.role==='qa'?copy('مراسلة المطوّر عن هذه المشكلة','Message the developer about this problem'):copy('ناقش هذه الملاحظة','Discuss this finding')),'data-id="'+safe(f.fingerprint)+'"')+'</p>')
     +(profile.role==='developer'&&release.exceptionEligible.includes(f.fingerprint)?'<p>'+action('new-exception',copy('طلب استثناء أمني','Request security exception'),'data-id="'+safe(f.fingerprint)+'"')+'</p>':'')
-    +(f.explanation?'<div class="note explain"><b>'+copy('شرح يقظ','YAQIDH explanation')+'</b> '+badge(copy('كتبه الذكاء الاصطناعي · ليس حقيقة مثبتة','AI-written · not a verified fact'))+'<br>'+safe(demoText(f.explanation.text))+'</div>':'')
+    +(f.explanation?'<div class="note explain"><b>'+copy('شرح يقظ للمطوّر','YAQIDH explanation for the developer')+'</b><br>'+safe(demoText(f.explanation.text))+'</div>':'')
     +(isLive()&&profile.role==='security'&&release.stage==='security'&&(release.exceptionEligible||[]).includes(f.fingerprint)&&f.status==='open'?'<p>'+action('exception',copy('منح استثناء','Grant exception'),'data-id="'+safe(f.fingerprint)+'"')+'</p>':''));
 }
 const gateStatusText=code=>({
@@ -254,7 +260,10 @@ async function refreshData(manual){
     release=wanted?await api('/api/releases/'+encodeURIComponent(wanted)):null;
     if(manual||JSON.stringify([profile,release])!==before)render();
     if(manual)notify(copy('تم التحديث','Updated'));
-  }catch(e){if(manual)notify(copy('تعذر التحديث','Could not refresh'))}
+  }catch(e){
+    if(e.message==='401'){profile=release=null;threads=[];selectedThread=null;history.replaceState(null,'','/login');render();return}
+    if(manual)notify(copy('تعذر التحديث','Could not refresh'))
+  }
 }
 async function handleAction(button){
   const id=button.dataset.action;
@@ -271,7 +280,11 @@ async function handleAction(button){
   if(id==='developer-day'){developerDay=developerDay===button.dataset.id?'all':button.dataset.id;refreshChart(button);return}
   if(id==='remove-filter'){const key=button.dataset.id;if(key==='tool')tool='all';if(key==='severity')severity='all';if(key==='finding')findingFilter='all';if(key==='run')runFilter='all';if(key==='developer-outcome')developerOutcome='all';if(key==='developer-day')developerDay='all';render();return}
   if(['ar','en','light','dark'].includes(id)){changeAppearance(id);return}
-  if(id==='logout'){await api('/api/logout',{});requestNumber++;profile=release=null;threads=[];selectedThread=null;history.replaceState(null,'','/');render();return}
+  if(id==='rail-approve'){qaTab=null;await selectRelease(button.dataset.id);app.querySelector('[data-action="approve"]')?.click();return}
+  if(id==='qa-tab'){qaTab=button.dataset.id;render();return}
+  if(id==='req')return reqModal(button.dataset.id);
+  if(id==='account-menu'){const menu=button.nextElementSibling;menu.hidden=!menu.hidden;button.setAttribute('aria-expanded',String(!menu.hidden));return}
+  if(id==='logout'){try{await api('/api/logout',{})}catch{/* the session is already gone: leave anyway */}requestNumber++;profile=release=null;threads=[];selectedThread=null;history.replaceState(null,'','/');render();return}
   if(id==='thread'){
     const key=button.dataset.id;
     selectedThread=key;
@@ -296,7 +309,7 @@ async function handleAction(button){
     return;
   }
   if(!release)return;
-  if(id==='queue'||id==='returned-build'){if(dialog.open)dialog.close();await selectRelease(button.dataset.id);if(id==='returned-build')modal(copy('سبب الإرجاع','Return reason'),decisionList());return}
+  if(id==='queue'||id==='returned-build'){qaTab=null;if(dialog.open)dialog.close();await selectRelease(button.dataset.id);if(id==='returned-build')modal(copy('سبب الإرجاع','Return reason'),decisionList());return}
   if(id==='new-exception')return startExceptionRequest(button.dataset.id);
   if(id==='new-thread')return startThread(button.dataset.id||'');
   if(id==='sample-approved')return selectRelease(sampleBuild('approved'));
@@ -380,7 +393,7 @@ app.addEventListener('change',event=>{
   const input=event.target;
   if(input.id==='demo-account'&&input.value)$('#sign-in input[name=account]').value=input.value;
   if(input.id==='admin-active'){adminActive=input.value;render();$('#'+input.id)?.focus()}
-  if(input.id==='release-select')selectRelease(input.value).catch(()=>notify(copy('تعذر فتح البناء','Build could not be loaded')));
+  if((input.id==='release-select'||input.classList.contains('request-pick'))&&input.value){qaTab=null;selectRelease(input.value).catch(()=>notify(copy('تعذر فتح البناء','Build could not be loaded')));}
   if(['tool-filter','severity-filter','finding-filter','run-filter'].includes(input.id)){
     if(input.id==='tool-filter')tool=input.value;else if(input.id==='severity-filter')severity=input.value;else if(input.id==='run-filter')runFilter=input.value;else findingFilter=input.value;
     render();$('#'+input.id)?.focus();
@@ -424,6 +437,7 @@ document.addEventListener('submit',async event=>{
       notify(copy('تم تسجيل القرار','Decision recorded'));
     }
   }catch(e){
+    if(form.id==='sign-up'){notify(e.message==='409'?copy('اسم المستخدم مستخدم، اختاري غيره.','That username is taken. Choose another one.'):copy('تأكدي: اسم المستخدم 3 أحرف أو أكثر (إنجليزي وأرقام وـ - _ .)، وكلمة المرور 10 أحرف أو أكثر.','Check: username 3+ characters (English letters, digits, - _ .) and password 10+ characters.'));submit.disabled=false;return}
     notify(e.message==='401'?copy('بيانات الدخول غير صحيحة أو انتهت الجلسة','Invalid credentials or expired session'):
       e.message==='409'?copy('القرار غير متاح على هذا التعديل','Decision unavailable for this commit'):copy('تعذر حفظ الطلب','Request could not be saved'));
   }finally{submit.disabled=false}
@@ -433,3 +447,18 @@ render();
 load().catch(()=>notify(copy('تعذر تحميل الداشبورد','Dashboard could not be loaded')));
 setInterval(refreshQAReviewAlerts,10000);
 setInterval(()=>refreshData(false),20000);
+
+function rescanHistory(f){
+  if(profile.role!=='qa')return '';
+  const events=((release.log||{}).entries||[]).filter(e=>(e.event==='scan'||e.event==='rescan')&&(e.data||{}).stage==='qa');
+  if(!events.length)return '';
+  const state=(e,i)=>{const d=e.data||{};
+    if(e.event==='scan')return copy('ظهرت المشكلة','Problem found');
+    if((d.closed||[]).includes(f.fingerprint))return copy('انحلّت','Fixed');
+    if((d.still_open||[]).includes(f.fingerprint))return copy('ما زالت مفتوحة','Still open');
+    if((d.new||[]).includes(f.fingerprint))return copy('ظهرت من جديد','Appeared again');
+    return '—'};
+  const times=events.length;
+  return '<div class="note"><b>'+copy('إعادة الفحص','Re-checks')+'</b><p>'+copy('فُحص هذا الطلب','This request was checked')+' '+times+' '+copy(times===1?'مرة':'مرات',times===1?'time':'times')+'. '+copy('نتيجة هذه المشكلة في كل فحص:','This problem in each check:')+'</p><ol>'
+    +events.map((e,i)=>'<li>'+copy('الفحص رقم','Check')+' '+(i+1)+' · '+mon(String(e.time).slice(0,16).replace('T',' '))+' · <b>'+safe(state(e,i))+'</b></li>').join('')+'</ol></div>';
+}

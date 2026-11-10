@@ -269,14 +269,14 @@ def test_a_review_request_answer_from_the_dashboard_reaches_the_api(world):
 
 # --- the QA page shows every check, not only the failed ones ---
 
-def test_the_qa_view_lists_all_five_checks_with_their_result(world):
+def test_the_qa_view_lists_every_check_with_its_result(world):
     stack, dash, _ = world
     stack.qa.findings = [stack.sec.findings[0].model_copy(update={"fingerprint": "F-q", "tool": "playwright",
                                                                   "rule": "search_resists_sql_injection"})]
     open_pr(stack)
     view = Browser(dash).login("qa").call("GET", "/api/releases/r1")[1]
     checks = {c["id"]: c for c in view["qaChecks"]}
-    assert len(checks) == 5
+    assert len(checks) == 14
     assert checks["search_resists_sql_injection"]["state"] == "failed" and checks["search_resists_sql_injection"]["finding"] == "F-q"
     assert {c["state"] for k, c in checks.items() if k != "search_resists_sql_injection"} == {"passed"}
     assert checks["cart_requires_login"]["titleAr"] and checks["cart_requires_login"]["descEn"]
@@ -294,7 +294,7 @@ def test_a_fixed_check_is_shown_as_fixed(world):
     stack.service.verify_fix("r1", "qa")
     view = Browser(dash).login("qa").call("GET", "/api/releases/r1")[1]
     assert {c["id"]: c["state"] for c in view["qaChecks"]}["cart_requires_login"] == "fixed"
-    assert sum(1 for c in view["qaChecks"] if c["state"] == "passed") == 4
+    assert sum(1 for c in view["qaChecks"] if c["state"] == "passed") == 13
 
 
 def test_the_pages_for_the_role_are_served(world):

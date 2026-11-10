@@ -27,7 +27,7 @@ from src.verifier import verify
 PASSWORD = "YaqidhDemo-2026"
 ACCOUNTS = {
     "developer": {"role": "developer", "projects": ["portal"], "active": True},
-    "qa": {"role": "qa", "projects": ["portal"], "active": True},
+    "qa": {"role": "qa", "projects": ["portal"], "active": True, "display": "سما"},
     "security": {"role": "security", "projects": ["portal"], "active": True},
     "company-admin": {"role": "company-admin", "projects": ["portal", "research"], "active": True},
 }
@@ -139,6 +139,15 @@ QA_CATALOG = {
                                      "نص خطر في خانة البحث ما يغيّر استعلام قاعدة البيانات.", "Dangerous text in the search box cannot change the database query."),
     "errors_do_not_leak_internals": ("الأخطاء ما تكشف تفاصيل داخلية", "Errors do not leak internals",
                                      "صفحة الخطأ ما تعرض معلومات عن بنية التطبيق.", "The error page does not show how the application is built."),
+    "passwords_are_stored_hashed": ("كلمات المرور مخزّنة مشفّرة", "Passwords are stored hashed", "كلمات المرور ما تُحفظ نصًا صريحًا.", "Passwords are never saved as plain text."),
+    "session_expires_after_inactivity": ("الجلسة تنتهي بعد خمول", "The session expires", "جلسة الدخول لها مدة انتهاء.", "A signed-in session has an expiry time."),
+    "search_output_is_escaped": ("البحث لا ينفّذ أكواد خبيثة", "Search does not run scripts", "نص برمجي مكتوب بخانة البحث ما يشتغل بالصفحة.", "A script typed in the search box does not run on the page."),
+    "cart_add_and_quantity_work": ("السلة تضيف الكتب وتحسب الكمية", "The cart adds books and counts quantity", "إضافة نفس الكتاب مرتين تعطي كمية 2.", "Adding the same book twice gives quantity 2."),
+    "search_finds_books_by_title_and_author": ("البحث يجد الكتب بالعنوان والمؤلف", "Search finds books by title and author", "البحث باسم كتاب أو مؤلف يرجع نتائج.", "Searching for a title or an author returns results."),
+    "card_data_is_not_stored": ("بيانات البطاقة لا تُخزَّن", "Card data is not stored", "قاعدة البيانات ما فيها أرقام بطاقات.", "The database holds no card numbers."),
+    "other_users_orders_are_not_visible": ("طلبات الآخرين غير ظاهرة", "Other users' orders are not visible", "الزائر ما يقدر يفتح طلب مستخدم.", "A visitor cannot open a user's order."),
+    "upload_accepts_images_only": ("الرفع يقبل الصور فقط", "Uploads accept images only", "رفع ملف نصي يُرفض.", "Uploading a text file is rejected."),
+    "home_page_loads_fast": ("الصفحة الرئيسية سريعة", "The home page loads fast", "تُحمَّل بأقل من 3 ثوانٍ.", "It loads in under 3 seconds."),
 }
 
 
@@ -164,6 +173,55 @@ def qa_checks(stage):
         items.append({"id": rule, "titleAr": finding_title(f), "titleEn": finding_title(f), "descAr": f.detail or "", "descEn": f.detail or "",
                       "state": "fixed" if closed or f.status.value == "fixed" else "failed", "finding": f.fingerprint})
     return items
+
+
+_REQ_CACHE = {}  # (repo) -> (time, entries or None): the file is read from GitHub at most once a minute
+
+
+def load_requirements(repo=None):
+    """The requirements the QA reviewer checks against. Read from requirements.yaml in the release's GitHub repository
+    (its default branch); if that is not possible, from config/requirements.yaml. Returns (entries, source)."""
+    import time as _time
+    import urllib.request
+    import yaml
+    if repo and re.fullmatch(r"[\w.-]+/[\w.-]+", repo):
+        cached = _REQ_CACHE.get(repo)
+        if not cached or _time.time() - cached[0] > 60:
+            entries = None
+            try:
+                url = f"https://raw.githubusercontent.com/{repo}/HEAD/requirements.yaml"
+                with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "yaqidh"}), timeout=4) as response:
+                    entries = (yaml.safe_load(response.read(200_000).decode("utf-8")) or {}).get("requirements")
+            except Exception:  # offline, no such file, bad yaml: use the local copy
+                entries = None
+            cached = _REQ_CACHE[repo] = (_time.time(), entries)
+        if cached[1]:
+            return cached[1], {"kind": "github", "repo": repo, "path": "requirements.yaml"}
+    path = ROOT.parent / "config" / "requirements.yaml"
+    try:
+        return (yaml.safe_load(path.read_text(encoding="utf-8")) or {}).get("requirements", []), {"kind": "local", "path": "config/requirements.yaml"}
+    except (OSError, yaml.YAMLError):
+        return [], {"kind": "none"}
+
+
+def requirement_status(checks, entries):
+    """Each requirement with its status, computed from the QA check results (plain code, no AI)."""
+    by_id = {c["id"]: c for c in checks}
+    result = []
+    for entry in entries:
+        linked = [by_id[i] for i in entry.get("checks") or [] if i in by_id]
+        states = {c["state"] for c in linked}
+        if not entry.get("checks"):
+            state = "uncovered"
+        elif "failed" in states:
+            state = "failed"
+        elif "pending" in states or not linked:
+            state = "pending"
+        else:
+            state = "met"
+        result.append({"id": entry["id"], "titleAr": entry["ar"], "titleEn": entry["en"], "source": entry.get("source", ""),
+                       "state": state, "checks": [{"id": c["id"], "titleAr": c["titleAr"], "titleEn": c["titleEn"], "state": c["state"]} for c in linked]})
+    return result
 
 
 def finding_title(finding):
@@ -267,6 +325,7 @@ class Handler(BaseHTTPRequestHandler):
         decisions = [item.model_dump(mode="json") for item in record.human_decisions if item.stage.value == stage_name]
         qa = [item.model_dump(mode="json") for item in record.human_decisions if item.stage.value == "qa"]
         outcome = stage.decision.model_dump() if stage and stage.decision else None
+        requirements_entries, requirements_source = load_requirements(getattr(record, "repo", None) if self.server.live else None)
         runs = [] if role == "developer" else RUNS.get(key, {}).get(stage_name, [])
         completed = bool(runs) and all(run["state"] == "completed" for run in runs)
         approved = bool(decisions) and decisions[-1]["decision"] == "approve"
@@ -275,6 +334,8 @@ class Handler(BaseHTTPRequestHandler):
         status = live.status_report(key) if live else None
         return {
             "qaChecks": qa_checks(stage) if stage_name == "qa" else [],
+            "requirements": requirement_status(qa_checks(stage), requirements_entries) if stage_name == "qa" else [],
+            "requirementsSource": requirements_source,
             "gate": {"status": status["status"], "staging": status["can_merge_to_staging"], "main": status["can_merge_to_main"],
                      "reasons": status["reasons"]} if status else None,
             "id": key, **{k: v for k, v in meta.items() if k != "owner"}, "demo": True,
@@ -331,7 +392,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self.json(200, self.thread_list(account))
             if path == "/api/dashboard":
                 if role == "company-admin":
-                    return self.json(200, {"account": account, "role": role, "demo": True, "live": bool(self.server.live),
+                    return self.json(200, {"account": account, "display": ACCOUNTS.get(account, {}).get("display", ""), "role": role, "demo": True, "live": bool(self.server.live),
                         "accounts": [{"name": name, "role": data["role"], "active": data["active"]}
                             for name, data in ACCOUNTS.items() if not data.get("deleted")],
                         "audit": self.server.audit,
@@ -343,8 +404,8 @@ class Handler(BaseHTTPRequestHandler):
                         releases.append({"id": key, "build": meta["build"], "commit": meta["commit"], "pr": meta["pr"],
                             "active": meta["active"], "day": DEMO_RUN_DATES.get(key), "outcome": view["outcome"]["result"] if view["outcome"] else None,
                             "returnReason": view["decisions"][-1]["reason"] if role == "developer" and view["decisions"] and view["decisions"][-1]["decision"] == "reject" else None,
-                            "pendingReview": view["canApprove"], "failedRuns": sum(run["state"] == "error" for run in view["runs"])})
-                return self.json(200, {"account": account, "role": role, "demo": True, "live": bool(self.server.live), "releases": releases,
+                            "pendingReview": view["canApprove"], "gate": (view.get("gate") or {}).get("status"), "failedRuns": sum(run["state"] == "error" for run in view["runs"])})
+                return self.json(200, {"account": account, "display": ACCOUNTS.get(account, {}).get("display", ""), "role": role, "demo": True, "live": bool(self.server.live), "releases": releases,
                     "reviewAlerts": self.qa_review_alerts(account) if role == "qa" else [],
                     "liveError": self.server.live.error if self.server.live else ""})
             parts = path.strip("/").split("/")
@@ -603,13 +664,17 @@ class Handler(BaseHTTPRequestHandler):
 
     def create_account(self, data):
         name, password, role = (data.get(key) for key in ("account", "password", "role"))
-        if not isinstance(name, str) or not re.fullmatch(r"[a-z][a-z0-9-]{2,31}", name) or not isinstance(password, str) or not 10 <= len(password) <= 128 or role not in ("developer", "qa", "security"):
+        name = name.strip().lower() if isinstance(name, str) else name
+        display = data.get("display", "")
+        if not isinstance(display, str) or len(display.strip()) > 40 or any(ch in display for ch in "<>") or any(ord(ch) < 32 for ch in display):
+            return self.fail(400, "invalid_input")
+        if not isinstance(name, str) or not re.fullmatch(r"[a-z][a-z0-9._-]{2,31}", name) or not isinstance(password, str) or not 10 <= len(password) <= 128 or role not in ("developer", "qa", "security"):
             return self.fail(400, "invalid_input")
         if name in ACCOUNTS:
             return self.fail(409, "account_exists")
         salt = secrets.token_bytes(16)
         digest = hashlib.pbkdf2_hmac("sha256", password.encode(), salt, 200_000)
-        ACCOUNTS[name] = {"role": role, "salt": salt, "digest": digest, "projects": [], "active": True}
+        ACCOUNTS[name] = {"role": role, "salt": salt, "digest": digest, "projects": [], "active": True, "display": display.strip()}
         return self.json(201, {"status": "active"})
 
     def password_matches(self, name, password):
@@ -651,6 +716,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self.create_account(data)
             if path == "/api/login":
                 name, password = data.get("account"), data.get("password")
+                name = name.strip().lower() if isinstance(name, str) else name
                 if not self.password_matches(name, password):
                     return self.fail(401, "invalid_credentials")
                 self.server.sessions.pop(sid, None)
