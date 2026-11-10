@@ -157,3 +157,22 @@ td:last-child,th:last-child{white-space:nowrap}
 .result-actions .big:disabled:hover{outline:none;background:var(--card)}
 .result-actions .big.static{display:grid;place-items:center;pointer-events:none;border:1px solid var(--good);color:var(--good);background:color-mix(in srgb,var(--good) 12%,var(--card))}
 .result-actions .big.static{gap:0;line-height:1.4}.result-actions .big.static small{font-size:12px;font-weight:400;color:var(--muted)}
+
+/* the top bar: a brand chip, a tagline, pill links, two segmented switches */
+.top{padding:12px clamp(14px,4vw,56px);box-shadow:0 6px 24px #0003}
+.top::after{content:"";position:absolute;inset:auto 0 0 0;height:2px;background:linear-gradient(90deg,transparent,var(--brand),var(--brand-2),transparent);opacity:.55}
+.top-navigation{gap:18px}
+.top-logo{padding:6px 14px;border-radius:16px;background:color-mix(in srgb,var(--card) 80%,transparent);border:1px solid color-mix(in srgb,var(--line) 60%,transparent);transition:transform .2s,box-shadow .2s}
+.top-logo:hover{transform:translateY(-1px);box-shadow:0 6px 22px color-mix(in srgb,var(--brand) 30%,transparent)}
+.top-logo img.brand{width:132px;height:40px}
+.tagline{color:var(--muted);font-size:13px;padding-inline-start:16px;border-inline-start:2px solid color-mix(in srgb,var(--brand) 50%,transparent)}
+.top-navigation nav a{display:inline-flex;align-items:center;gap:6px;padding:8px 18px;border-radius:999px;border:1px solid color-mix(in srgb,var(--line) 70%,transparent);background:var(--card);color:var(--text);font-weight:500;transition:transform .15s,border-color .15s,background .15s}
+.top-navigation nav a::before{content:"◈";color:var(--brand);font-size:13px}
+.top-navigation nav a:hover{background:color-mix(in srgb,var(--brand) 16%,var(--card));border-color:color-mix(in srgb,var(--brand) 55%,transparent);transform:translateY(-1px)}
+.top-control{background:var(--card);border-radius:999px;padding:4px;gap:2px;border:1px solid color-mix(in srgb,var(--line) 70%,transparent)}
+.top-control button{border:0;background:transparent;padding:6px 14px;font-size:13px;color:var(--muted);box-shadow:none}
+.top-control button:hover{background:color-mix(in srgb,var(--brand) 14%,transparent);transform:none;color:var(--text)}
+.top-control button[aria-pressed=true]{background:linear-gradient(135deg,var(--brand),color-mix(in srgb,var(--brand) 55%,var(--brand-2)));color:#1a1030;font-weight:600;box-shadow:0 3px 12px color-mix(in srgb,var(--brand) 35%,transparent)}
+[data-theme=light] .top-control button[aria-pressed=true]{color:#fff}
+.top .toolbar{gap:12px}
+@media(max-width:900px){.tagline{display:none}}
