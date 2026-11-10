@@ -16,7 +16,7 @@ const demoText=value=>({
 const mon=value=>'<bdi class="mono">'+safe(value)+'</bdi>';
 
 const requestedSample=new URLSearchParams(location.search).get('sample');
-const FINDINGS_SHOWN=8;let showAllFindings=false;
+const FINDINGS_SHOWN=8;let showAllFindings=false;let booting=true; // until the session is known, a private page shows a loading line, not the login form
 let profile=null,release=null,tool='all',severity='all',findingFilter='all',runFilter='all',adminDay='all',developerOutcome='all',developerDay='all';
 let requestNumber=0;
 const roleNames=role=>({
@@ -144,6 +144,7 @@ function render(){
   hideMetricTip();
   metricDetails.clear();
   const page=location.pathname;
+  if(booting&&!['/','/signup','/login'].includes(page)){app.innerHTML=header()+'<div class="public-shell"><main><p class="muted">'+copy('جارٍ التحميل…','Loading…')+'</p></main></div>';return}
   if(page==='/'){app.innerHTML=header()+landing();if(location.hash==='#about')document.getElementById('about').scrollIntoView();return}
   const content=page==='/signup'?signup():!profile?login():page==='/communication'?communicationView():page==='/exceptions'?exceptionsView():'<main>'+introduction()+(profile.role==='company-admin'?adminView():dashboardView())+'</main>';
   app.innerHTML=header()+(profile?sidebar():'')+'<div class="'+(profile?'shell':'public-shell')+'">'+content+'</div>';
@@ -158,6 +159,7 @@ async function load(){
   if(location.pathname==='/about')history.replaceState(null,'','/#about');
   try{profile=await api('/api/dashboard')}catch(e){if(!['401','403'].includes(e.message))throw e;profile=null;if(!['/','/about','/login','/signup'].includes(location.pathname))history.replaceState(null,'','/login'+location.search)}
   if(profile&&['/login','/dashboard','/admin'].includes(location.pathname)){const destination=profile.role==='company-admin'?'/admin':'/dashboard';if(location.pathname!==destination)history.replaceState(null,'',destination+location.search)}
+  booting=false;
   threads=profile?await api('/api/threads'):[];
   if(location.pathname==='/communication'){selectedThread=new URLSearchParams(location.search).get('thread')||threads[0]?.id||null;render();return}
   if(profile?.releases?.length){
@@ -340,4 +342,4 @@ document.addEventListener('submit',async event=>{
 });
 setAppearance();
 render();
-load().catch(()=>notify(copy('تعذر تحميل الداشبورد','Dashboard could not be loaded')));
+load().catch(()=>{booting=false;render();notify(copy('تعذر تحميل الداشبورد','Dashboard could not be loaded'))});

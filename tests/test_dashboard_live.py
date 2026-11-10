@@ -220,3 +220,20 @@ def test_the_real_pages_render_for_the_developer_and_the_security_reviewer(world
         assert "مقبولة سابقًا" in page.inner_text("body")
         browser.close()
     assert stack.service.store.get("r1").stage(__import__("src.schema", fromlist=["StageName"]).StageName.SECURITY).findings[0].exception
+
+
+def test_a_private_page_never_flashes_the_login_form_while_it_loads(world):
+    """Opening /communication or /exceptions after login must not show the sign-in form for a moment."""
+    playwright = pytest.importorskip("playwright.sync_api")
+    stack, dash, _ = world
+    open_pr(stack)
+    with playwright.sync_playwright() as p:
+        browser = p.chromium.launch()
+        page, _ = _page_after_login(browser, dash, "developer")
+        for path in ("/communication", "/exceptions", "/dashboard"):
+            page.add_init_script("window.__sawLogin=false;new MutationObserver(()=>{if(document.querySelector('#sign-in'))window.__sawLogin=true}).observe(document,{childList:true,subtree:true})")
+            page.goto(f"http://127.0.0.1:{dash.server_port}{path}")
+            page.wait_for_timeout(1500)
+            assert page.evaluate("window.__sawLogin") is False, path
+            assert page.locator("form#sign-in").count() == 0, path
+        browser.close()
