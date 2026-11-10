@@ -253,6 +253,19 @@ class Walk:
         after_high = self.status()
         if after_high["reasons"] == ["no blocking findings"] or "no blocking" in " ".join(after_high["reasons"]):
             raise Failed("an exception on a HIGH finding was accepted, it must never count")
+        if self.args.exception_in_dashboard:  # a person decides: wait until a medium finding is accepted in the dashboard
+            mediums = {f["fingerprint"]: f for f in open_ if f["reported_as"] == "medium"}
+            names = ", ".join(f"{f['rule'].split('.')[-1]} ({f['location']})" for f in mediums.values())
+            print("")
+            print(f"      >>> Open the dashboard as 'security' and accept at least one MEDIUM finding with a written reason: {names}")
+            print("      >>> Waiting...", flush=True)
+            deadline = time.monotonic() + self.args.human_timeout
+            while time.monotonic() < deadline:
+                accepted = [f for f in self.findings("security") if f["fingerprint"] in mediums and f["status"] == "excepted"]
+                if accepted:
+                    return f"high ignored; {accepted[0]['rule'].split('.')[-1]} was accepted by {accepted[0]['exception']['approved_by']} in the dashboard"
+                time.sleep(3)
+            raise Failed("nobody accepted a medium finding in the dashboard in time")
         resp = self.call("POST", f"/releases/{self.release}/stages/security/exceptions", json={**body, "fingerprint": medium["fingerprint"]})
         if resp.status_code != 200:
             raise Failed(f"exception on a medium finding -> HTTP {resp.status_code}: {resp.text[:200]}")
@@ -340,6 +353,9 @@ def main() -> int:
     ap.add_argument("--on-fix-security", help="command that fixes the security problems")
     ap.add_argument("--timeout", type=int, default=900, help="seconds to wait for each agent run")
     ap.add_argument("--http-timeout", type=int, default=60, help="seconds to wait for one HTTP answer")
+    ap.add_argument("--exception-in-dashboard", action="store_true",
+                    help="do not grant the medium exception from the script: wait for the security reviewer to do it in the dashboard")
+    ap.add_argument("--human-timeout", type=int, default=900, help="seconds to wait for that human decision")
     ap.add_argument("--keep-going", action="store_true", help="do not stop at the first failing step")
     args = ap.parse_args()
     if hasattr(sys.stdout, "reconfigure"):

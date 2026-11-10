@@ -49,7 +49,7 @@ echo.
 pause
 
 cd backend
-..\.venv\Scripts\python.exe scripts\walkthrough.py --url http://127.0.0.1:8000 ^
+..\.venv\Scripts\python.exe scripts\walkthrough.py --url http://127.0.0.1:8000 --exception-in-dashboard ^
   --on-fix-qa "python ..\scripts\demo_fix.py qa" ^
   --on-fix-security "python ..\scripts\demo_fix.py security"
 cd ..
