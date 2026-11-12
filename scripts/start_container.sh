@@ -7,6 +7,7 @@
 #   API_PORT               the private port of the API inside the container (default 8010)
 #   API_TOKEN              shared secret between the dashboard and the API (a random one is made if it is not set)
 #   YAQIDH_DEMO_MODE       1 (default) = guided demo with replayed tool results; 0 = real scans
+#   YAQIDH_DEMO_GITHUB_URL the real pull request shown as proof in the demo banner (default: shaimasaud5/Demo pull 1)
 #   AGENT_MODE             "template" (default, no AI model and no tokens) or a model mode
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -29,6 +30,8 @@ export EVIDENCE_PATH="${EVIDENCE_PATH:-/data/evidence.jsonl}"
 # tool has to run here. Set YAQIDH_DEMO_MODE=0 to scan for real with the tools in this image (needs more memory).
 export YAQIDH_DEMO_MODE="${YAQIDH_DEMO_MODE:-1}"
 if [ "$YAQIDH_DEMO_MODE" = "1" ]; then export SCAN_SOURCE=ci; else export SCAN_SOURCE=local; fi
+# the real pull request the system was tested on; the demo banner links to it as proof
+export YAQIDH_DEMO_GITHUB_URL="${YAQIDH_DEMO_GITHUB_URL:-https://github.com/shaimasaud5/Demo/pull/1}"
 export GITHUB_TOKEN=""
 export GITHUB_MCP=0
 export AGENT_MODE="${AGENT_MODE:-template}"
