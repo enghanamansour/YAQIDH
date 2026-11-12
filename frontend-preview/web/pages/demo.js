@@ -49,32 +49,39 @@ function demoStep(guide){
   return [2,copy('يقظ يفحص الطلب...','Yaqidh is checking the request...'),''];
 }
 
+/* a slim row on the dashboard: which role the visitor plays (and that every role can be chosen) */
 function demoBannerHtml(){
+  if(!profile||!profile.guide||location.pathname!=='/dashboard')return '';
+  const roles=['developer','qa','security'].map(r=>'<button type="button" class="demo-role" data-action="demo-role" data-id="'+r+'" aria-pressed="'+(profile.role===r)+'">'+roleNames(r)+'</button>').join('');
+  return '<div class="demo-banner" role="group" aria-label="'+copy('اختر الدور اللي تبي تلعبه','Choose the role you want to play')+'"><span class="demo-roles-title">'+copy('اختر الدور اللي تبي تلعبه:','Choose the role you want to play:')+'</span>'+roles+'</div>';
+}
+
+/* the guide: a small agent character in the corner with a speech bubble that says what happened and what to do next */
+let demoGuideOpen=true,demoLastKey=null;
+function demoGuideHtml(){
   if(!profile||!profile.guide||location.pathname!=='/dashboard')return '';
   const [step,text,buttons]=demoStep(profile.guide);
   const real=demoInfo&&demoInfo.githubUrl?' <a href="'+safe(demoInfo.githubUrl)+'" target="_blank" rel="noopener">'+copy('شاهد الطلب الحقيقي على GitHub','See the real request on GitHub')+'</a>':'';
-  const about={developer:copy('يرفع الكود على GitHub','Pushes code to GitHub'),qa:copy('يوافق على نتيجة الجودة','Approves the quality result'),security:copy('يوافق على النتيجة الأمنية','Approves the security result')};
-  const roles=['developer','qa','security'].map(r=>'<button type="button" class="demo-role" data-action="demo-role" data-id="'+r+'" aria-pressed="'+(profile.role===r)+'"><b>'+roleNames(r)+'</b><small>'+about[r]+'</small></button>').join('');
-  return '<section class="demo-banner" aria-label="'+copy('الديمو التفاعلي','Guided demo')+'">'
-    +'<p class="demo-note"><b>'+copy('ديمو توضيحي','Guided demo')+'</b> '+copy('جُرّب النظام على طلب دمج حقيقي في GitHub. القرارات والشرح العربي والسجل يشتغلون بالنظام الحقيقي.','The system was tested on a real GitHub pull request. The decisions, the Arabic explanations and the evidence log run on the real system.')+real+'</p>'
-    +'<div class="demo-roles" role="group" aria-label="'+copy('اختر الدور اللي تبي تلعبه','Choose the role you want to play')+'"><p class="demo-roles-title">'+copy('اختر الدور اللي تبي تلعبه','Choose the role you want to play')+' <small>'+copy('(تقدر تبدّل بأي وقت)','(you can switch at any time)')+'</small></p><div class="demo-role-list">'+roles+'</div></div>'
-    +'<div class="demo-step"><span class="demo-num">'+copy('الخطوة ','Step ')+step+copy(' من 6',' of 6')+'</span><p>'+text+'</p><div class="demo-actions">'+buttons
-    +'<button type="button" class="action" data-action="demo-reset">'+copy('ابدأ من جديد','Start over')+'</button></div></div></section>';
+  const bubble='<div class="demo-bubble" aria-live="polite"><div class="demo-bubble-head"><b>'+copy('مرشد يقظ','Yaqidh guide')+'</b><span class="demo-num">'+copy('الخطوة ','Step ')+step+copy(' من 6',' of 6')+'</span>'
+    +'<button type="button" class="demo-min" data-action="demo-guide-toggle" aria-label="'+copy('إخفاء المرشد','Hide the guide')+'">×</button></div>'
+    +'<p>'+text+'</p><div class="demo-actions">'+buttons+'<button type="button" class="action" data-action="demo-reset">'+copy('ابدأ من جديد','Start over')+'</button></div>'
+    +'<small class="demo-foot"><b>'+copy('ديمو توضيحي','Guided demo')+'</b> '+copy('جُرّب النظام على طلب دمج حقيقي في GitHub. القرارات والشرح العربي والسجل يشتغلون بالنظام الحقيقي.','The system was tested on a real GitHub pull request. The decisions, the Arabic explanations and the evidence log run on the real system.')+real+'</small></div>';
+  return '<aside class="demo-guide" aria-label="'+copy('مرشد يقظ','Yaqidh guide')+'">'+(demoGuideOpen?bubble:'')
+    +'<button type="button" class="demo-agent" data-action="demo-guide-toggle" aria-label="'+copy('مرشد يقظ','Yaqidh guide')+'" title="'+copy('مرشد يقظ','Yaqidh guide')+'"><img src="/assets/guide-agent.png" alt=""></button></aside>';
 }
 
-/* when the story moves, the instruction box pulses and a notice says so, because the text changes quietly */
-let demoLastKey=null;
+/* when the story moves the bubble opens, pulses and the agent wiggles, because the text changes quietly */
 function demoAfterRender(){
   if(!profile||!profile.guide||location.pathname!=='/dashboard')return;
   const key=[profile.guide.status,profile.guide.phase,profile.role].join('|');
   const changed=demoLastKey!==null&&key!==demoLastKey;
   demoLastKey=key;
   if(!changed)return;
-  const box=document.querySelector('.demo-step');
-  if(!box)return;
-  box.classList.remove('demo-flash');void box.offsetWidth;box.classList.add('demo-flash');
-  box.scrollIntoView({behavior:'smooth',block:'nearest'});
-  notify(copy('تحدّثت الخطوة: اقرأ التعليمات الجديدة فوق','The step has updated: read the new instructions above'));
+  if(!demoGuideOpen){demoGuideOpen=true;const guide=document.querySelector('.demo-guide');if(guide)guide.outerHTML=demoGuideHtml()}
+  [['.demo-bubble','demo-flash'],['.demo-agent','demo-wiggle']].forEach(([selector,name])=>{
+    const el=document.querySelector(selector);
+    if(el){el.classList.remove(name);void el.offsetWidth;el.classList.add(name)}
+  });
 }
 
 /* the story moves when a reviewer approves or the developer pushes, so the banner follows without a reload */
@@ -86,6 +93,8 @@ setInterval(async()=>{
     profile.guide=fresh.guide;
     const banner=document.querySelector('.demo-banner');
     if(banner)banner.outerHTML=demoBannerHtml();
+    const guide=document.querySelector('.demo-guide');
+    if(guide)guide.outerHTML=demoGuideHtml();
     demoAfterRender();
   }catch{/* the next tick tries again */}
 },2500);

@@ -152,7 +152,7 @@ function render(){
   const page=location.pathname;
   if(page==='/'){app.innerHTML=header()+landing();startTyping();if(location.hash==='#about')document.getElementById('about').scrollIntoView();return}
   const content=page==='/signup'?signup():!profile?login():page==='/communication'?communicationView():page==='/exceptions'?exceptionsView():'<main>'+(['qa','developer','security'].includes(profile.role)?'':introduction())+(profile.role==='company-admin'?adminView():dashboardView())+'</main>';
-  app.innerHTML=header()+(hasSidebar()?sidebar():'')+'<div class="'+(profile?(hasSidebar()?'shell':'shell no-side'):'public-shell')+'">'+demoBannerHtml()+content+'</div>';
+  app.innerHTML=header()+(hasSidebar()?sidebar():'')+'<div class="'+(profile?(hasSidebar()?'shell':'shell no-side')+(profile.guide?' demo-pad':''):'public-shell')+'">'+demoBannerHtml()+content+'</div>'+demoGuideHtml();
   demoAfterRender();
 }
 async function selectRelease(id){
@@ -272,6 +272,7 @@ async function handleAction(button){
   const id=button.dataset.action;
   if(id==='close')return dialog.close();
   if(id==='refresh')return refreshData(true);
+  if(id==='demo-guide-toggle'){demoGuideOpen=!demoGuideOpen;const guide=document.querySelector('.demo-guide');if(guide)guide.outerHTML=demoGuideHtml();return}
   if(id==='demo-enter'){await api('/api/demo/enter',{role:'developer'});history.replaceState(null,'','/dashboard');qaTab=null;await load();return}
   if(id==='demo-role'){await api('/api/demo/role',{role:button.dataset.id});qaTab=null;await load();return}
   if(id==='demo-push'||id==='demo-reset'){await api('/api/demo/'+(id==='demo-push'?'push':'reset'),{});qaTab=null;await load();return}
