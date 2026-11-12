@@ -4,16 +4,18 @@
 let demoInfo=null;
 let demoBusy=false;
 
-/* after a demo action the same request is still the one on screen, so the three reads go out together (not one after the other) */
-async function demoReload(){
-  const id=release&&release.id;
-  if(!id)return load();
-  try{
-    const [nextProfile,nextRelease,nextThreads]=await Promise.all([api('/api/dashboard'),api('/api/releases/'+encodeURIComponent(id)),api('/api/threads')]);
-    profile=nextProfile;release=nextRelease;threads=nextThreads;render();
-  }catch{
-    await load(); // this role cannot open that request (for example before it reaches security): the normal path picks one
-  }
+/* a demo action answers with the new state of the page, so the page draws it at once instead of asking again */
+function demoApply(out){
+  if(!out||!out.profile)return load();
+  profile=out.profile;threads=out.threads||[];release=out.release||null;
+  if(release){tool='all';severity='all';findingFilter='all';runFilter='all'}
+  qaTab=null;render();
+}
+/* the press shows at once: the chosen role lights up and the guide dims until the answer comes */
+function demoWorking(button){
+  demoBusy=true;
+  if(button.classList.contains('demo-role'))document.querySelectorAll('.demo-role').forEach(b=>b.setAttribute('aria-pressed',String(b===button)));
+  document.querySelector('.demo-bubble')?.classList.add('demo-loading');
 }
 
 function demoStep(guide){
@@ -63,6 +65,12 @@ function demoStep(guide){
 }
 
 /* a slim row on the dashboard: which role the visitor plays (and that every role can be chosen) */
+/* the role names and the button names in the guide text stand out (colour and a soft pulse) */
+function demoMark(text){
+  // one pass, so the markup added for a name is never matched again as a quoted button name
+  return text.replace(/المطوّر|مراجع الجودة|مراجع الأمن|developer|QA reviewer|security reviewer|«[^»]+»|"[^"]+"/g,
+    m=>(m[0]==='«'||m[0]==='"')?'<span class="demo-btn-name">'+m+'</span>':'<span class="demo-key">'+m+'</span>');
+}
 function demoBannerHtml(){
   if(!profile||!profile.guide||location.pathname!=='/dashboard')return '';
   const roles=['developer','qa','security'].map(r=>'<button type="button" class="demo-role" data-action="demo-role" data-id="'+r+'" aria-pressed="'+(profile.role===r)+'">'+roleNames(r)+'</button>').join('');
@@ -75,9 +83,9 @@ function demoGuideHtml(){
   if(!profile||!profile.guide||location.pathname!=='/dashboard')return '';
   const [step,text,buttons]=demoStep(profile.guide);
   const real=demoInfo&&demoInfo.githubUrl?' <a href="'+safe(demoInfo.githubUrl)+'" target="_blank" rel="noopener">'+copy('شاهد الطلب الحقيقي على GitHub','See the real request on GitHub')+'</a>':'';
-  const bubble='<div class="demo-bubble" aria-live="polite"><div class="demo-bubble-head"><b>'+copy('مرشد يَقِـــظ','Yaqidh guide')+'</b><span class="demo-num">'+copy('الخطوة ','Step ')+step+copy(' من 6',' of 6')+'</span>'
+  const bubble='<div class="demo-bubble" aria-live="polite"><div class="demo-bubble-head"><b class="demo-title">'+copy('مرشد يَقِـــظ','Yaqidh guide')+'</b><span class="demo-num">'+copy('الخطوة ','Step ')+step+copy(' من 6',' of 6')+'</span>'
     +'<button type="button" class="demo-min" data-action="demo-guide-toggle" aria-label="'+copy('إخفاء المرشد','Hide the guide')+'"></button></div>'
-    +'<p>'+text+'</p><div class="demo-actions">'+buttons+'<button type="button" class="action" data-action="demo-reset">'+copy('ابدأ من جديد','Start over')+'</button></div>'
+    +'<p>'+demoMark(text)+'</p><div class="demo-actions">'+buttons+'<button type="button" class="action" data-action="demo-reset">'+copy('ابدأ من جديد','Start over')+'</button></div>'
     +'<small class="demo-foot"><b>'+copy('ديمو توضيحي','Guided demo')+'</b> '+copy('جُرّب النظام على طلب دمج حقيقي في GitHub. القرارات والشرح العربي والسجل يشتغلون بالنظام الحقيقي.','The system was tested on a real GitHub pull request. The decisions, the Arabic explanations and the evidence log run on the real system.')+real+'</small></div>';
   return '<aside class="demo-guide" aria-label="'+copy('مرشد يَقِـــظ','Yaqidh guide')+'">'+(demoGuideOpen?bubble:'')
     +'<button type="button" class="demo-agent" data-action="demo-guide-toggle" aria-label="'+copy('مرشد يَقِـــظ','Yaqidh guide')+'" title="'+copy('مرشد يَقِـــظ','Yaqidh guide')+'"><span class="demo-agent-art" aria-hidden="true"></span></button></aside>';
@@ -97,8 +105,8 @@ function demoAfterRender(){
   });
 }
 
-/* the story moves when a reviewer approves or the developer pushes, so the banner follows without a reload */
-setInterval(async()=>{
+/* the story moves when a reviewer approves or the developer pushes, so the guide follows without a reload (at once after a click, and every few seconds) */
+async function demoPollNow(){
   if(!profile||!profile.guide||document.hidden||demoBusy||location.pathname!=='/dashboard')return;
   try{
     const fresh=await api('/api/dashboard');
@@ -110,4 +118,5 @@ setInterval(async()=>{
     if(guide)guide.outerHTML=demoGuideHtml();
     demoAfterRender();
   }catch{/* the next tick tries again */}
-},4000);
+}
+setInterval(demoPollNow,4000);

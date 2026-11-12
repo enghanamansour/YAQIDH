@@ -2,6 +2,7 @@
 import argparse
 import hashlib
 import hmac
+import gzip
 import os
 import re
 import json
@@ -90,6 +91,8 @@ STATIC = {
           **{f"/assets/fonts/{p.name}": f"assets/fonts/{p.name}" for p in (ROOT / "web/assets/fonts").glob("*.woff2")},
           "/assets/yaqidh-light-transparent.png": "assets/yaqidh-light-transparent.png",
           "/assets/guide-agent.png": "assets/guide-agent.png"}
+COMPRESSIBLE = {"text/javascript", "text/css", "text/html", "image/svg+xml", "application/json"}
+STATIC_CACHE = {}  # path -> (modified time, bytes, etag, gzipped bytes)
 MIME = {".js": "text/javascript", ".css": "text/css", ".png": "image/png", ".html": "text/html", ".woff2": "font/woff2", ".svg": "image/svg+xml"}
 
 def seed(store, policy):
@@ -289,17 +292,53 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, *_):
         pass
 
-    def send_data(self, status, body, content_type, headers=()):
+    def accepts_gzip(self):
+        return "gzip" in self.headers.get("Accept-Encoding", "")
+
+    def send_data(self, status, body, content_type, headers=(), cache="no-store", etag=None, gzipped=None):
+        """gzipped: the body already compressed (kept by send_static); otherwise a larger text body is compressed here."""
+        encoded = False
+        if gzipped is not None and self.accepts_gzip():
+            body, encoded = gzipped, True
+        elif (gzipped is None and len(body) > 1200 and self.accepts_gzip()
+              and content_type.split(";")[0] in COMPRESSIBLE):
+            body, encoded = gzip.compress(body, 5), True
         self.send_response(status)
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(body)))
-        self.send_header("Cache-Control", "no-store")
+        if encoded:
+            self.send_header("Content-Encoding", "gzip")
+        self.send_header("Vary", "Accept-Encoding")
+        self.send_header("Cache-Control", cache)
+        if etag:
+            self.send_header("ETag", etag)
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("Content-Security-Policy", "default-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'")
         for key, value in headers:
             self.send_header(key, value)
         self.end_headers()
         self.wfile.write(body)
+
+    def send_static(self, target):
+        """A file of the site: compressed once and kept, with an ETag so the browser asks 'did it change?' and gets a tiny 304.
+        Fonts and pictures are also kept by the browser for a week."""
+        stat = target.stat()
+        key = str(target)
+        cached = STATIC_CACHE.get(key)
+        if not cached or cached[0] != stat.st_mtime_ns:
+            body = target.read_bytes()
+            etag = '"' + hashlib.md5(body).hexdigest()[:16] + '"'
+            packed = gzip.compress(body, 9) if MIME[target.suffix] in COMPRESSIBLE and len(body) > 1200 else None
+            cached = STATIC_CACHE[key] = (stat.st_mtime_ns, body, etag, packed)
+        _, body, etag, packed = cached
+        cache = "public, max-age=604800" if target.suffix in (".woff2", ".png") else "no-cache"
+        if self.headers.get("If-None-Match") == etag:
+            self.send_response(304)
+            self.send_header("ETag", etag)
+            self.send_header("Cache-Control", cache)
+            self.end_headers()
+            return
+        self.send_data(200, body, MIME[target.suffix], cache=cache, etag=etag, gzipped=packed)
 
     def json(self, status, value, headers=()):
         self.send_data(status, json.dumps(value, ensure_ascii=False).encode(), "application/json; charset=utf-8", headers)
@@ -316,6 +355,27 @@ class Handler(BaseHTTPRequestHandler):
         sid = cookies["yaqidh_session"].value if "yaqidh_session" in cookies else None
         account = self.server.sessions.get(sid)
         return sid, account if account and ACCOUNTS[account]["active"] else None
+
+    def dashboard_payload(self, account):
+        """What the page needs to draw a role's dashboard (not the company administrator's)."""
+        role = ACCOUNTS[account]["role"]
+        releases = []
+        for key, meta in RELEASES.items():
+            if self.visible(account, key):
+                view = self.release_view(account, key)
+                releases.append({"id": key, "build": meta["build"], "commit": meta["commit"], "pr": meta["pr"],
+                    "active": meta["active"], "day": DEMO_RUN_DATES.get(key), "outcome": view["outcome"]["result"] if view["outcome"] else None,
+                    "returnReason": view["decisions"][-1]["reason"] if role == "developer" and view["decisions"] and view["decisions"][-1]["decision"] == "reject" else None,
+                    "pendingReview": view["canApprove"], "gate": (view.get("gate") or {}).get("status"), "failedRuns": sum(run["state"] == "error" for run in view["runs"])})
+        return {"account": account, "display": ACCOUNTS.get(account, {}).get("display", ""), "role": role, "demo": True, "live": bool(self.server.live), "releases": releases, "guide": self.guide(account),
+            "reviewAlerts": self.qa_review_alerts(account) if role == "qa" else [],
+            "liveError": self.server.live.error if self.server.live else ""}
+
+    def release_payload(self, account, key):
+        view = self.release_view(account, key)
+        if self.server.live:
+            view["log"] = self.server.live.history(key)
+        return view
 
     def guide(self, account):
         """In guided-demo mode: where the story stands, so the page can tell the visitor what to do next."""
@@ -347,7 +407,15 @@ class Handler(BaseHTTPRequestHandler):
         except LiveError:
             return self.fail(502, "decision_unavailable")
         self.refresh_live()
-        return self.json(200, {"ok": True})
+        return self.json(200, self.demo_payload(self.server.sessions.get(sid, account)))
+
+    def demo_payload(self, account):
+        """The new state of the page after a demo action: one reply instead of the page asking three times more."""
+        demo = self.server.demo
+        out = {"ok": True, "profile": self.dashboard_payload(account), "threads": self.thread_list(account)}
+        if demo.release and self.visible(account, demo.release):
+            out["release"] = self.release_payload(account, demo.release)
+        return out
 
     def refresh_live(self, cached=False):
         """Re-read the releases from the API. A read (GET) may reuse what was read a moment ago: one click makes several reads,
@@ -459,7 +527,7 @@ class Handler(BaseHTTPRequestHandler):
             return self.json(200, {"enabled": bool(self.server.demo), "githubUrl": os.environ.get("YAQIDH_DEMO_GITHUB_URL", "")})
         if path in {"/", "/about", "/login", "/signup", "/dashboard", "/communication", "/exceptions"} or path in STATIC:
             target = ROOT / "web" / STATIC.get(path, "index.html")
-            self.send_data(200, target.read_bytes(), MIME[target.suffix])
+            self.send_static(target)
             return
         if path == "/admin":
             _, account = self.auth()
@@ -490,17 +558,7 @@ class Handler(BaseHTTPRequestHandler):
                             for name, data in ACCOUNTS.items() if not data.get("deleted")],
                         "audit": self.server.audit,
                         "liveError": self.server.live.error if self.server.live else ""})
-                releases = []
-                for key, meta in RELEASES.items():
-                    if self.visible(account, key):
-                        view = self.release_view(account, key)
-                        releases.append({"id": key, "build": meta["build"], "commit": meta["commit"], "pr": meta["pr"],
-                            "active": meta["active"], "day": DEMO_RUN_DATES.get(key), "outcome": view["outcome"]["result"] if view["outcome"] else None,
-                            "returnReason": view["decisions"][-1]["reason"] if role == "developer" and view["decisions"] and view["decisions"][-1]["decision"] == "reject" else None,
-                            "pendingReview": view["canApprove"], "gate": (view.get("gate") or {}).get("status"), "failedRuns": sum(run["state"] == "error" for run in view["runs"])})
-                return self.json(200, {"account": account, "display": ACCOUNTS.get(account, {}).get("display", ""), "role": role, "demo": True, "live": bool(self.server.live), "releases": releases, "guide": self.guide(account),
-                    "reviewAlerts": self.qa_review_alerts(account) if role == "qa" else [],
-                    "liveError": self.server.live.error if self.server.live else ""})
+                return self.json(200, self.dashboard_payload(account))
             parts = path.strip("/").split("/")
             if len(parts) in {4, 5} and parts[:2] == ["api", "releases"] and parts[3] == "reports":
                 key = parts[2]
@@ -521,9 +579,7 @@ class Handler(BaseHTTPRequestHandler):
                 key = parts[2]
                 if not self.visible(account, key):
                     return self.fail(403, "forbidden")
-                view = self.release_view(account, key)
-                if self.server.live:
-                    view["log"] = self.server.live.history(key)
+                view = self.release_payload(account, key)
                 if len(parts) == 3:
                     return self.json(200, view)
                 if parts[3] == "evidence":
@@ -840,7 +896,7 @@ class Handler(BaseHTTPRequestHandler):
                 self.server.sessions.pop(sid, None)
                 token = secrets.token_urlsafe(32)
                 self.server.sessions[token] = role
-                return self.json(200, {"ok": True}, [("Set-Cookie", f"yaqidh_session={token}; Path=/; HttpOnly; SameSite=Strict{secure}")])
+                return self.json(200, self.demo_payload(role), [("Set-Cookie", f"yaqidh_session={token}; Path=/; HttpOnly; SameSite=Strict{secure}")])
             if path == "/api/login":
                 name, password = data.get("account"), data.get("password")
                 name = name.strip().lower() if isinstance(name, str) else name

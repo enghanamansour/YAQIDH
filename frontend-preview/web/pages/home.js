@@ -78,18 +78,29 @@ function features(){
   ];
 }
 
-/* the subtitle is typed letter by letter, once per visit */
+/* the subtitle always appears word by word, every time the main page is drawn (not letter by letter, not all at once).
+   If the same page is drawn again a moment later (the page reads its data and draws twice), the new copy carries on from the word the first had reached. */
 function startTyping(){
   const el=document.querySelector('.lp-sub');
-  if(!el||window.__yaqidhTyped)return;
-  window.__yaqidhTyped=true;
+  if(!el)return;
   if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
-  const full=el.textContent;
-  el.style.minHeight=el.offsetHeight+'px';
+  const now=Date.now();
+  const run=window.__yaqidhWords&&now-window.__yaqidhWords.at<2000?window.__yaqidhWords:(window.__yaqidhWords={at:now,shown:0});
+  const words=el.textContent.split(/\s+/).filter(Boolean);
   el.textContent='';
-  el.classList.add('typing');
-  let i=0;
-  const timer=setInterval(()=>{i++;el.textContent=full.slice(0,i);if(i>=full.length){clearInterval(timer);el.classList.remove('typing')}},36);
+  words.forEach((word,i)=>{
+    const span=document.createElement('span');
+    span.className='lp-word'+(i<run.shown?' on':'');
+    span.textContent=word;
+    el.appendChild(span);
+    if(i<words.length-1)el.appendChild(document.createTextNode(' '));
+  });
+  const spans=[...el.querySelectorAll('.lp-word')];
+  const timer=setInterval(()=>{
+    if(!el.isConnected||run.shown>=spans.length){clearInterval(timer);return}
+    spans[run.shown++].classList.add('on');
+    run.at=Date.now();
+  },240);
 }
 
 /* a sequence diagram: two actors and the arrows that go back and forth between them */

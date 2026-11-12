@@ -717,3 +717,30 @@ html[data-theme=light] .demo-bubble .demo-min{border-color:rgba(255,255,255,.5)}
 html[data-theme=light] .demo-bubble .demo-min::before,html[data-theme=light] .demo-bubble .demo-min::after{background:#fff}
 html[data-theme=light] .demo-bubble .demo-foot{color:rgba(255,255,255,.85)}
 html[data-theme=light] .demo-bubble .demo-foot b,html[data-theme=light] .demo-bubble .demo-foot a{color:#fff}
+
+/* back button (an arrow, no words) next to the logo */
+.top-start{display:flex;align-items:center;gap:10px}
+.top-back{width:40px;height:40px;padding:0;display:grid;place-items:center;border-radius:50%;border:1px solid var(--line);background:var(--surface);color:var(--text);cursor:pointer;transition:border-color .2s,background .2s}
+.top-back:hover{border-color:var(--brand);background:color-mix(in srgb,var(--brand) 12%,var(--surface))}
+html[dir=ltr] .top-back svg{transform:scaleX(-1)}
+/* a pressed button answers at once; the guide dims while it waits for the reply */
+[data-action][aria-busy=true]{opacity:.6;cursor:progress;pointer-events:none}
+.demo-bubble.demo-loading{opacity:.75}
+
+/* the hero sentence: each word fades in, one after the other */
+.lp-word{display:inline-block;opacity:0;transform:translateY(6px);transition:opacity .35s ease,transform .35s ease}
+.lp-word.on{opacity:1;transform:none}
+
+/* the guide's name and the names inside its text are coloured and move a little */
+@keyframes demo-shimmer{0%{background-position:0% 50%}100%{background-position:200% 50%}}
+@keyframes demo-glow{0%,100%{box-shadow:0 0 0 0 rgba(139,92,246,.0)}50%{box-shadow:0 0 0 5px rgba(139,92,246,.22)}}
+@keyframes demo-ping{0%{box-shadow:0 0 0 0 rgba(236,72,153,.55)}70%,100%{box-shadow:0 0 0 8px rgba(236,72,153,0)}}
+.demo-title{display:inline-flex;align-items:center;gap:8px;font-size:16px;font-weight:800;background:linear-gradient(90deg,#5a37d6,#d946ef,#5a37d6);background-size:200% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:demo-shimmer 3.2s linear infinite}
+.demo-title::before{content:"";flex:none;width:9px;height:9px;border-radius:50%;background:#ec4899;animation:demo-ping 1.6s ease-out infinite}
+.demo-key{display:inline-block;padding:0 .4em;border-radius:9px;font-weight:800;background:rgba(90,55,214,.14);color:#5a37d6;animation:demo-glow 2.4s ease-in-out infinite}
+.demo-btn-name{font-weight:800;color:#c026d3;text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:4px}
+html[data-theme=light] .demo-title{background-image:linear-gradient(90deg,#ffffff,#ffc2ec,#ffffff)}
+html[data-theme=light] .demo-key{background:rgba(255,255,255,.2);color:#fff;animation-name:demo-glow-light}
+html[data-theme=light] .demo-btn-name{color:#ffd1f3}
+@keyframes demo-glow-light{0%,100%{box-shadow:0 0 0 0 rgba(255,255,255,0)}50%{box-shadow:0 0 0 5px rgba(255,255,255,.22)}}
+@media(prefers-reduced-motion:reduce){.demo-title,.demo-title::before,.demo-key{animation:none}}

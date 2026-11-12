@@ -162,10 +162,11 @@ async function selectRelease(id){
   release=next;tool='all';severity='all';findingFilter='all';runFilter='all';render();
 }
 async function load(){
-  if(!demoInfo){try{demoInfo=await api('/api/demo/info')}catch{demoInfo={enabled:false}}}
+  const infoPromise=demoInfo?null:api('/api/demo/info').catch(()=>({enabled:false})); // asked together with the dashboard, not before it
   if(location.pathname==='/about')history.replaceState(null,'','/#about');
   try{profile=await api('/api/dashboard')}catch(e){if(!['401','403'].includes(e.message))throw e;profile=null;if(!['/','/about','/login','/signup'].includes(location.pathname))history.replaceState(null,'','/login'+location.search)}
   if(profile&&['/login','/dashboard','/admin'].includes(location.pathname)){const destination=profile.role==='company-admin'?'/admin':'/dashboard';if(location.pathname!==destination)history.replaceState(null,'',destination+location.search)}
+  if(infoPromise)demoInfo=await infoPromise;
   threads=profile?await api('/api/threads'):[];
   if(location.pathname==='/communication'){selectedThread=new URLSearchParams(location.search).get('thread')||threads[0]?.id||null;render();return}
   if(profile?.releases?.length){
@@ -273,10 +274,11 @@ async function handleAction(button){
   if(id==='close')return dialog.close();
   if(id==='refresh')return refreshData(true);
   if(id==='demo-guide-toggle'){demoGuideOpen=!demoGuideOpen;const guide=document.querySelector('.demo-guide');if(guide)guide.outerHTML=demoGuideHtml();return}
-  if(id==='demo-enter'){await api('/api/demo/enter',{role:'developer'});history.replaceState(null,'','/dashboard');qaTab=null;await load();return}
-  if(id==='demo-role'){demoBusy=true;try{await api('/api/demo/role',{role:button.dataset.id});qaTab=null;await demoReload()}finally{demoBusy=false}return}
-  if(id==='demo-push'){demoBusy=true;try{await api('/api/demo/push',{});qaTab=null;await demoReload()}finally{demoBusy=false}return}
-  if(id==='demo-reset'){demoBusy=true;try{await api('/api/demo/reset',{});qaTab=null;await load()}finally{demoBusy=false}return}
+  if(id==='demo-enter'){const out=await api('/api/demo/enter',{role:'developer'});history.replaceState(null,'','/dashboard');demoApply(out);return}
+  if(id==='demo-role'){demoWorking(button);try{demoApply(await api('/api/demo/role',{role:button.dataset.id}))}finally{demoBusy=false}return}
+  if(id==='demo-push'){demoWorking(button);try{demoApply(await api('/api/demo/push',{}))}finally{demoBusy=false}return}
+  if(id==='demo-reset'){demoWorking(button);try{demoApply(await api('/api/demo/reset',{}))}finally{demoBusy=false}return}
+  if(id==='go-back'){const same=document.referrer&&new URL(document.referrer).origin===location.origin;if(history.length>1&&same)history.back();else location.href='/';return}
   if(id==='exception'){
     return modal(copy('منح استثناء','Grant exception'),'<p>'+copy('للثغرات المتوسطة فقط. تحتاج تبريرًا مكتوبًا، وسياسة يَقِـــظ هي التي تقرر هل يكفي.','Medium findings only. A written justification is required and the policy decides whether it is enough.')+'</p>'
       +'<form id="exception-form" data-release="'+safe(release.id)+'" data-finding="'+safe(button.dataset.id)+'"><label class="field">'+copy('التبرير','Justification')+'<textarea name="justification" required minlength="3" maxlength="1000"></textarea></label>'
@@ -404,7 +406,9 @@ document.addEventListener('keydown',event=>{if(event.key==='Escape')hideMetricTi
 
 document.addEventListener('click',event=>{
   const button=event.target.closest('[data-action]');
-  if(button)handleAction(button).catch(()=>notify(copy('تعذّر تنفيذ الإجراء','Action could not be completed')));
+  if(!button)return;
+  button.setAttribute('aria-busy','true'); // the press shows at once, before the server answers
+  handleAction(button).catch(()=>notify(copy('تعذّر تنفيذ الإجراء','Action could not be completed'))).finally(()=>{button.removeAttribute('aria-busy');if(profile&&profile.guide&&!String(button.dataset.action).startsWith('demo-'))demoPollNow()});
 });
 document.addEventListener('keydown',event=>{
   const target=event.target.closest('svg [data-action]');
