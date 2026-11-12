@@ -13,32 +13,32 @@ function demoStep(guide){
   const toSec=swap('security',copy('بدّل إلى مراجع الأمن','Switch to the security reviewer'));
   if(status==='none')
     return [1,mine('developer',
-        copy('أنت المطوّر. اضغط «ارفع على GitHub» لتفتح طلب دمج جديد، ويقظ يفحصه تلقائيًا.','You are the developer. Press "Push to GitHub" to open a new pull request, and Yaqidh checks it automatically.'),
+        copy('أنت المطوّر. اضغط «ارفع على GitHub» لتفتح طلب دمج جديد، ويَقِـــظ يفحصه تلقائيًا.','You are the developer. Press "Push to GitHub" to open a new pull request, and Yaqidh checks it automatically.'),
         copy('بدّل لدور المطوّر وارفع طلبًا على GitHub.','Switch to the developer and push a request to GitHub.')),
       mine('developer',push(),toDev)];
   if(status==='ready_to_merge')
     return [6,copy('انتهت القصة: الطلب جاهز للإطلاق. الموافقة مربوطة بهذه النسخة من الكود فقط. تقدر تضغط «ابدأ من جديد» وتجرّبها بدور ثاني.','The story is over: the request is ready to release. The approval is tied to this exact version of the code. Press "Start over" to try it with another role.'),''];
   if(status==='qa_rejected'||status==='security_rejected')
-    return [phase>=2?5:phase>=1?4:2,copy('المراجع رجّع الطلب للمطوّر. بدّل لدور المطوّر، واضغط «ارفع على GitHub» ليفحص يقظ من جديد.','The reviewer sent the request back to the developer. Switch to the developer and press "Push to GitHub" so Yaqidh checks again.'),
+    return [phase>=2?5:phase>=1?4:2,copy('المراجع رجّع الطلب للمطوّر. بدّل لدور المطوّر، واضغط «ارفع على GitHub» ليفحص يَقِـــظ من جديد.','The reviewer sent the request back to the developer. Switch to the developer and press "Push to GitHub" so Yaqidh checks again.'),
       mine('developer',push(),toDev)];
   if(status==='qa_blocked')
     return [2,mine('developer',
-        copy('يقظ فحص طلبك وفحص الجودة فشل: لقي مشاكل بالكود وشرحها لك بالعربي تحت. تخيّل إنك صلّحتها، ثم اضغط «ارفع على GitHub» لترفع التعديل.','Yaqidh checked your request and the quality check failed: it found problems in the code and explained them in Arabic below. Imagine you fixed them, then press "Push to GitHub" to push your change.'),
+        copy('يَقِـــظ فحص طلبك وفحص الجودة فشل: لقي مشكلات بالكود وشرحها لك بالعربي تحت. تخيّل إنك صلّحتها، ثم اضغط «ارفع على GitHub» لترفع التعديل.','Yaqidh checked your request and the quality check failed: it found problems in the code and explained them in Arabic below. Imagine you fixed them, then press "Push to GitHub" to push your change.'),
         copy('الطلب عند المطوّر لأن فحص الجودة فشل. بدّل لدور المطوّر.','The request is with the developer because the quality check failed. Switch to the developer.')),
       mine('developer',push(),toDev)];
   if(status==='awaiting_qa_approval')
     return [3,mine('qa',
-        copy('يقظ أعاد الفحص تلقائيًا ونجحت كل الاختبارات. الحين دورك كمراجع جودة: اضغط «موافقة».','Yaqidh re-checked automatically and every test passed. Now it is your turn as the QA reviewer: press "Approve".'),
+        copy('يَقِـــظ أعاد الفحص تلقائيًا ونجحت كل الاختبارات. الحين دورك كمراجع جودة: اضغط «موافقة».','Yaqidh re-checked automatically and every test passed. Now it is your turn as the QA reviewer: press "Approve".'),
         copy('فحص الجودة نجح، والطلب ينتظر مراجع الجودة. بدّل لدوره ووافق.','The quality check passed and the request waits for the QA reviewer. Switch to that role and approve.')),
       mine('qa','',toQa)];
   if(status==='security_blocked'&&phase<2)
     return [4,mine('developer',
-        copy('الجودة وافقت، وبدأ الفحص الأمني: يقظ لقي ثغرات بالكود والمكتبات وشرحها لك. تخيّل إنك صلّحتها، ثم اضغط «ارفع على GitHub».','Quality approved and the security check started: Yaqidh found vulnerabilities in the code and libraries and explained them. Imagine you fixed them, then press "Push to GitHub".'),
+        copy('الجودة وافقت، وبدأ الفحص الأمني: يَقِـــظ لقي ثغرات بالكود والمكتبات وشرحها لك. تخيّل إنك صلّحتها، ثم اضغط «ارفع على GitHub».','Quality approved and the security check started: Yaqidh found vulnerabilities in the code and libraries and explained them. Imagine you fixed them, then press "Push to GitHub".'),
         copy('الفحص الأمني لقي ثغرات. بدّل لدور المطوّر ليصلحها.','The security check found vulnerabilities. Switch to the developer to fix them.')),
       mine('developer',push(),toDev)];
   if(status==='security_blocked')
     return [5,mine('security',
-        copy('يقظ أعاد الفحص وأُغلقت الثغرات، وبقيت ثغرة وحدة متوسطة. دورك كمراجع أمن: اقبل الاستثناء مع سبب مكتوب (أسفل الصفحة)، ثم اضغط «موافقة».','Yaqidh re-checked and the vulnerabilities are closed; one medium vulnerability is left. Your turn as the security reviewer: accept the exception with a written reason (further down the page), then press "Approve".'),
+        copy('يَقِـــظ أعاد الفحص وأُغلقت الثغرات، وبقيت ثغرة وحدة متوسطة. دورك كمراجع أمن: اقبل الاستثناء مع سبب مكتوب (أسفل الصفحة)، ثم اضغط «موافقة».','Yaqidh re-checked and the vulnerabilities are closed; one medium vulnerability is left. Your turn as the security reviewer: accept the exception with a written reason (further down the page), then press "Approve".'),
         copy('أُغلقت الثغرات، وبقيت ثغرة متوسطة تحتاج قرار مراجع الأمن. بدّل لدوره.','The vulnerabilities are closed; one medium vulnerability needs the security reviewer. Switch to that role.')),
       mine('security','',toSec)];
   if(status==='awaiting_security_approval')
@@ -46,7 +46,7 @@ function demoStep(guide){
         copy('كل شي جاهز لقرارك كمراجع أمن: اضغط «موافقة»، وتنفتح البوابة لهذه النسخة فقط.','Everything is ready for your decision as the security reviewer: press "Approve" and the gate opens for this version only.'),
         copy('الطلب ينتظر موافقة مراجع الأمن. بدّل لدوره ووافق.','The request waits for the security reviewer. Switch to that role and approve.')),
       mine('security','',toSec)];
-  return [2,copy('يقظ يفحص الطلب...','Yaqidh is checking the request...'),''];
+  return [2,copy('يَقِـــظ يفحص الطلب...','Yaqidh is checking the request...'),''];
 }
 
 /* a slim row on the dashboard: which role the visitor plays (and that every role can be chosen) */
@@ -62,12 +62,12 @@ function demoGuideHtml(){
   if(!profile||!profile.guide||location.pathname!=='/dashboard')return '';
   const [step,text,buttons]=demoStep(profile.guide);
   const real=demoInfo&&demoInfo.githubUrl?' <a href="'+safe(demoInfo.githubUrl)+'" target="_blank" rel="noopener">'+copy('شاهد الطلب الحقيقي على GitHub','See the real request on GitHub')+'</a>':'';
-  const bubble='<div class="demo-bubble" aria-live="polite"><div class="demo-bubble-head"><b>'+copy('مرشد يقظ','Yaqidh guide')+'</b><span class="demo-num">'+copy('الخطوة ','Step ')+step+copy(' من 6',' of 6')+'</span>'
+  const bubble='<div class="demo-bubble" aria-live="polite"><div class="demo-bubble-head"><b>'+copy('مرشد يَقِـــظ','Yaqidh guide')+'</b><span class="demo-num">'+copy('الخطوة ','Step ')+step+copy(' من 6',' of 6')+'</span>'
     +'<button type="button" class="demo-min" data-action="demo-guide-toggle" aria-label="'+copy('إخفاء المرشد','Hide the guide')+'"></button></div>'
     +'<p>'+text+'</p><div class="demo-actions">'+buttons+'<button type="button" class="action" data-action="demo-reset">'+copy('ابدأ من جديد','Start over')+'</button></div>'
     +'<small class="demo-foot"><b>'+copy('ديمو توضيحي','Guided demo')+'</b> '+copy('جُرّب النظام على طلب دمج حقيقي في GitHub. القرارات والشرح العربي والسجل يشتغلون بالنظام الحقيقي.','The system was tested on a real GitHub pull request. The decisions, the Arabic explanations and the evidence log run on the real system.')+real+'</small></div>';
-  return '<aside class="demo-guide" aria-label="'+copy('مرشد يقظ','Yaqidh guide')+'">'+(demoGuideOpen?bubble:'')
-    +'<button type="button" class="demo-agent" data-action="demo-guide-toggle" aria-label="'+copy('مرشد يقظ','Yaqidh guide')+'" title="'+copy('مرشد يقظ','Yaqidh guide')+'"><span class="demo-agent-art" aria-hidden="true"></span></button></aside>';
+  return '<aside class="demo-guide" aria-label="'+copy('مرشد يَقِـــظ','Yaqidh guide')+'">'+(demoGuideOpen?bubble:'')
+    +'<button type="button" class="demo-agent" data-action="demo-guide-toggle" aria-label="'+copy('مرشد يَقِـــظ','Yaqidh guide')+'" title="'+copy('مرشد يَقِـــظ','Yaqidh guide')+'"><span class="demo-agent-art" aria-hidden="true"></span></button></aside>';
 }
 
 /* when the story moves the bubble opens, pulses and the agent wiggles, because the text changes quietly */

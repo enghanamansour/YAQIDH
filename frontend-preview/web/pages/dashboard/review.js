@@ -32,13 +32,13 @@ function findingsView(){
     +action('finding',copy('الدليل','Evidence'),'data-id="'+safe(f.fingerprint)+'"')+'</td></tr>').join('');
   return '<section class="panel"><div class="section-head"><h2>'+copy('فلترة الأدلة','Evidence filters')+'</h2><small>'+copy('نتيجة المرحلة محسوبة على البناء كاملًا','Stage outcome applies to the full build')+'</small></div><div class="filters">'
     +'<label>'+copy('أداة الفحص','Scan tool')+'<select id="tool-filter"><option value="all">'+copy('جميع الأدوات','All tools')+'</option>'+options+'</select></label>'
-    +'<label>'+copy('خطورة الملاحظة','Finding severity')+'<select id="severity-filter"><option value="all">'+copy('جميع التصنيفات','All severities')+'</option>'
+    +'<label>'+copy('خطورة المشكلة','Finding severity')+'<select id="severity-filter"><option value="all">'+copy('جميع التصنيفات','All severities')+'</option>'
     +['high','low'].map(id=>'<option value="'+id+'" '+(id===severity?'selected':'')+'>'+severityName(id)+'</option>').join('')+'</select></label>'
     +adminSelect('finding-filter',copy('حالة المعالجة','Remediation status'),findingFilter,[['open',copy('قيد التنفيذ','In progress')],['fixed',copy('مغلقة','Closed')],['excepted',copy('مستثناة','Excepted')]])
      +adminSelect('run-filter',copy('حالة التشغيل','Run state'),runFilter,stateLabels())+'</div>'+chipRow([['tool',tool,toolName(tool)],['severity',severity,severityName(severity)],['finding',findingFilter,findingFilter==='all'?'':findingLabel(findingFilter)],['run',runFilter,statusText(runFilter)]],'clear')+'</section>'+stageCharts()
-    +'<div class="findings-layout"><section class="panel"><h2>'+copy('الملاحظات المطابقة','Matching findings')+' · '+rows.length+'</h2>'
-    +(records?'<div class="table-wrap"><table><thead><tr><th>'+copy('الملاحظة','Finding')+'</th><th>'+copy('الأداة','Tool')+'</th><th>'+copy('الخطورة','Severity')+'</th><th>'+copy('الحالة','Status')+'</th><th>'+copy('التفاصيل','Details')+'</th></tr></thead><tbody>'+records+'</tbody></table></div>':'<p class="muted">'+copy('لا توجد ملاحظات مطابقة في السجل المعروض.','No matching findings in this record.')+'</p>')+'</section>'
-    +'<section class="panel"><h2>'+copy('الملاحظات حسب الخطورة','Findings by severity')+'</h2>'
+    +'<div class="findings-layout"><section class="panel"><h2>'+copy('المشكلات المطابقة','Matching findings')+' · '+rows.length+'</h2>'
+    +(records?'<div class="table-wrap"><table><thead><tr><th>'+copy('المشكلة','Finding')+'</th><th>'+copy('الأداة','Tool')+'</th><th>'+copy('الخطورة','Severity')+'</th><th>'+copy('الحالة','Status')+'</th><th>'+copy('التفاصيل','Details')+'</th></tr></thead><tbody>'+records+'</tbody></table></div>':'<p class="muted">'+copy('لا توجد مشكلات مطابقة في السجل المعروض.','No matching findings in this record.')+'</p>')+'</section>'
+    +'<section class="panel"><h2>'+copy('المشكلات حسب الخطورة','Findings by severity')+'</h2>'
     +[['high',high],['low',low]].map(([id,count])=>'<div class="bar-row '+(id==='high'?'bad':'good')+'"><span>'+action('bar',severityName(id),'data-id="'+id+'" aria-pressed="'+(severity===id)+'"')+'<b>'+count+'</b></span><progress value="'+count+'" max="'+Math.max(rows.length,1)+'"></progress></div>').join('')+'</section></div>';
 }
 
@@ -47,7 +47,7 @@ function qaReviewAlerts(records){
     +(item.kind==='exception'?copy('اعتمد الأمن استثناءً','Security approved an exception'):copy('اعتمد الأمن تمديد المهلة','Security approved an extension'))
     +'</b><p>'+safe(buildName(item.build))+' · '+mon(item.commit)+' · '+safe(accountName(item.by))+'</p>'
     +'<p>'+(item.approvedDeadline?copy('الموعد الجديد المعتمد','Approved new deadline')+' '+displayReviewDeadline(item.approvedDeadline)
-      :copy('لا يوجد موعد جديد معتمد لهذه الملاحظة.','No new deadline has been approved for this finding.'))+'</p></article>').join('')
+      :copy('لا يوجد موعد جديد معتمد لهذه الثغرة.','No new deadline has been approved for this finding.'))+'</p></article>').join('')
     :'<p>'+copy('لا توجد قرارات أمنية معتمدة ضمن نطاقك.','No approved security decisions in your scope.')+'</p>';
 }
 
@@ -95,8 +95,8 @@ function reviewView(){
   const reviewLinks=pendingRequests.map(thread=>'<a class="action" href="/communication?thread='+encodeURIComponent(thread.id)+'">'
     +(thread.exceptionRequest?copy('مراجعة طلب استثناء','Review exception request'):copy('مراجعة طلب تمديد','Review extension request'))+'</a>').join('');
   return greeting()+reviewQueue()+releaseHeader()
-    +(profile.role==='qa'?qaMetrics(open,closed):'<div class="metric-row">'+(profile.role==='security'?metric(copy('ملاحظات مانعة','Blocking findings'),release.outcome?blockers.length:'—',blockers.length?'bad':'',blockers,buildScope(release.outcome?.reasons.map(displayReason).join(' · ')||copy('بانتظار نتيجة محرك القواعد.','Awaiting a policy outcome.')),findingRecord):metric(copy('مشاكل مفتوحة','Open problems'),open.length,open.length?'wait':'',open,buildScope(copy('الملاحظات المطابقة التي تحتاج متابعة.','Matching findings that need follow-up.')),findingRecord))
-    +metric(copy('مشاكل انحلّت','Problems fixed'),closed.length,'good',closed,buildScope(copy('ما أُغلق ضمن الفلاتر الحالية.','Closed within active filters.')),findingRecord)
+    +(profile.role==='qa'?qaMetrics(open,closed):'<div class="metric-row">'+(profile.role==='security'?metric(copy('ثغرات مانعة','Blocking findings'),release.outcome?blockers.length:'—',blockers.length?'bad':'',blockers,buildScope(release.outcome?.reasons.map(displayReason).join(' · ')||copy('بانتظار نتيجة محرك القواعد.','Awaiting a policy outcome.')),findingRecord):metric(copy('مشكلات مفتوحة','Open problems'),open.length,open.length?'wait':'',open,buildScope(copy('المشكلات المطابقة التي تحتاج متابعة.','Matching findings that need follow-up.')),findingRecord))
+    +metric(copy('مشكلات انحلّت','Problems fixed'),closed.length,'good',closed,buildScope(copy('ما أُغلق ضمن الفلاتر الحالية.','Closed within active filters.')),findingRecord)
     +metric(copy('تشغيلات مكتملة في السجل','Completed recorded runs'),visibleRuns.length?fraction(completed.length,visibleRuns.length):'—','',visibleRuns,buildScope(copy('المكتمل من التشغيلات المطابقة للأداة وحالة التشغيل.','Completed runs out of those matching tool and run-state filters.')),runRecord)
     +metric(copy('محادثات تنتظر الاطلاع','Unread conversations'),unread.length,'',unread,buildScope(copy('المحادثات غير المقروءة لهذا البناء.','Unread conversations for this build.')),thread=>'<a href="/communication?thread='+encodeURIComponent(thread.id)+'">'+safe(threadText(thread.subject))+'</a>')+'</div>')
     +'<section class="panel"><div class="section-head"><h2>'+copy('أدلة المرحلة والإجراءات','Stage evidence and actions')+'</h2><div class="actions">'
@@ -126,8 +126,8 @@ function qaMetrics(open,closed){
   const requestRecord=r=>safe(requestName(r.pr))+' '+action('queue',copy('فتح الطلب','Open request'),'data-id="'+safe(r.id)+'"');
   return '<div class="metric-row five">'
     +metric(copy('العدد الإجمالي للاختبارات الناجحة','Total passed tests'),passedTests.length,'good',passedTests,buildScope(copy('الاختبارات التي نجحت في هذا الطلب.','Tests that passed in this request.')),testRecord)
-    +metric(copy('عدد المشاكل المفتوحة','Open problems'),open.length,open.length?'wait':'',open,buildScope(copy('كل مشكلة ودليلها.','Each problem with its evidence.')),issueRecord)
-    +metric(copy('عدد المشاكل التي انحلّت','Problems fixed'),closed.length,'good',closed,buildScope(copy('مشاكل تأكّد النظام من إصلاحها.','Problems the system confirmed as fixed.')),fixedRecord)
+    +metric(copy('عدد المشكلات المفتوحة','Open problems'),open.length,open.length?'wait':'',open,buildScope(copy('كل مشكلة ودليلها.','Each problem with its evidence.')),issueRecord)
+    +metric(copy('عدد المشكلات التي انحلّت','Problems fixed'),closed.length,'good',closed,buildScope(copy('مشكلات تأكّد النظام من إصلاحها.','Problems the system confirmed as fixed.')),fixedRecord)
     +metric(copy('عدد الطلبات التي تنتظر موافقتك','Requests awaiting your approval'),awaiting.length,awaiting.length?'wait':'',awaiting,copy('الطلبات التي نجحت اختباراتها وتنتظر قرارك.','Requests whose tests passed and need your decision.'),requestRecord)+'</div>';
 }
 
@@ -158,7 +158,7 @@ function qaResult(open,closed){
   const ring='<div class="qa-ring-wrap"><svg viewBox="0 0 108 108" class="chart-donut qa-ring" role="img" aria-label="'+ok+' / '+count+'"><circle class="qa-ring-track" cx="54" cy="54" r="39" pathLength="100"/><circle class="qa-ring-ok" cx="54" cy="54" r="39" pathLength="100" stroke-dasharray="100" stroke-dashoffset="'+(100-pct)+'"/><text x="54" y="60">'+ok+'/'+count+'</text></svg></div>';
   const decide=(release.canReject?action('reject',copy('إرجاع مع السبب','Return with reason')):'')+(release.canApprove?action('approve',copy('موافقة','Approve'),'class="primary"'):'');
   const summary=reqs.length?'<b>'+failedR.length+'</b> '+copy('من','of')+' <b>'+reqs.length+'</b> '+copy('متطلب لم يتحقق','requirements are not met'):'';
-  const key=reqs.length?'<div class="qa-req-key"><span class="good">'+copy('تحققت','Met')+' '+metR.length+'</span><span class="bad">'+copy('لم تتحقق','Not met')+' '+failedR.length+'</span><span class="wait">'+copy('غير مغطّاة','Not covered')+' '+restR.length+'</span><span class="fixed">'+copy('مشاكل انحلّت','Problems fixed')+' '+closed.length+'</span></div>':'<div class="qa-req-key"><span class="fixed">'+copy('مشاكل انحلّت','Problems fixed')+' '+closed.length+'</span></div>';
+  const key=reqs.length?'<div class="qa-req-key"><span class="good">'+copy('تحققت','Met')+' '+metR.length+'</span><span class="bad">'+copy('لم تتحقق','Not met')+' '+failedR.length+'</span><span class="wait">'+copy('غير مغطّاة','Not covered')+' '+restR.length+'</span><span class="fixed">'+copy('مشكلات انحلّت','Problems fixed')+' '+closed.length+'</span></div>':'<div class="qa-req-key"><span class="fixed">'+copy('مشكلات انحلّت','Problems fixed')+' '+closed.length+'</span></div>';
   const source=release.requirementsSource&&release.requirementsSource.kind==='github'?'<p class="req-source">'+copy('المصدر: GitHub','Source: GitHub')+' · <span dir="ltr">'+safe(release.requirementsSource.repo)+'/'+safe(release.requirementsSource.path)+'</span></p>':'';
   qaDetailsHtml=reqs.length?'<details class="qa-card qa-reqs-card"><summary><h3 class="card-title">'+copy('المتطلبات','Requirements')+'</h3><span>'+reqs.length+' · '+copy('اضغطي للعرض','tap to view')+'</span></summary>'+source+group(copy('لم تتحقق','Not met'),failedR,'bad',true)+group(copy('تحققت','Met'),metR,'good',false)+group(copy('غير مغطّاة أو بانتظار الفحص','Not covered or waiting'),restR,'wait',false)+'</details>':'';
   return '<section class="qa-card qa-verdict qa-solo '+tone+'"><div class="verdict-top"><span class="eyebrow">'+copy('نتيجة الفحص','Check result')+'</span>'+(decide?'<div class="actions">'+decide+'</div>':'')+'</div>'+ring+'<small class="ring-cap">'+copy('متطلبات تحققت','requirements met')+'</small></section>';
@@ -181,7 +181,7 @@ function qaEmptyResult(){
 }
 function qaZeroMetrics(){
   const z=(label,tone)=>metric(label,0,tone,[],'',safe);
-  return '<div class="metric-row five">'+z(copy('العدد الإجمالي للاختبارات الناجحة','Total passed tests'),'')+z(copy('عدد المشاكل المفتوحة','Open problems'),'')+z(copy('عدد المشاكل التي انحلّت','Problems fixed'),'')+z(copy('عدد الطلبات التي تنتظر موافقتك','Requests awaiting your approval'),'')+'</div>';
+  return '<div class="metric-row five">'+z(copy('العدد الإجمالي للاختبارات الناجحة','Total passed tests'),'')+z(copy('عدد المشكلات المفتوحة','Open problems'),'')+z(copy('عدد المشكلات التي انحلّت','Problems fixed'),'')+z(copy('عدد الطلبات التي تنتظر موافقتك','Requests awaiting your approval'),'')+'</div>';
 }
 
 let qaTab=null;
@@ -219,10 +219,10 @@ function qaStory(){
   const findingOf=fp=>release.findings.find(f=>f.fingerprint===fp);
   const line=e=>{const d=e.data||{};
     if(e.event==='event')return ['wait',d.event==='pull_request_opened'?copy('المطوّر فتح الطلب على GitHub','The developer opened the request on GitHub'):copy('المطوّر رفع تعديلًا جديدًا','The developer pushed a new change'),''];
-    if(e.event==='scan')return ['wait',copy('فحص يقظ الطلب','Yaqidh checked the request'),d.findings+' '+copy('مشكلة وُجدت','problems found')];
-    if(e.event==='rescan')return ['good',copy('أعاد يقظ الفحص','Yaqidh re-checked'),copy('انحلّت','Fixed')+' '+(d.closed||[]).length+' · '+copy('بقيت','Still open')+' '+(d.still_open||[]).length+' · '+copy('جديدة','New')+' '+(d.new||[]).length];
+    if(e.event==='scan')return ['wait',copy('فحص يَقِـــظ الطلب','Yaqidh checked the request'),d.findings+' '+copy('مشكلة وُجدت','problems found')];
+    if(e.event==='rescan')return ['good',copy('أعاد يَقِـــظ الفحص','Yaqidh re-checked'),copy('انحلّت','Fixed')+' '+(d.closed||[]).length+' · '+copy('بقيت','Still open')+' '+(d.still_open||[]).length+' · '+copy('جديدة','New')+' '+(d.new||[]).length];
     if(e.event==='policy_decision')return [d.result==='pass'?'good':'bad',d.result==='pass'?copy('قرر النظام: نجح','The system decided: passed'):copy('قرر النظام: فشل','The system decided: failed'),(d.reasons||[]).map(displayReason).join(' · ')];
-    if(e.event==='explanation'){const f=findingOf(d.fingerprint);return ['wait',copy('شرح الوكيل المشاكل للمطوّر','The agent explained the problems to the developer'),f?findingName(f)+(((f.explanation&&f.explanation.text)||d.text)?': '+((f.explanation&&f.explanation.text)||d.text):''):(d.text||'')];}
+    if(e.event==='explanation'){const f=findingOf(d.fingerprint);return ['wait',copy('شرح الوكيل المشكلات للمطوّر','The agent explained the problems to the developer'),f?findingName(f)+(((f.explanation&&f.explanation.text)||d.text)?': '+((f.explanation&&f.explanation.text)||d.text):''):(d.text||'')];}
     if(e.event==='human_decision')return [d.decision==='approve'?'good':'bad',d.decision==='approve'?(profile.role==='security'?copy('وافق مراجع الأمن','The security reviewer approved'):copy('وافق مراجع الجودة','The QA reviewer approved')):(profile.role==='security'?copy('أرجع مراجع الأمن الطلب','The security reviewer returned the request'):copy('أرجع مراجع الجودة الطلب','The QA reviewer returned the request')),d.reason||''];
     return null};
   const rows=[];

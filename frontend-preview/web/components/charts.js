@@ -57,20 +57,20 @@ function findingLabel(key){return ({open:copy('قيد التنفيذ','In progre
 
 function bugChart(rows){
   const counts=[['open',copy('قيد التنفيذ','In progress'),'bad'],['fixed',copy('مغلقة','Closed'),'good'],['excepted',copy('مستثناة','Excepted'),'wait']];
-  return '<section class="panel"><h2>'+(profile.role==='qa'?copy('حالة ملاحظات الجودة','QA finding status'):copy('حالة الثغرات والملاحظات','Vulnerability and finding status'))+'</h2><div class="bug-chart">'
-    +'<svg viewBox="0 0 230 140" preserveAspectRatio="none" aria-hidden="true"><path d="M41 51 20 39H5m36 32H5m36 25-21 14H5m184-59 21-12h15m-36 32h36m-36 25 21 14h15M55 25h120l14 15v72l-14 15H55l-14-15V40Z"/><path class="bug-head" d="M89 24 101 8h28l12 16v16H89Z"/></svg><b class="bug-total" title="'+copy('إجمالي الملاحظات المطابقة','Total matching findings')+'">'+rows.length+'</b><div class="bug-counts">'
+  return '<section class="panel"><h2>'+(profile.role==='qa'?copy('حالة مشكلات الجودة','QA finding status'):copy('حالة الثغرات والمشكلات','Vulnerability and finding status'))+'</h2><div class="bug-chart">'
+    +'<svg viewBox="0 0 230 140" preserveAspectRatio="none" aria-hidden="true"><path d="M41 51 20 39H5m36 32H5m36 25-21 14H5m184-59 21-12h15m-36 32h36m-36 25 21 14h15M55 25h120l14 15v72l-14 15H55l-14-15V40Z"/><path class="bug-head" d="M89 24 101 8h28l12 16v16H89Z"/></svg><b class="bug-total" title="'+copy(profile.role==='qa'?'إجمالي المشكلات المطابقة':'إجمالي الثغرات والمشكلات المطابقة','Total matching findings')+'">'+rows.length+'</b><div class="bug-counts">'
     +counts.map(([key,label,tone])=>'<button type="button" data-action="finding-group" data-id="'+key+'" class="'+tone+'" aria-pressed="'+(findingFilter===key)+'" title="'+label+' · '+fraction(rows.filter(f=>findingGroup(f)===key).length,rows.length)+'"><span>'+label+'</span><progress value="'+rows.filter(f=>findingGroup(f)===key).length+'" max="'+Math.max(rows.length,1)+'"></progress><b>'+rows.filter(f=>findingGroup(f)===key).length+'</b></button>').join('')
     +'</div></div><small>'+copy('تتغير مع فلتر الأداة والخطورة','Updates with tool and severity filters')+'</small></section>';
 }
 
-function qaChart(rows,title=copy('حالة ملاحظات الجودة','QA finding status')){
+function qaChart(rows,title=copy('حالة مشكلات الجودة','QA finding status')){
   const resolved=rows.filter(f=>f.closure?.result==='closed').length;
   const groups=[[copy('قيد التنفيذ','In progress'),rows.filter(f=>f.status!=='excepted'&&f.closure?.result!=='closed').length,'bad'],
     [copy('أُغلقت','Closed'),resolved,'good'],
     [copy('مستثناة','Excepted'),rows.filter(f=>f.status==='excepted'&&f.closure?.result!=='closed').length,'wait']];
   return '<section class="panel"><h2>'+title+'</h2>'
     +groups.map(([label,count,tone])=>'<div class="bar-row '+tone+'"><span>'+label+' <b>'+count+'</b></span><progress value="'+count+'" max="'+Math.max(1,rows.length)+'"></progress></div>').join('')
-    +'<small>'+copy('يعرض الملاحظات المطابقة للفلاتر الحالية','Shows findings matching the active filters')+'</small></section>';
+    +'<small>'+copy('يعرض الثغرات والمشكلات المطابقة للفلاتر الحالية','Shows findings matching the active filters')+'</small></section>';
 }
 
 function stageCharts(){

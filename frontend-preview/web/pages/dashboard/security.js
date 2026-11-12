@@ -30,9 +30,9 @@ function secMetrics(d){
   const rec=f=>'<b>'+safe(findingName(f))+'</b> '+badge(severityName(f.severity),f.severity==='high'?'bad':'good')+'<br><small>'+safe(f.detail||'—')+'</small> '+action('finding',copy('التفاصيل','Details'),'data-id="'+safe(f.fingerprint)+'"');
   const reqRecord=r=>safe(requestName(r.pr))+' '+action('queue',copy('فتح الطلب','Open request'),'data-id="'+safe(r.id)+'"');
   return '<div class="metric-row five">'
-    +metric(copy('ثغرات أُغلقت','Vulnerabilities closed'),d.closed.length,'good',d.closed,buildScope(copy('ملاحظات تأكّد النظام من إصلاحها.','Findings the system confirmed as fixed.')),rec)
-    +metric(copy('ثغرات عالية الخطورة مفتوحة','High-severity vulnerabilities open'),d.high.length,d.high.length?'bad':'',d.high,buildScope(copy('ملاحظات عالية تمنع الإطلاق وما تُستثنى.','High findings block the release and cannot be excepted.')),rec)
-    +metric(copy('ثغرات متوسطة تحتاج قرارك','Medium vulnerabilities for your decision'),d.medium.length,d.medium.length?'wait':'',d.medium,buildScope(copy('ملاحظات متوسطة يمكن استثناؤها بقرارك.','Medium findings that you may except.')),rec)
+    +metric(copy('ثغرات أُغلقت','Vulnerabilities closed'),d.closed.length,'good',d.closed,buildScope(copy('ثغرات تأكّد النظام من إصلاحها.','Findings the system confirmed as fixed.')),rec)
+    +metric(copy('ثغرات عالية الخطورة مفتوحة','High-severity vulnerabilities open'),d.high.length,d.high.length?'bad':'',d.high,buildScope(copy('ثغرات عالية تمنع الإطلاق وما تُستثنى.','High findings block the release and cannot be excepted.')),rec)
+    +metric(copy('ثغرات متوسطة تحتاج قرارك','Medium vulnerabilities for your decision'),d.medium.length,d.medium.length?'wait':'',d.medium,buildScope(copy('ثغرات متوسطة يمكن استثناؤها بقرارك.','Medium findings that you may except.')),rec)
     +metric(copy('طلبات تنتظر موافقتك','Requests awaiting your approval'),d.awaiting.length,d.awaiting.length?'wait':'',d.awaiting,copy('طلبات اكتمل فحصها وتنتظر قرارك.','Requests whose checks are complete and wait for you.'),reqRecord)+'</div>';
 }
 

@@ -21,7 +21,7 @@ function adminView(){
     +metric(copy('إجمالي الحسابات','Total accounts'),accounts.length,'',accounts,scope,formatAccount)
     +metric(copy('الحسابات النشطة','Active accounts'),active.length,'good',active,scope,formatAccount)
     +metric(copy('الحسابات المعطّلة','Disabled accounts'),disabled.length,'wait',disabled,scope,formatAccount)
-    +metric(copy('مراقبة وكيل يقظ','YAQIDH agent monitoring'),copy('غير متصلة','Disconnected'),'wait',[],copy('المعاينة المحلية لا تستقبل حالة تشغيل الوكيل.','The local preview does not receive agent health data.'))
+    +metric(copy('مراقبة وكيل يَقِـــظ','YAQIDH agent monitoring'),copy('غير متصلة','Disconnected'),'wait',[],copy('المعاينة المحلية لا تستقبل حالة تشغيل الوكيل.','The local preview does not receive agent health data.'))
     +'</div>'
     +'<section class="panel filters"><form id="admin-search" class="actions" role="search">'
     +'<label>'+copy('بحث باسم المستخدم','Search by username')+'<input type="search" name="query" value="'+safe(adminQuery)+'"></label>'

@@ -15,14 +15,14 @@ function qaHero(){
   const g=release.gate||{},status=g.status||(release.outcome?(release.outcome.result==='pass'?'awaiting_qa_approval':'qa_blocked'):'not_started');
   const checks=release.qaChecks||[],open=checks.filter(c=>c.state==='failed').length||release.findings.filter(f=>f.status==='open').length;
   const headline={
-    qa_blocked:copy('فحص الجودة فشل','Quality check failed')+' · '+open+' '+copy('مشاكل مفتوحة','open problems'),
+    qa_blocked:copy('فحص الجودة فشل','Quality check failed')+' · '+open+' '+copy('مشكلات مفتوحة','open problems'),
     awaiting_qa_approval:copy('فحص الجودة نجح · بانتظار قرارك','Quality check passed · waiting for your decision'),
     qa_rejected:copy('تم إرجاع الطلب للمطوّر','The request was returned to the developer'),
     not_started:copy('بانتظار نتائج الفحص','Waiting for the check results')
   }[status]||copy('وافقت الجودة على هذا الطلب','Quality approved this request');
   const todo={
     awaiting_qa_approval:copy('راجعي الفحوصات تحت، ثم اتخذي قرارك.','Review the checks below, then decide.'),
-    qa_blocked:copy('لا شي الحين: بانتظار المطوّر. يقظ يعيد الفحص تلقائيًا بعد كل تعديل.','Nothing now: waiting for the developer. Yaqidh re-checks automatically after every change.'),
+    qa_blocked:copy('لا شي الحين: بانتظار المطوّر. يَقِـــظ يعيد الفحص تلقائيًا بعد كل تعديل.','Nothing now: waiting for the developer. Yaqidh re-checks automatically after every change.'),
     qa_rejected:copy('لا شي الحين: بانتظار تعديل المطوّر.','Nothing now: waiting for the developer.'),
     not_started:copy('لا شي الحين: الفحص لم يكتمل.','Nothing now: the check has not finished.')
   }[status]||copy('لا شي: قرارك محفوظ، والفحص الأمني يتابع.','Nothing: your decision is saved and the security check continues.');
@@ -70,7 +70,7 @@ function qaHistorySection(){
 }
 
 function qaView(){
-  const head='<header class="qa-top"><div><h1>'+roleNames(profile.role)+'</h1><small>'+(isLive()?copy('بيانات حقيقية من خادم يقظ','Live data from the Yaqidh server'):copy('معاينة محلية','Local preview'))+'</small></div><div class="actions">'+action('refresh',copy('تحديث','Refresh'))+'</div></header>';
+  const head='<header class="qa-top"><div><h1>'+roleNames(profile.role)+'</h1><small>'+(isLive()?copy('بيانات حقيقية من خادم يَقِـــظ','Live data from the Yaqidh server'):copy('معاينة محلية','Local preview'))+'</small></div><div class="actions">'+action('refresh',copy('تحديث','Refresh'))+'</div></header>';
   if(!release)return liveWarning()+head+'<section class="panel qa-empty"><h2>'+copy('ما وصل أي طلب دمج بعد','No pull request has arrived yet')+'</h2><p class="muted">'+copy('لما يفتح المطوّر طلب دمج، يظهر هنا مع نتيجة الفحص تلقائيًا.','When a developer opens a pull request it appears here with its check result.')+'</p></section>'
   return liveWarning()+head+qaQueue()+qaHero()+qaChecksSection()
     +qaHistorySection();

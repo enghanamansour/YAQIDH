@@ -1,8 +1,8 @@
 function threadText(value){
   return ({
     'developer-inbox-demo':copy('إرجاع تعديل الجودة','QA change returned'),
-    'developer-message-demo':copy('لم يظهر تأكيد الطلب بعد الإرسال. عالج الملاحظة وارفع التعديل لإعادة الفحص.','Order confirmation did not appear after submission. Address the finding and resubmit for verification.'),
-    'deadline-demo':copy('طلب مهلة إضافية لمعالجة ملاحظة أمنية','Extension request for security remediation'),
+    'developer-message-demo':copy('لم يظهر تأكيد الطلب بعد الإرسال. عالج المشكلة وارفع التعديل لإعادة الفحص.','Order confirmation did not appear after submission. Address the finding and resubmit for verification.'),
+    'deadline-demo':copy('طلب مهلة إضافية لمعالجة ثغرة أمنية','Extension request for security remediation'),
     'deadline-reason-demo':copy('وقت إضافي لإكمال المعالجة وإعادة التحقق.','Extra time to complete remediation and reverification.'),
     'deadline-message-demo':copy('هل يمكن توضيح خطوات إعادة الفحص المتبقية قبل الموعد المطلوب؟','Can you clarify which verification steps remain before the requested date?')
   })[value]||value;
@@ -40,7 +40,7 @@ function reviewRequestDetails(thread){
       +action('approve-review-request',exception?copy('قبول الاستثناء','Approve exception'):copy('اعتماد التمديد','Approve extension'),'class="primary" data-id="'+safe(thread.id)+'"')
       +(exception?'':action('adjust-review-deadline',copy('تعديل الموعد','Adjust deadline'),'data-id="'+safe(thread.id)+'"'))
       +action('reject-review-request',exception?copy('رفض الاستثناء','Reject exception'):copy('رفض التمديد','Reject extension'),'data-id="'+safe(thread.id)+'"')+'</div>':'')
-    +'<p class="muted">'+(exception?copy('اعتماد الاستثناء يخص هذه الملاحظة فقط.','Approval applies to this finding only.'):copy('اعتماد المهلة يغيّر الموعد فقط.','Approval updates the deadline only.'))+'</p></section>';
+    +'<p class="muted">'+(exception?copy('اعتماد الاستثناء يخص هذه الثغرة فقط.','Approval applies to this finding only.'):copy('اعتماد المهلة يغيّر الموعد فقط.','Approval updates the deadline only.'))+'</p></section>';
 }
 
 function communicationView(){
@@ -49,7 +49,7 @@ function communicationView(){
   let details='<p class="muted">'+copy('اختر محادثة لعرض الرسائل.','Select a conversation to view messages.')+'</p>';
   if(thread){
     details='<h2>'+safe(threadText(thread.subject))+'</h2><p>'+(thread.kind==='administrative'?'':safe(buildName(thread.build))+' · ')+thread.members.map(member=>safe(accountName(member))).join(' · ')+'</p>'
-      +(thread.finding?'<small>'+copy('بصمة الملاحظة','Finding fingerprint')+' '+mon(thread.finding)+'</small>':'')
+      +(thread.finding?'<small>'+copy('بصمة المشكلة','Finding fingerprint')+' '+mon(thread.finding)+'</small>':'')
       +(thread.evidenceAllowed?'<p><a href="/dashboard?build='+encodeURIComponent(thread.release)+'">'+copy('فتح بناء الدليل','Open evidence build')+'</a></p>':'')
       +reviewRequestDetails(thread)
       +'<div class="messages">'+thread.messages.map(message=>'<article class="note"><small>'+safe(accountName(message.by))+' · '+roleNames(message.role)+' · '+mon(message.at.slice(0,16).replace('T',' '))+'</small><p>'+safe(threadText(message.text))+'</p></article>').join('')+'</div>'

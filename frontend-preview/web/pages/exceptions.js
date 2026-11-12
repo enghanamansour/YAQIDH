@@ -12,20 +12,20 @@ function exceptionCard(r,blocked){
     +'<div><small>'+copy('وافق عليه','Approved by')+'</small><b>'+safe(r.exception.approved_by)+'</b></div>'
     +'<div><small>'+copy('متى','When')+'</small><b>'+safe(reportDate(r.exception.at))+'</b></div>'
     +'<div><small>'+copy('تصنيف الأداة','Tool rating')+'</small><b>'+safe(reportRated(r))+'</b></div>'
-    +'<div><small>'+copy('حالة الملاحظة الآن','Finding now')+'</small><b>'+safe(reportStatus(r))+'</b></div></div>'
+    +'<div><small>'+copy('حالة الثغرة الآن','Finding now')+'</small><b>'+safe(reportStatus(r))+'</b></div></div>'
     +'<div class="exc"><small>'+copy('السبب الذي كتبه','The reason given')+'</small><p>'+safe(r.exception.justification)+'</p></div></article>';
 }
 
 function exceptionsView(){
   const title='<div class="intro"><div><h1>'+copy('الاستثناءات','Exceptions')+'</h1></div></div>';
   const report=release&&release.report;
-  if(!release||!report)return '<main>'+title+'<section class="panel"><p class="muted">'+copy('لا توجد بيانات حيّة للعرض. شغّل اللوحة على واجهة يقظ.','There is no live data to show. Run the dashboard against the Yaqidh API.')+'</p></section></main>';
+  if(!release||!report)return '<main>'+title+'<section class="panel"><p class="muted">'+copy('لا توجد بيانات حيّة للعرض. شغّل اللوحة على واجهة يَقِـــظ.','There is no live data to show. Run the dashboard against the Yaqidh API.')+'</p></section></main>';
   const picker=profile.releases.length>1?'<label class="field">'+copy('البناء','Build')+'<select id="release-select">'+profile.releases.map(item=>'<option value="'+safe(item.id)+'" '+(item.id===release.id?'selected':'')+'>'+safe(requestName(item.pr))+' · '+safe(buildName(item.build))+'</option>').join('')+'</select></label>':'';
   const list=report.findings.filter(r=>r.exception);
   const blocked=new Set((release.blockerIds||[]));
   const card=r=>exceptionCard(r,blocked);
   const body=list.length?list.map(card).join(''):'<section class="panel"><p class="muted">'+copy('لم يوافق فريق الأمن على أي استثناء في هذا البناء بعد.','The security team has not accepted any exception in this build yet.')+'</p></section>';
-  const rule='<section class="panel"><p class="muted">'+copy('القاعدة: يُسمح بالاستثناء فقط لملاحظة صنّفتها الأداة نفسها «متوسطة» وبسبب مكتوب من مراجع الأمن. الملاحظات العالية والحرجة لا تُستثنى أبدًا.','The rule: an exception is allowed only for a finding the tool itself rated medium, with a written reason from the security reviewer. High and critical findings are never excepted.')+'</p></section>';
+  const rule='<section class="panel"><p class="muted">'+copy('القاعدة: يُسمح بالاستثناء فقط لثغرة صنّفتها الأداة نفسها «متوسطة» وبسبب مكتوب من مراجع الأمن. الثغرات العالية والحرجة لا تُستثنى أبدًا.','The rule: an exception is allowed only for a finding the tool itself rated medium, with a written reason from the security reviewer. High and critical findings are never excepted.')+'</p></section>';
   return '<main>'+title+(picker?'<section class="panel">'+picker+'</section>':'')+rule+body+'</main>';
 }
 

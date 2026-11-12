@@ -1,12 +1,12 @@
 function developerPriority(){
   const returned=profile.releases.filter(item=>item.returnReason);
   return '<section class="panel dev-priority"><h2>'+copy('يحتاج إجراء منك','Needs your action')+'</h2>'
-    +(returned.length?returned.map(item=>'<article class="note dev-return"><div><b>'+safe(requestName(item.pr))+'</b> · '+safe(stageText(item.active))+'<p>'+safe(demoText(item.returnReason))+'</p><small>'+copy('عالج الملاحظة وارفع التعديل لإعادة الفحص.','Address the finding and resubmit the change for checking.')+'</small></div>'
+    +(returned.length?returned.map(item=>'<article class="note dev-return"><div><b>'+safe(requestName(item.pr))+'</b> · '+safe(stageText(item.active))+'<p>'+safe(demoText(item.returnReason))+'</p><small>'+copy('عالج المشكلة وارفع التعديل لإعادة الفحص.','Address the finding and resubmit the change for checking.')+'</small></div>'
     +action('returned-build',copy('عرض سبب الإرجاع','View return reason'),'data-id="'+safe(item.id)+'"')+'</article>').join(''):'<p>'+copy('لا توجد تعديلات معادة إليك.','No changes have been returned to you.')+'</p>')+'</section>';
 }
 
 function assignedBuildTable(rows){
-  return '<section class="panel"><h2>'+copy('الطلبات المسندة','Assigned requests')+'</h2><div class="table-wrap"><table><thead><tr><th>'+copy('طلب الدمج','Pull request')+'</th><th>'+copy('البناء','Build')+'</th><th>'+copy('المرحلة','Stage')+'</th><th>'+copy('الإجراء','Action')+'</th></tr></thead><tbody>'+rows.map(item=>'<tr><td>'+safe(requestName(item.pr))+'</td><td>'+safe(buildName(item.build))+'</td><td>'+safe(stageText(item.active))+'</td><td>'+action('queue',copy('عرض الملاحظات','View findings'),'data-id="'+safe(item.id)+'"')+'</td></tr>').join('')+'</tbody></table></div>'+(rows.length?'':'<p>'+copy('لا توجد تعديلات مطابقة.','No matching changes.')+'</p>')+'</section>';
+  return '<section class="panel"><h2>'+copy('الطلبات المسندة','Assigned requests')+'</h2><div class="table-wrap"><table><thead><tr><th>'+copy('طلب الدمج','Pull request')+'</th><th>'+copy('البناء','Build')+'</th><th>'+copy('المرحلة','Stage')+'</th><th>'+copy('الإجراء','Action')+'</th></tr></thead><tbody>'+rows.map(item=>'<tr><td>'+safe(requestName(item.pr))+'</td><td>'+safe(buildName(item.build))+'</td><td>'+safe(stageText(item.active))+'</td><td>'+action('queue',copy('عرض المشكلات','View findings'),'data-id="'+safe(item.id)+'"')+'</td></tr>').join('')+'</tbody></table></div>'+(rows.length?'':'<p>'+copy('لا توجد تعديلات مطابقة.','No matching changes.')+'</p>')+'</section>';
 }
 
 function legacyDeveloperView(){
@@ -23,9 +23,9 @@ function legacyDeveloperView(){
     +'<section class="panel filters"><label>'+copy('الطلب','Pull request and build')+'<select id="release-select">'+profile.releases.map(item=>'<option value="'+safe(item.id)+'" '+(item.id===release.id?'selected':'')+'>'+safe(requestName(item.pr))+' · '+safe(buildName(item.build))+'</option>').join('')+'</select></label>'
     +adminSelect('finding-filter',copy('حالة المعالجة','Remediation status'),findingFilter,[['open',copy('قيد التنفيذ','In progress')],['fixed',copy('مغلقة','Closed')],['excepted',copy('مستثناة','Excepted')]])
     +action('decisions',copy('عرض قرار المراجع','View reviewer decision'))+'</section>'+chipRow([['finding',findingFilter,copy('حالة المعالجة','Remediation status')],['developer-outcome',developerOutcome,copy('نتائج الأبنية','Build outcomes')],['developer-day',developerDay,copy('اليوم','Day')+' · '+developerDay]],'clear')
-    +'<div class="metric-row">'+metric(copy('طلبات الدمج المسندة','Assigned pull requests'),requests.length,'',requests,copy('طلبات دمج مميزة ضمن الأبنية المسندة المطابقة.','Distinct pull requests in the matching assigned builds.'),buildRecord)+metric(copy('طلبات معادة للمعالجة','Returned requests'),returns.length,'bad',returns,copy('أبنية مسندة آخر قرار لها الإرجاع.','Assigned builds whose latest decision was a return.'),buildRecord)+metric(copy('تنتظر إعادة الفحص','Awaiting recheck'),pending.length,'wait',pending,buildScope(copy('ملاحظات مطابقة لم يثبت إغلاقها.','Matching findings awaiting verified closure.')),findingRecord)+metric(copy('مشاكل انحلّت','Problems fixed'),fixed.length,'good',fixed,buildScope(copy('ملاحظات مطابقة ثبت إغلاقها.','Matching findings with verified closure.')),findingRecord)+'</div>'
+    +'<div class="metric-row">'+metric(copy('طلبات الدمج المسندة','Assigned pull requests'),requests.length,'',requests,copy('طلبات دمج مميزة ضمن الأبنية المسندة المطابقة.','Distinct pull requests in the matching assigned builds.'),buildRecord)+metric(copy('طلبات معادة للمعالجة','Returned requests'),returns.length,'bad',returns,copy('أبنية مسندة آخر قرار لها الإرجاع.','Assigned builds whose latest decision was a return.'),buildRecord)+metric(copy('تنتظر إعادة الفحص','Awaiting recheck'),pending.length,'wait',pending,buildScope(copy('مشكلات مطابقة لم يثبت إغلاقها.','Matching findings awaiting verified closure.')),findingRecord)+metric(copy('مشكلات انحلّت','Problems fixed'),fixed.length,'good',fixed,buildScope(copy('مشكلات مطابقة ثبت إغلاقها.','Matching findings with verified closure.')),findingRecord)+'</div>'
     +'<div class="role-charts">'+qaChart(matched(),copy('حالات المعالجة','Remediation status'))+toolRunChart(counts.flatMap(item=>Array.from({length:item.count},()=>item)),true)+'</div>'+adminTimeline(profile.releases.filter(item=>item.day&&(developerOutcome==='all'||(item.outcome||'pending')===developerOutcome)).map(item=>({day:item.day,state:item.outcome==='fail'?'error':item.outcome==='pass'?'completed':'pending'})),true)+assignedBuildTable(assigned)
-    +'<section class="panel"><h2>'+copy('أدلة المعالجة','Remediation evidence')+'</h2>'+(rows?'<div class="table-wrap"><table><thead><tr><th>'+copy('الملاحظة','Finding')+'</th><th>'+copy('الحالة','Status')+'</th><th>'+copy('الدليل','Evidence')+'</th></tr></thead><tbody>'+rows+'</tbody></table></div>':'<p>'+copy('لا توجد ملاحظات مطابقة.','No matching findings.')+'</p>')+'</section></div>';
+    +'<section class="panel"><h2>'+copy('أدلة المعالجة','Remediation evidence')+'</h2>'+(rows?'<div class="table-wrap"><table><thead><tr><th>'+copy('المشكلة','Finding')+'</th><th>'+copy('الحالة','Status')+'</th><th>'+copy('الدليل','Evidence')+'</th></tr></thead><tbody>'+rows+'</tbody></table></div>':'<p>'+copy('لا توجد مشكلات مطابقة.','No matching findings.')+'</p>')+'</section></div>';
 }
 
 function devRail(){
@@ -55,8 +55,8 @@ function devData(){
 
 function devNextStep(d){
   const st=(release.gate||{}).status||'';
-  if(d.lastReject)return ['bad',copy('الطلب رجع لك','The request came back to you'),(d.lastReject.reason?safe(demoText(d.lastReject.reason))+'. ':'')+copy('عالج المشاكل وارفع تعديلًا على GitHub، ويعيد يقظ الفحص تلقائيًا.','Fix the problems and push a change on GitHub; Yaqidh re-checks automatically.')];
-  if(d.open.length)return ['bad',copy('عندك '+d.open.length+' مشاكل لازم تنحل','You have '+d.open.length+' problems to fix'),copy('ارفع التعديل على نفس الطلب في GitHub، ويعيد يقظ الفحص تلقائيًا.','Push the fix to the same request on GitHub; Yaqidh re-checks automatically.')];
+  if(d.lastReject)return ['bad',copy('الطلب رجع لك','The request came back to you'),(d.lastReject.reason?safe(demoText(d.lastReject.reason))+'. ':'')+copy('عالج المشكلات وارفع تعديلًا على GitHub، ويعيد يَقِـــظ الفحص تلقائيًا.','Fix the problems and push a change on GitHub; Yaqidh re-checks automatically.')];
+  if(d.open.length)return ['bad',copy('عندك '+d.open.length+' مشكلات لازم تنحل','You have '+d.open.length+' problems to fix'),copy('ارفع التعديل على نفس الطلب في GitHub، ويعيد يَقِـــظ الفحص تلقائيًا.','Push the fix to the same request on GitHub; Yaqidh re-checks automatically.')];
   if(st==='ready_to_merge')return ['good',copy('جاهز للإطلاق','Ready to release'),copy('اعتمد المراجعان الطلب، والدمج مسموح.','Both reviewers approved; merging is allowed.')];
   return ['wait',copy('بانتظار المراجع','Waiting for the reviewer'),copy('اختباراتك نجحت، والطلب ينتظر قرار '+(release.stage==='security'?'مراجع الأمن':'مراجع الجودة')+'.','Your checks passed; the request waits for the '+(release.stage==='security'?'security':'QA')+' reviewer.')];
 }
@@ -147,7 +147,7 @@ function devEmptyResult(){
 
 function devZeroMetrics(){
   const z=(label,tone)=>metric(label,0,tone,[],'',safe);
-  return '<div class="metric-row five">'+z(copy('مشاكل تحتاج إصلاحك','Problems to fix'),'')+z(copy('مشاكل انحلّت','Problems fixed'),'')+z(copy('مرات الفحص','Times checked'),'')+z(copy('طلبات أرجعها المراجع','Returned requests'),'')+z(copy('طلبات تنتظر المراجع','Requests in review'),'')+'</div>';
+  return '<div class="metric-row five">'+z(copy('مشكلات تحتاج إصلاحك','Problems to fix'),'')+z(copy('مشكلات انحلّت','Problems fixed'),'')+z(copy('مرات الفحص','Times checked'),'')+z(copy('طلبات أرجعها المراجع','Returned requests'),'')+z(copy('طلبات تنتظر المراجع','Requests in review'),'')+'</div>';
 }
 
 function devStageCard(key){
@@ -158,7 +158,7 @@ function devStageCard(key){
   const sev=!st.scanned||!st.open?copy('لا يوجد','None'):(st.openHigh?copy('عالية '+st.openHigh,'High '+st.openHigh):'')+(st.openHigh&&st.openLow?' · ':'')+(st.openLow?copy('منخفضة '+st.openLow,'Low '+st.openLow):'');
   const num=(label,value,tone)=>'<div class="dev-num '+(tone||'')+'"><strong>'+value+'</strong><span>'+label+'</span></div>';
   return '<section class="qa-card dev-stage"><div class="dev-stage-head"><h3 class="card-title">'+title+'</h3><span class="pill '+state[0]+'">'+state[1]+'</span></div><div class="dev-nums three">'
-    +num(key==='qa'?copy('اختبارات نجحت','Tests passed'):copy('ملاحظات أُغلقت','Findings closed'),st.passed||0,st.passed?'good':'')
+    +num(key==='qa'?copy('اختبارات نجحت','Tests passed'):copy('ثغرات أُغلقت','Findings closed'),st.passed||0,st.passed?'good':'')
     +num(key==='qa'?copy('اختبارات فشلت','Tests failed'):copy('قيد التنفيذ','In progress'),st.open||0,st.open?'bad':'good')
     +num(copy('بانتظار موافقة','Awaiting approval'),(st.awaitingHuman?1:0),st.awaitingHuman?'wait':'')
     +'</div><p class="dev-sev">'+copy('الخطورة: ','Severity: ')+sev+'</p></section>';
@@ -188,14 +188,14 @@ function devBelowOld(){
   const inReview=(profile.releases||[]).filter(r=>qaGroup(r)==='review');
   const reqRecord=r=>safe(requestName(r.pr))+' '+action('queue',copy('فتح الطلب','Open request'),'data-id="'+safe(r.id)+'"');
   const metrics='<div class="metric-row five">'
-    +metric(copy('مشاكل تحتاج إصلاحك','Problems to fix'),d.open.length,d.open.length?'bad':'',d.open,buildScope(copy('كل مشكلة مع دليلها وشرح يقظ.','Each problem with its evidence and the Yaqidh explanation.')),problemRecord)
-    +metric(copy('مشاكل انحلّت','Problems fixed'),d.fixed.length,'good',d.fixed,buildScope(copy('مشاكل تأكّد النظام من إصلاحها.','Problems the system confirmed as fixed.')),problemRecord)
-    +metric(copy('مرات الفحص','Times checked'),d.scans,'',[],buildScope(copy('كل رفع تعديل يعيد يقظ فحصه تلقائيًا.','Every push is re-checked automatically.')),safe)
+    +metric(copy('مشكلات تحتاج إصلاحك','Problems to fix'),d.open.length,d.open.length?'bad':'',d.open,buildScope(copy('كل مشكلة مع دليلها وشرح يَقِـــظ.','Each problem with its evidence and the Yaqidh explanation.')),problemRecord)
+    +metric(copy('مشكلات انحلّت','Problems fixed'),d.fixed.length,'good',d.fixed,buildScope(copy('مشكلات تأكّد النظام من إصلاحها.','Problems the system confirmed as fixed.')),problemRecord)
+    +metric(copy('مرات الفحص','Times checked'),d.scans,'',[],buildScope(copy('كل رفع تعديل يعيد يَقِـــظ فحصه تلقائيًا.','Every push is re-checked automatically.')),safe)
     +metric(copy('طلبات أرجعها المراجع','Returned requests'),returned.length,returned.length?'bad':'',returned,copy('طلبات رجعت لك من المراجع.','Requests the reviewer sent back to you.'),reqRecord)
     +metric(copy('طلبات تنتظر المراجع','Requests in review'),inReview.length,inReview.length?'wait':'',inReview,copy('طلبات اختباراتها نجحت وتنتظر قرار المراجع.','Requests whose checks passed and wait for a reviewer.'),reqRecord)+'</div>';
   const next='<section class="qa-card next-step '+tone+'"><span class="eyebrow">'+copy('الخطوة التالية','Next step')+'</span><h3>'+title+'</h3><p>'+text+'</p></section>';
   const group=(titleText,list,kind,openIt)=>list.length?'<details class="req-group '+kind+'"'+(openIt?' open':'')+'><summary><span>'+titleText+'</span><b>'+list.length+'</b></summary><ul>'+list.map(f=>'<li class="req '+kind+'"><span class="req-id">'+safe(f.severity==='high'?copy('عالية','HIGH'):copy('منخفضة','LOW'))+'</span><span class="req-title">'+safe(findingName(f))+'<small>'+safe(f.detail||'')+'</small></span>'+action('finding',copy('التفاصيل','Details'),'data-id="'+safe(f.fingerprint)+'"')+'</li>').join('')+'</ul></details>':'';
-  const problems=(d.open.length||d.fixed.length)?'<details class="qa-card qa-reqs-card"'+(d.open.length?' open':'')+'><summary><h3 class="card-title">'+copy('الملاحظات وشرحها','Findings and their explanation')+'</h3><span>'+(d.open.length+d.fixed.length)+' · '+copy('اضغطي للعرض','tap to view')+'</span></summary>'+group(copy('تحتاج إصلاحك','To fix'),d.open,'bad',true)+group(copy('انحلّت','Fixed'),d.fixed,'good',false)+'</details>':'';
+  const problems=(d.open.length||d.fixed.length)?'<details class="qa-card qa-reqs-card"'+(d.open.length?' open':'')+'><summary><h3 class="card-title">'+copy('المشكلات والثغرات وشرحها','Findings and their explanation')+'</h3><span>'+(d.open.length+d.fixed.length)+' · '+copy('اضغطي للعرض','tap to view')+'</span></summary>'+group(copy('تحتاج إصلاحك','To fix'),d.open,'bad',true)+group(copy('انحلّت','Fixed'),d.fixed,'good',false)+'</details>':'';
   return problems;
 }
 
@@ -207,5 +207,5 @@ function devFindingsDetail(){
   const report=release&&release.report;
   if(!report)return devBelowOld();
   const s=report.summary;
-  return report.findings.length?'<details class="catalog"'+(s.open_blocking?' open':'')+'><summary><b>'+copy('كل ملاحظة بالتفصيل','Every finding in detail')+'</b><span>'+report.findings.length+' '+copy('ملاحظة · اضغط لتفتح القائمة','findings · click to open the list')+'</span></summary><div class="finding-cards">'+report.findings.map(reportCard).join('')+'</div></details>':'<p class="muted">'+copy('لا توجد ملاحظات مسجلة.','No findings recorded.')+'</p>';
+  return report.findings.length?'<details class="catalog"'+(s.open_blocking?' open':'')+'><summary><b>'+copy('كل مشكلة أو ثغرة بالتفصيل','Every finding in detail')+'</b><span>'+report.findings.length+' '+copy('مشكلة · اضغط لتفتح القائمة','findings · click to open the list')+'</span></summary><div class="finding-cards">'+report.findings.map(reportCard).join('')+'</div></details>':'<p class="muted">'+copy('لا توجد مشكلات مسجلة.','No findings recorded.')+'</p>';
 }

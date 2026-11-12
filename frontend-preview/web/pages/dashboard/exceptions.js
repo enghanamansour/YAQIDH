@@ -4,7 +4,7 @@
 function exceptionPanel(){
   if(profile.role!=='security'||!release||!release.live)return '';
   const medium=release.findings.filter(f=>f.reported_as==='medium');
-  const title='<h2>'+copy('الملاحظات المتوسطة: قرارك','Medium findings: your decision')+'</h2>';
+  const title='<h2>'+copy('الثغرات المتوسطة: قرارك','Medium findings: your decision')+'</h2>';
   if(!medium.length)return '';
   const open=medium.filter(f=>f.status==='open'),done=medium.filter(f=>f.status==='excepted');
   const line=f=>'<li><label><input type="checkbox" name="finding" value="'+safe(f.fingerprint)+'" checked> <b>'+safe(findingName(f))+'</b> <small>'+mon(f.location)+'</small></label></li>';

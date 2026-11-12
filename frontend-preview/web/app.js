@@ -54,8 +54,8 @@ const findingName=f=>{
 const findingNameMap=f=>({
   'demo.sql-query':copy('استعلام يستخدم مدخلات الطلب','Query uses request input'),
   'demo.order-confirmation':copy('لم يظهر تأكيد الطلب','Order confirmation missing'),
-  'DEMO-ADVISORY-01':copy('ملاحظة في مكتبة مستخدمة','Dependency finding'),
-  'DEMO-ADVISORY-02':copy('ملاحظة مستثناة في مكتبة','Excepted dependency finding')
+  'DEMO-ADVISORY-01':copy('ثغرة في مكتبة مستخدمة','Dependency finding'),
+  'DEMO-ADVISORY-02':copy('ثغرة مستثناة في مكتبة','Excepted dependency finding')
 }[f.rule]||f.title||f.rule||f.fingerprint);
 const logo=()=>'/assets/yaqidh-'+document.documentElement.dataset.theme+'-transparent.png';
 const action=(name,label,extra='')=>'<button type="button" data-action="'+name+'" '+extra+'>'+label+'</button>';
@@ -84,7 +84,7 @@ function setAppearance(){
   const root=document.documentElement;
   root.lang=preference('yaqidh-role-lang','ar')==='en'?'en':'ar';
   root.dir=root.lang==='en'?'ltr':'rtl';
-  document.title=copy('يقظ','YAQIDH');
+  document.title=copy('يَقِـــظ','YAQIDH');
   root.dataset.theme=preference('yaqidh-role-theme','dark')==='light'?'light':'dark';
 }
 async function api(path,data){
@@ -117,7 +117,7 @@ function changeAppearance(id){
 
 const liveWarning=()=>profile&&profile.liveError?'<section class="panel" role="alert"><b>'+copy('تعذّر قراءة البيانات الحقيقية','Could not read the real data')+'</b><p>'+safe(profile.liveError)+'</p></section>':'';
 function introduction(){
-  return liveWarning()+'<section class="intro"><div><h1>'+roleNames(profile.role)+'</h1><small>'+(isLive()?copy('بيانات حقيقية من خادم يقظ','Live data from the Yaqidh server'):copy('معاينة محلية · بيانات تشغيل ومستخدمون تجريبيون','Local preview · Demo runs and users'))+'</small></div>'+'<div class="actions">'+action('refresh',copy('تحديث','Refresh'))+badge(safe(accountName(profile.role)))+'</div></section>';
+  return liveWarning()+'<section class="intro"><div><h1>'+roleNames(profile.role)+'</h1><small>'+(isLive()?copy('بيانات حقيقية من خادم يَقِـــظ','Live data from the Yaqidh server'):copy('معاينة محلية · بيانات تشغيل ومستخدمون تجريبيون','Local preview · Demo runs and users'))+'</small></div>'+'<div class="actions">'+action('refresh',copy('تحديث','Refresh'))+badge(safe(accountName(profile.role)))+'</div></section>';
 }
 let adminQuery='',adminActive='all';
 
@@ -133,9 +133,9 @@ function statusText(status){return ({
 function lastDecision(){return release.decisions.at(-1)}
 function decisionText(){return statusText(lastDecision()?.decision)}
 function displayReason(reason){
-  if(reason==='no blocking findings')return copy('لا توجد ملاحظات مانعة وفق السياسة','No blocking findings');
+  if(reason==='no blocking findings')return copy('لا توجد مشكلات مانعة وفق السياسة','No blocking findings');
   const count=reason.match(/^(\d+) high open$/);
-  return count?copy(count[1]==='1'?'ملاحظة واحدة عالية الخطورة تمنع التقدّم':count[1]+' ملاحظات عالية الخطورة تمنع التقدّم',count[1]+' blocking HIGH findings'):safe(reason);
+  return count?copy(count[1]==='1'?'مشكلة واحدة عالية الخطورة تمنع التقدّم':count[1]+' مشكلات عالية الخطورة تمنع التقدّم',count[1]+' blocking HIGH findings'):safe(reason);
 }
 function sampleBuild(sample){if(profile.role==='developer')return sample==='issue'?'portal-133':'portal-129';if(sample==='approved')return profile.role==='qa'?'portal-129':'portal-135';return profile.role==='qa'?(sample==='issue'?'portal-133':'portal-132'):(sample==='issue'?'portal-128':'portal-134')}
 function findingState(f){return f.closure?.result==='closed'?copy('أُغلقت','Closed'):f.closure?.result==='still_open'?copy('ما زالت قيد التنفيذ','Still in progress'):statusText(f.status)}
@@ -180,14 +180,14 @@ function openRuns(){
 const eventName=id=>({
   commit_received:copy('وصل commit جديد','New commit received'),event:copy('حدث من GitHub','GitHub event'),
   scan:copy('فحص','Scan'),rescan:copy('إعادة فحص','Re-scan'),policy_decision:copy('قرار السياسة','Policy decision'),
-  explanation:copy('شرح من يقظ','Explanation by YAQIDH'),human_decision:copy('قرار بشري','Human decision'),
+  explanation:copy('شرح من يَقِـــظ','Explanation by YAQIDH'),human_decision:copy('قرار بشري','Human decision'),
   exception:copy('استثناء','Exception'),agent_run:copy('تشغيل الوكيل','Agent run'),gate_checked:copy('فحص البوابة','Gate check'),
   scan_results_received:copy('وصلت نتائج CI','CI results received'),github_published:copy('نشر على GitHub','Posted to GitHub'),
   github_post_failed:copy('فشل النشر على GitHub','GitHub post failed'),scan_results_not_applied:copy('نتائج CI لم تُطبّق','CI results not applied')
 }[id]||id);
 function eventDetail(e){
   const d=e.data||{};
-  if(e.event==='scan')return (d.stage||'')+' · '+copy('ملاحظات','findings')+' '+d.findings;
+  if(e.event==='scan')return (d.stage||'')+' · '+copy(d.stage==='security'?'ثغرات':'مشكلات','findings')+' '+d.findings;
   if(e.event==='rescan')return (d.stage||'')+' · '+copy('أُغلقت','closed')+' '+(d.closed||[]).length+' · '+copy('لسا مفتوح','still open')+' '+(d.still_open||[]).length+' · '+copy('جديد','new')+' '+(d.new||[]).length;
   if(e.event==='policy_decision')return (d.stage||'')+' · '+(d.result==='pass'?copy('نجح','PASS'):copy('فشل','FAIL'));
   if(e.event==='human_decision')return (d.stage||'')+' · '+statusText(d.decision)+(d.reason?' · '+d.reason:'');
@@ -197,7 +197,7 @@ function eventDetail(e){
 }
 function historyTrend(){
   const scans=((release.log||{}).entries||[]).filter(e=>e.event==='scan'||e.event==='rescan');
-  return scans.map((e,i)=>{const d=e.data||{};const n=e.event==='scan'?d.findings:(d.still_open||[]).length+(d.new||[]).length;return '<p>'+copy('الفحص','Scan')+' '+(i+1)+' · '+safe(d.stage||'')+': <b>'+n+'</b> '+copy('ملاحظة مفتوحة','open findings')+' <small>'+mon(String(d.commit||'').slice(0,7)||'—')+'</small></p>'}).join('');
+  return scans.map((e,i)=>{const d=e.data||{};const n=e.event==='scan'?d.findings:(d.still_open||[]).length+(d.new||[]).length;return '<p>'+copy('الفحص','Scan')+' '+(i+1)+' · '+safe(d.stage||'')+': <b>'+n+'</b> '+copy(d.stage==='security'?'ثغرة مفتوحة':'مشكلة مفتوحة','open findings')+' <small>'+mon(String(d.commit||'').slice(0,7)||'—')+'</small></p>'}).join('');
 }
 function historyView(){
   const log=release.log;
@@ -213,9 +213,9 @@ function decisionList(){
 function findingModal(id){
   const f=release.findings.find(item=>item.fingerprint===id);
   if(!f)return;
-  const flags={closed:copy('أُغلقت','Closed'),still_open:copy('ما زالت قيد التنفيذ','Still in progress'),new:copy('ملاحظة جديدة','New finding'),new_from_db_update:copy('جديدة بسبب تحديث قاعدة تريفي','New after Trivy DB update'),reopened:copy('عادت بعد الإغلاق','Reopened')};
+  const flags={closed:copy('أُغلقت','Closed'),still_open:copy('ما زالت قيد التنفيذ','Still in progress'),new:copy('مشكلة جديدة','New finding'),new_from_db_update:copy('جديدة بسبب تحديث قاعدة تريفي','New after Trivy DB update'),reopened:copy('عادت بعد الإغلاق','Reopened')};
   const history=Object.entries(flags).filter(([key])=>release.verification?.[key]?.includes(id)).map(([,label])=>label).join(' · ');
-  modal(copy('دليل الملاحظة','Finding evidence'),'<div class="details-grid">'
+  modal(copy(f.tool==='playwright'?'دليل المشكلة':'دليل الثغرة','Finding evidence'),'<div class="details-grid">'
     +detail(copy('البصمة','Fingerprint'),mon(f.fingerprint))+(profile.role==='developer'?'':detail(copy('الأداة','Tool'),safe(toolName(f.tool))))
     +'<div class="sev-big '+(f.severity==='high'?'bad':'good')+'"><small>'+copy('مستوى الخطورة','Severity')+'</small><strong>'+severityName(f.severity)+'</strong><span>'+(f.severity==='high'?copy('تمنع الإطلاق حتى تنحل','Blocks the release until fixed'):copy('لا تمنع الإطلاق','Does not block the release'))+'</span></div>'
     +detail(copy('القاعدة والموقع','Rule and location'),mon(f.rule)+' · '+mon(f.location))
@@ -223,7 +223,7 @@ function findingModal(id){
     +(f.fixed_version?detail(copy('النسخة المصلحة','Fixed version'),mon(f.fixed_version)):'')
     +(f.cwe?detail(copy('التصنيف (CWE)','CWE'),mon(f.cwe)):'')
     +(f.confidence?detail(copy('ثقة الأداة','Tool confidence'),safe(({high:copy('عالية','High'),medium:copy('متوسطة','Medium'),low:copy('منخفضة (قد تكون إنذارًا كاذبًا)','Low (may be a false alarm)')}[f.confidence])||f.confidence)):'')
-    +(f.detail&&!f.explanation?detail(copy('ملاحظة الأداة','Tool message'),safe(f.detail)):'')
+    +(f.detail&&!f.explanation?detail(copy('رسالة الأداة','Tool message'),safe(f.detail)):'')
     +detail(copy('حالة الطلب','Request status'),safe(statusText(f.status)))
     +detail(copy('إعادة التحقق','Reverification'),safe(history||(f.closure?findingState(f):copy('لا يوجد دليل إعادة فحص','No rescan evidence'))))
     +(profile.role==='security'?detail(copy('قبل / بعد','Before / after'),release.prior&&history?mon('#'+release.prior.build+' → #'+release.build):'—'):'')+'</div>'
@@ -232,17 +232,17 @@ function findingModal(id){
     +(id==='playwright-demo-001'?'<p class="note">'+copy('المتوقع: يظهر تأكيد الطلب بعد الإرسال. الفعلي: لم يظهر التأكيد في عينة الاختبار.','Expected: order confirmation appears after submission. Actual: the confirmation was absent in the demo run.')+'</p>':'')
     +(f.closure?'<p>'+copy('وقت تحقق الإغلاق','Verification time')+' '+mon(f.closure.timestamp)+'</p>':'')
     +(f.exception?'<p class="note"><b>'+copy('استثناء مسجل','Recorded exception')+'</b><br>'+safe(demoText(f.exception.justification))+' · '+safe(demoText(f.exception.approved_by))+'</p>':'')
-    +(profile.role==='security'||(profile.role==='developer'&&release.stage==='security'&&!release.blockerIds.includes(f.fingerprint))?'':'<p>'+action('new-thread',release.stage==='security'?copy('طلب تمديد المهلة','Request deadline extension'):(profile.role==='qa'?copy('مراسلة المطوّر عن هذه المشكلة','Message the developer about this problem'):copy('ناقش هذه الملاحظة','Discuss this finding')),'data-id="'+safe(f.fingerprint)+'"')+'</p>')
+    +(profile.role==='security'||(profile.role==='developer'&&release.stage==='security'&&!release.blockerIds.includes(f.fingerprint))?'':'<p>'+action('new-thread',release.stage==='security'?copy('طلب تمديد المهلة','Request deadline extension'):(profile.role==='qa'?copy('مراسلة المطوّر عن هذه المشكلة','Message the developer about this problem'):copy(f.tool==='playwright'?'ناقش هذه المشكلة':'ناقش هذه الثغرة','Discuss this finding')),'data-id="'+safe(f.fingerprint)+'"')+'</p>')
     +(profile.role==='developer'&&f.status==='open'?'<p>'+action(release.exceptionEligible.includes(f.fingerprint)?'new-exception':'exception-refused',copy('طلب استثناء','Request an exception'),'data-id="'+safe(f.fingerprint)+'"')+'</p>':'')
-    +(f.explanation?'<div class="note explain"><b>'+copy('شرح يقظ للمطوّر','YAQIDH explanation for the developer')+'</b><br>'+safe(demoText(f.explanation.text))+'</div>':'')
+    +(f.explanation?'<div class="note explain"><b>'+copy('شرح يَقِـــظ للمطوّر','YAQIDH explanation for the developer')+'</b><br>'+safe(demoText(f.explanation.text))+'</div>':'')
     +(isLive()&&profile.role==='security'&&release.stage==='security'&&(release.exceptionEligible||[]).includes(f.fingerprint)&&f.status==='open'?'<p>'+action('exception',copy('منح استثناء','Grant exception'),'data-id="'+safe(f.fingerprint)+'"')+'</p>':''));
 }
 const gateStatusText=code=>({
-  not_started:copy('لم يبدأ الفحص','Not started'),qa_blocked:copy('الجودة: فيه ملاحظات مانعة، يرجع للمطوّر','QA: blocking findings, back to the developer'),
+  not_started:copy('لم يبدأ الفحص','Not started'),qa_blocked:copy('الجودة: فيه مشكلات مانعة، يرجع للمطوّر','QA: blocking findings, back to the developer'),
   awaiting_qa_approval:copy('الجودة نجحت، بانتظار موافقة مراجع الجودة','QA passed, waiting for the QA reviewer'),
   qa_rejected:copy('مراجع الجودة أرجع الطلب','The QA reviewer returned the request'),
   awaiting_security_scan:copy('وافقت الجودة، الفحص الأمني لم يعمل بعد','QA approved, security not scanned yet'),
-  security_blocked:copy('الأمن: فيه ملاحظات مانعة، يرجع للمطوّر','Security: blocking findings, back to the developer'),
+  security_blocked:copy('الأمن: فيه ثغرات مانعة، يرجع للمطوّر','Security: blocking findings, back to the developer'),
   awaiting_security_approval:copy('الأمن نجح، بانتظار موافقة مراجع الأمن','Security passed, waiting for the security reviewer'),
   security_rejected:copy('مراجع الأمن أرجع الطلب','The security reviewer returned the request'),
   ready_to_merge:copy('اكتمل كل شي، الدمج مسموح','Everything passed and was approved: merge allowed')}[code]||code);
@@ -277,7 +277,7 @@ async function handleAction(button){
   if(id==='demo-role'){await api('/api/demo/role',{role:button.dataset.id});qaTab=null;await load();return}
   if(id==='demo-push'||id==='demo-reset'){await api('/api/demo/'+(id==='demo-push'?'push':'reset'),{});qaTab=null;await load();return}
   if(id==='exception'){
-    return modal(copy('منح استثناء','Grant exception'),'<p>'+copy('للملاحظات المتوسطة فقط. تحتاج تبريرًا مكتوبًا، وسياسة يقظ هي التي تقرر هل يكفي.','Medium findings only. A written justification is required and the policy decides whether it is enough.')+'</p>'
+    return modal(copy('منح استثناء','Grant exception'),'<p>'+copy('للثغرات المتوسطة فقط. تحتاج تبريرًا مكتوبًا، وسياسة يَقِـــظ هي التي تقرر هل يكفي.','Medium findings only. A written justification is required and the policy decides whether it is enough.')+'</p>'
       +'<form id="exception-form" data-release="'+safe(release.id)+'" data-finding="'+safe(button.dataset.id)+'"><label class="field">'+copy('التبرير','Justification')+'<textarea name="justification" required minlength="3" maxlength="1000"></textarea></label>'
       +'<button class="primary">'+copy('حفظ الاستثناء','Save exception')+'</button></form>');
   }
@@ -320,9 +320,9 @@ async function handleAction(button){
   if(id==='new-exception')return startExceptionRequest(button.dataset.id);
   if(id==='exception-refused'){
     const f=release.findings.find(x=>x.fingerprint===button.dataset.id);
-    const why=f&&f.severity==='high'?copy('هذي ملاحظة عالية الخطورة، وما تُستثنى. عالجها وارفع تعديلًا على نفس الطلب، ويعيد يقظ الفحص تلقائيًا.','This is a high-severity finding and cannot be excepted. Fix it and push a change to the same request; Yaqidh re-checks automatically.')
-      :copy('هذي ملاحظة منخفضة الخطورة، وما تمنع الإطلاق، فما تحتاج استثناء.','This is a low-severity finding. It does not block the release, so it needs no exception.');
-    return modal(copy('طلب استثناء','Request an exception'),'<p>'+why+'</p><p class="muted">'+copy('الاستثناء متاح فقط للملاحظات المتوسطة، وقراره لمراجع الأمن.','Exceptions are only for medium findings, and the security reviewer decides.')+'</p>');
+    const why=f&&f.severity==='high'?copy('هذي ثغرة عالية الخطورة، وما تُستثنى. عالجها وارفع تعديلًا على نفس الطلب، ويعيد يَقِـــظ الفحص تلقائيًا.','This is a high-severity finding and cannot be excepted. Fix it and push a change to the same request; Yaqidh re-checks automatically.')
+      :copy('هذي ثغرة منخفضة الخطورة، وما تمنع الإطلاق، فما تحتاج استثناء.','This is a low-severity finding. It does not block the release, so it needs no exception.');
+    return modal(copy('طلب استثناء','Request an exception'),'<p>'+why+'</p><p class="muted">'+copy('الاستثناء متاح فقط للثغرات المتوسطة، وقراره لمراجع الأمن.','Exceptions are only for medium findings, and the security reviewer decides.')+'</p>');
   }
   if(id==='new-thread')return startThread(button.dataset.id||'');
   if(id==='sample-approved')return selectRelease(sampleBuild('approved'));
@@ -447,7 +447,7 @@ document.addEventListener('submit',async event=>{
     if(form.id==='exception-form'){
       const key=form.dataset.release;
       const picked=form.dataset.finding?[form.dataset.finding]:new FormData(form).getAll('finding');
-      if(!picked.length){notify(copy('اختاري ملاحظة واحدة على الأقل','Pick at least one finding'));return}
+      if(!picked.length){notify(copy('اختاري ثغرة واحدة على الأقل','Pick at least one finding'));return}
       let updated=null;
       for(const fingerprint of picked)updated=await api('/api/releases/'+encodeURIComponent(key)+'/exception',{fingerprint,justification:data.justification||copy('قبلها مراجع الأمن','Accepted by the security reviewer')});
       if(release?.id===key){release=updated;dialog.close();render()}

@@ -13,7 +13,7 @@ function landing(){
   const journey=[
     [copy('فتح الطلب','Pull request opened'),copy('المطوّر يرفع تعديله على GitHub.','The developer pushes a change to GitHub.')],
     [copy('فحص الجودة','Quality check'),copy('يفحص الجودة الأمنية للتطبيق عبر اختبارات تحاكي سيناريوهات الهجوم.','Checks the security quality of the application with tests that simulate attack scenarios.')],
-    [copy('موافقة الجودة','QA approval'),copy('يراجع المختص نتائج الاختبارات ويقيّمها، ثم يقرر اعتماد التعديل أو إعادته للمطوّر مع توضيح الملاحظات.','A specialist reviews and assesses the test results, then approves the change or returns it to the developer with the findings explained.')],
+    [copy('موافقة الجودة','QA approval'),copy('يراجع المختص نتائج الاختبارات ويقيّمها، ثم يقرر اعتماد التعديل أو إعادته للمطوّر مع توضيح المشكلات.','A specialist reviews and assesses the test results, then approves the change or returns it to the developer with the findings explained.')],
     [copy('الفحص الأمني','Security check'),copy('يحلل الكود والمكتبات البرمجية لاكتشاف الثغرات الأمنية، ويشرح مخاطرها، ثم يعيد الفحص للتحقق من نجاح الإصلاحات.','Analyzes the code and libraries to find vulnerabilities, explains their risks, then re-checks to verify the fixes worked.')],
     [copy('موافقة الأمن','Security approval'),copy('يراجع المختص نتائج الفحص والثغرات المتبقية، ويقرر اعتماد التعديل أو إعادته لمعالجة المخاطر.','A specialist reviews the results and the remaining vulnerabilities, then approves the change or returns it to address the risks.')],
     [copy('جاهز للإطــلاق','Ready to release'),copy('بعد الاعتماد النهائي من المختص، يُسمح بالإطلاق.','After the specialist\'s final approval, the release is allowed.')]

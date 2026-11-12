@@ -28,10 +28,10 @@ const reportStatus=row=>row.status==='open'?copy('مفتوحة','Open'):row.stat
 const reportNotes={
   elapsed_time:()=>copy('الزمن هو المدة المنقضية بين الفحوصات وتشمل الانتظار، وليس جهد المطوّر.','Time is the elapsed time between scans and includes waiting; it is not the developer’s working time.'),
   scan_resolution:()=>copy('دقة الزمن بحجم الفترة بين فحصين.','Precision equals the gap between two scans.'),
-  low_awareness:()=>copy('الملاحظات المنخفضة لا تمنع الدمج، لكنها تُسجَّل وتظهر هنا. «منخفضة» لا تعني «بلا ضرر»: اقرأها وقرر إصلاحها لاحقًا.','Low findings do not block the merge, but they are recorded and shown here. “Low” does not mean “harmless”: read them and plan a fix.'),
-  severity_source:()=>copy('الخطورة تأتي من تصنيف الأداة نفسها (حرجة وعالية ومتوسطة ومنخفضة). يقظ يحوّل الحرجة والعالية والمتوسطة إلى «مانعة»، ولا يمرر إلا المنخفضة الصريحة. مرجع التصنيف في CVSS: منخفضة 0.1–3.9، متوسطة 4.0–6.9، عالية 7.0–8.9، حرجة 9.0–10.','Severity comes from the tool’s own rating (critical, high, medium, low). Yaqidh treats critical, high and medium as blocking and lets only an explicit low through. The CVSS bands: low 0.1–3.9, medium 4.0–6.9, high 7.0–8.9, critical 9.0–10.'),
-  owasp_source:()=>copy('تصنيف OWASP Top 10 (2021) يُستنتج من رقم CWE بجدول ثابت، ومكتبات الطرف الثالث تُصنَّف «مكونات ضعيفة أو قديمة». الملاحظة بلا CWE معروف تظهر بلا تصنيف.','The OWASP Top 10 (2021) category is taken from the CWE with a fixed table; third-party library findings are “Vulnerable and Outdated Components”. A finding without a known CWE shows no category.'),
-  db_origin:()=>copy('الملاحظات الناتجة عن تحديث قاعدة بيانات الثغرات تظهر معلَّمة، ولا تُنسب للمطوّر.','Findings caused by a vulnerability database update are marked and not attributed to the developer.')
+  low_awareness:()=>copy('الثغرات المنخفضة لا تمنع الدمج، لكنها تُسجَّل وتظهر هنا. «منخفضة» لا تعني «بلا ضرر»: اقرأها وقرر إصلاحها لاحقًا.','Low findings do not block the merge, but they are recorded and shown here. “Low” does not mean “harmless”: read them and plan a fix.'),
+  severity_source:()=>copy('الخطورة تأتي من تصنيف الأداة نفسها (حرجة وعالية ومتوسطة ومنخفضة). يَقِـــظ يحوّل الحرجة والعالية والمتوسطة إلى «مانعة»، ولا يمرر إلا المنخفضة الصريحة. مرجع التصنيف في CVSS: منخفضة 0.1–3.9، متوسطة 4.0–6.9، عالية 7.0–8.9، حرجة 9.0–10.','Severity comes from the tool’s own rating (critical, high, medium, low). Yaqidh treats critical, high and medium as blocking and lets only an explicit low through. The CVSS bands: low 0.1–3.9, medium 4.0–6.9, high 7.0–8.9, critical 9.0–10.'),
+  owasp_source:()=>copy('تصنيف OWASP Top 10 (2021) يُستنتج من رقم CWE بجدول ثابت، ومكتبات الطرف الثالث تُصنَّف «مكونات ضعيفة أو قديمة». الثغرة بلا CWE معروف تظهر بلا تصنيف.','The OWASP Top 10 (2021) category is taken from the CWE with a fixed table; third-party library findings are “Vulnerable and Outdated Components”. A finding without a known CWE shows no category.'),
+  db_origin:()=>copy('الثغرات الناتجة عن تحديث قاعدة بيانات الثغرات تظهر معلَّمة، ولا تُنسب للمطوّر.','Findings caused by a vulnerability database update are marked and not attributed to the developer.')
 };
 
 const reportNames=[
@@ -98,11 +98,11 @@ const reportWhere={
 };
 const reportSentence={
   not_started:()=>copy('لم يبدأ الفحص بعد.','Checking has not started yet.'),
-  qa_blocked:()=>copy('فحص الجودة وجد ملاحظات تمنع الدمج. أصلحها وارفع تعديلاً جديداً.','The QA check found blocking findings. Fix them and push a new change.'),
+  qa_blocked:()=>copy('فحص الجودة وجد مشكلات تمنع الدمج. أصلحها وارفع تعديلاً جديداً.','The QA check found blocking findings. Fix them and push a new change.'),
   qa_rejected:()=>copy('أرجع فريق الجودة البناء. اقرأ السبب وأصلح ثم ارفع تعديلاً.','The QA team returned the build. Read the reason, fix it and push again.'),
   awaiting_qa_approval:()=>copy('اجتاز فحص الجودة، وينتظر موافقة فريق الجودة.','It passed the QA check and waits for the QA team.'),
   awaiting_security_scan:()=>copy('ينتظر الفحص الأمني.','Waiting for the security check.'),
-  security_blocked:()=>copy('الفحص الأمني وجد ملاحظات تمنع الدمج. أصلحها وارفع تعديلاً جديداً.','The security check found blocking findings. Fix them and push a new change.'),
+  security_blocked:()=>copy('الفحص الأمني وجد ثغرات تمنع الدمج. أصلحها وارفع تعديلاً جديداً.','The security check found blocking findings. Fix them and push a new change.'),
   security_rejected:()=>copy('أرجع فريق الأمن البناء. اقرأ السبب وأصلح ثم ارفع تعديلاً.','The security team returned the build. Read the reason, fix it and push again.'),
   awaiting_security_approval:()=>copy('اجتاز الفحص الأمني، وينتظر موافقة فريق الأمن.','It passed the security check and waits for the security team.'),
   ready_to_merge:()=>copy('كل شيء مكتمل. البناء جاهز للدمج.','Everything is done. The build is ready to merge.')
@@ -120,7 +120,7 @@ function reportBar(s){
   const open=s.open_blocking+s.open_low,parts=[[s.closed,'good',copy('مغلقة','Closed')],[open,'bad',copy('مفتوحة','Open')],[s.excepted,'wait',copy('مستثناة','Excepted')]];
   let x=0;
   const rects=parts.filter(p=>p[0]).map(p=>{const w=100*p[0]/s.findings,r='<rect class="'+p[1]+'" x="'+x.toFixed(2)+'" width="'+w.toFixed(2)+'" height="10"><title>'+safe(p[2]+': '+p[0])+'</title></rect>';x+=w;return r}).join('');
-  return '<svg class="stack" viewBox="0 0 100 10" preserveAspectRatio="none" role="img" aria-label="'+safe(copy('توزيع الملاحظات','Findings split'))+'"><rect class="track" width="100" height="10"/>'+rects+'</svg>'
+  return '<svg class="stack" viewBox="0 0 100 10" preserveAspectRatio="none" role="img" aria-label="'+safe(copy('توزيع المشكلات والثغرات','Findings split'))+'"><rect class="track" width="100" height="10"/>'+rects+'</svg>'
     +'<div class="legend">'+parts.map(p=>'<span class="'+p[1]+'">'+p[2]+' <b>'+p[0]+'</b></span>').join('')+'</div>';
 }
 
@@ -166,7 +166,7 @@ function riskFlow(row){
   const closed=row.closed_at!==null&&row.closed_at!==undefined;
   const nodes=[
     hnode(copy('الأداة صنّفتها','The tool rated it'),safe(reportLevel(level)),reportTone(level),safe(toolName(row.tool))),
-    hnode(copy('قاعدة يقظ','Yaqidh rule'),blocks?copy('تمنع الدمج','Blocks the merge'):copy('تمر بتوعية','Passes with awareness'),blocks?'bad':'good',blocks?copy('غير «المنخفضة» تمنع','anything but “low” blocks'):copy('تظهر وتُسجَّل','shown and recorded'))
+    hnode(copy('قاعدة يَقِـــظ','Yaqidh rule'),blocks?copy('تمنع الدمج','Blocks the merge'):copy('تمر بتوعية','Passes with awareness'),blocks?'bad':'good',blocks?copy('غير «المنخفضة» تمنع','anything but “low” blocks'):copy('تظهر وتُسجَّل','shown and recorded'))
   ];
   if(row.exception)nodes.push(hnode(copy('قرار الأمن','Security decision'),copy('استثناء مقبول','Exception accepted'),level==='medium'?'wait':'bad',safe(row.exception.approved_by)));
   nodes.push(hnode(copy('حالتها الآن','Where it stands'),safe(reportStatus(row)),closed?'good':row.status==='excepted'?'wait':'bad',''));
@@ -188,17 +188,17 @@ function timeFlow(row){
 function developerReport(){
   const report=release&&release.report;
   const title='<h2>'+copy('تقرير البناء','Build report')+'</h2>';
-  if(!report)return '<section class="panel">'+title+'<p class="muted">'+copy('يظهر التقرير عند تشغيل اللوحة على واجهة يقظ الحية.','The report appears when the dashboard runs against the live Yaqidh API.')+'</p></section>';
+  if(!report)return '<section class="panel">'+title+'<p class="muted">'+copy('يظهر التقرير عند تشغيل اللوحة على واجهة يَقِـــظ الحية.','The report appears when the dashboard runs against the live Yaqidh API.')+'</p></section>';
   const s=report.summary,avg=s.time_to_close.average_seconds;
   const picker=profile.releases.length>1?'<label class="field">'+copy('البناء','Build')+'<select id="release-select">'+profile.releases.map(item=>'<option value="'+safe(item.id)+'" '+(item.id===release.id?'selected':'')+'>'+safe(requestName(item.pr))+' · '+safe(buildName(item.build))+'</option>').join('')+'</select></label>':'';
   const head='<div class="section-head"><div>'+title+'<small>'+safe(requestName(release.pr))+' · '+mon((report.head_commit||'').slice(0,8))+'</small></div>'+picker+'</div>';
   const tiles='<div class="metric-row">'
-    +reportTile(copy('ملاحظات وُجدت','Findings found'),s.findings,'')
+    +reportTile(copy('مشكلات وثغرات وُجدت','Findings found'),s.findings,'')
     +reportTile(copy('أُغلقت','Closed'),s.closed,'good',s.closed_percent==null?'':s.closed_percent+'%')
     +reportTile(copy('تمنع الدمج الآن','Blocking now'),s.open_blocking,s.open_blocking?'bad':'good')
     +reportTile(copy('متوسط زمن الإغلاق','Average time to close'),reportTime(avg),'wait',s.time_to_close.count?copy('الأطول: ','longest: ')+reportTime(s.time_to_close.max_seconds):copy('لا إغلاقات بعد','nothing closed yet'))
     +'</div>';
-  const cards=report.findings.length?'<details class="catalog"'+(s.open_blocking?' open':'')+'><summary><b>'+copy('كل ملاحظة بالتفصيل','Every finding in detail')+'</b><span>'+report.findings.length+' '+copy('ملاحظة · اضغط لتفتح القائمة','findings · click to open the list')+'</span></summary><div class="finding-cards">'+report.findings.map(reportCard).join('')+'</div></details>':'<p class="muted">'+copy('لا توجد ملاحظات مسجلة.','No findings recorded.')+'</p>';
+  const cards=report.findings.length?'<details class="catalog"'+(s.open_blocking?' open':'')+'><summary><b>'+copy('كل مشكلة أو ثغرة بالتفصيل','Every finding in detail')+'</b><span>'+report.findings.length+' '+copy('مشكلة · اضغط لتفتح القائمة','findings · click to open the list')+'</span></summary><div class="finding-cards">'+report.findings.map(reportCard).join('')+'</div></details>':'<p class="muted">'+copy('لا توجد مشكلات مسجلة.','No findings recorded.')+'</p>';
   const decided=report.approvals.length?report.approvals.map(item=>safe(reportStage(item.stage))+': '+(item.decision==='approve'?copy('وافق','approved'):copy('أرجع','returned'))+' · '+safe(item.by)).join(' · '):copy('لا قرارات بشرية بعد','No human decisions yet');
   const waits=s.approval_waits.map(item=>safe(reportStage(item.stage))+': '+safe(reportTime(item.seconds))).join(' · ');
   const notes=report.notes.map(code=>reportNotes[code]?reportNotes[code]():'').filter(Boolean).map(text=>'<li>'+safe(text)+'</li>').join('');
