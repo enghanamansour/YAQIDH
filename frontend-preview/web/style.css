@@ -718,11 +718,14 @@ html[data-theme=light] .demo-bubble .demo-min::before,html[data-theme=light] .de
 html[data-theme=light] .demo-bubble .demo-foot{color:rgba(255,255,255,.85)}
 html[data-theme=light] .demo-bubble .demo-foot b,html[data-theme=light] .demo-bubble .demo-foot a{color:#fff}
 
-/* back button (an arrow, no words) next to the logo */
+/* back button: just an arrow (no circle, no words) at the left edge of the top bar; in English the left edge is the start, so it sits by the logo */
 .top-start{display:flex;align-items:center;gap:10px}
-.top-back{width:40px;height:40px;padding:0;display:grid;place-items:center;border-radius:50%;border:1px solid var(--line);background:var(--surface);color:var(--text);cursor:pointer;transition:border-color .2s,background .2s}
-.top-back:hover{border-color:var(--brand);background:color-mix(in srgb,var(--brand) 12%,var(--surface))}
+.top-back{width:36px;height:36px;padding:0;display:grid;place-items:center;border:0;background:none;color:var(--text);cursor:pointer;transition:color .2s,transform .2s}
+.top-back:hover{color:var(--brand)}
+.top-back svg{width:26px;height:26px}
+html[dir=rtl] .top-back-start,html[dir=ltr] .top-back-end{display:none}
 html[dir=ltr] .top-back svg{transform:scaleX(-1)}
+html[dir=rtl] .top-back:hover svg{transform:translateX(3px)}html[dir=ltr] .top-back:hover svg{transform:scaleX(-1) translateX(3px)}
 /* a pressed button answers at once; the guide dims while it waits for the reply */
 [data-action][aria-busy=true]{opacity:.6;cursor:progress;pointer-events:none}
 .demo-bubble.demo-loading{opacity:.75}
