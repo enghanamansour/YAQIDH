@@ -2,8 +2,9 @@
 
 function landing(){
   const variant=['bg','edge','emblem','side','clean'].includes(new URLSearchParams(location.search).get('hero'))?new URLSearchParams(location.search).get('hero'):'side';
-  const go=profile?(profile.role==='company-admin'?'/admin':'/dashboard'):'/login';
-  const goLabel=profile?copy('فتح لوحة المتابعة','Open the dashboard'):copy('تسجيل الدخول','Sign in');
+  // a visitor is invited to create an account (signing in stays in the top bar); a signed-in person opens their dashboard
+  const go=profile?(profile.role==='company-admin'?'/admin':'/dashboard'):'/signup';
+  const goLabel=profile?copy('فتح لوحة المتابعة','Open the dashboard'):copy('إنشاء حساب جديد','Create a new account');
   const journey=[
     [copy('فتح الطلب','Pull request opened'),copy('المطوّر يرفع تعديله على GitHub.','The developer pushes a change to GitHub.')],
     [copy('فحص الجودة','Quality check'),copy('يفحص الجودة الأمنية للتطبيق عبر اختبارات تحاكي سيناريوهات الهجوم.','Checks the security quality of the application with tests that simulate attack scenarios.')],
