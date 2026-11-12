@@ -33,7 +33,7 @@ function landing(){
     +'<p class="muted">'+copy('وقت أطول في المراجعات، وجهد متكرر بين فريقي التطوير والأمن السيبراني، وتأخير في إطلاق المنتج.','More time in reviews, repeated effort between the development and cybersecurity teams, and a delayed product release.')+'</p></article>'
     +'<article class="lp-col lp-good"><h3 class="lp-col-title"><span class="grad">'+copy('مع يَقِـــظ','With Yaqidh')+'</span></h3>'
     +seq('good',[[ICON.loop,copy('يَقِـــظ','Yaqidh')],[ICON.code,copy('المطوّر','Developer')]],[
-      ['to-start',copy('يُرسل المطوّر تعديله، فيُفحص تلقائيًا','The developer sends a change and it is checked automatically')],
+      ['to-start',copy('المطوّر يرفع تعديله على GitHub، فيُفحص تلقائيًا.','The developer pushes a change to GitHub and it is checked automatically.')],
       ['to-end',copy('يكتشف المشكلات الأمنية ويحللها ويشرحها للمطوّر','Finds and analyzes security issues and explains them to the developer')],
       ['to-start',copy('يُصلح المطوّر، فيُعاد الفحص تلقائيًا للتحقق','The developer fixes it and the check re-runs automatically to verify')],
       ['to-end',copy('تُغلق المشكلات المعالجة، وتتجهز النتائج للمراجعة','Fixed problems are closed and the results are ready for review')]],
