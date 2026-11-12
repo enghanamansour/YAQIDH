@@ -409,7 +409,6 @@ document.addEventListener('keydown',event=>{
 });
 app.addEventListener('change',event=>{
   const input=event.target;
-  if(input.id==='demo-role-select'&&input.value){api('/api/demo/role',{role:input.value}).then(()=>{qaTab=null;return load()}).catch(()=>notify(copy('تعذّر تبديل الدور','Could not switch the role')))}
   if(input.id==='demo-account'&&input.value)$('#sign-in input[name=account]').value=input.value;
   if(input.id==='admin-active'){adminActive=input.value;render();$('#'+input.id)?.focus()}
   if((input.id==='release-select'||input.classList.contains('request-pick'))&&input.value){qaTab=null;selectRelease(input.value).catch(()=>notify(copy('تعذر فتح البناء','Build could not be loaded')));}

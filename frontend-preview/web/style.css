@@ -674,5 +674,6 @@ a.action.hdr-login{background:var(--grad);border:0;color:#fff;border-radius:999p
 .demo-step{display:grid;gap:8px;padding:12px 14px;border-radius:12px;background:var(--card);border:1px solid color-mix(in srgb,var(--brand) 45%,var(--line))}
 .demo-num{font-size:12px;font-weight:700;color:var(--brand);letter-spacing:.04em}.demo-step p{margin:0;font-size:16px;line-height:1.8}
 .demo-actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
-.demo-switch{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)}.demo-switch select{padding:6px 10px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--text);font:inherit;font-size:13px}
-.demo-try{border-radius:999px;padding:15px 34px;font-size:18px}
+.demo-roles{display:flex;flex-wrap:wrap;align-items:center;gap:8px}.demo-roles>span{font-size:14px;font-weight:600;margin-inline-end:4px}
+.demo-role{padding:8px 18px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--text);font:inherit;font-size:14px;cursor:pointer}
+.demo-role[aria-pressed=true]{background:var(--grad,var(--brand));border-color:transparent;color:#fff;font-weight:600}

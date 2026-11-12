@@ -5,6 +5,9 @@ function landing(){
   // a visitor is invited to create an account (signing in stays in the top bar); a signed-in person opens their dashboard
   const go=profile?(profile.role==='company-admin'?'/admin':'/dashboard'):'/signup';
   const goLabel=profile?copy('فتح لوحة المتابعة','Open the dashboard'):copy('إنشاء حساب جديد','Create a new account');
+  // when the guided demo is on, a visitor's main button is the demo (no account needed); signing in stays in the top bar
+  const demoOn=Boolean(demoInfo&&demoInfo.enabled)&&!profile;
+  const mainCta=demoOn?'<button type="button" class="action primary" data-action="demo-enter">'+copy('جرّب الديمو','Try the demo')+'</button>':'<a class="action primary" href="'+go+'">'+goLabel+'</a>';
   const journey=[
     [copy('فتح الطلب','Pull request opened'),copy('المطوّر يرفع تعديله على GitHub.','The developer pushes a change to GitHub.')],
     [copy('فحص الجودة','Quality check'),copy('يفحص الجودة الأمنية للتطبيق عبر اختبارات تحاكي سيناريوهات الهجوم.','Checks the security quality of the application with tests that simulate attack scenarios.')],
@@ -19,7 +22,7 @@ function landing(){
     +'<div class="lp-hero-inner"><div class="lp-copy">'
     +'<h1>'+copy('<span class="lp-l">أمــان <span class="grad">استباقــي</span>،</span> <span class="lp-l">إطــلاق أســرع.</span>','<span class="lp-l"><span class="grad">Proactive</span> security,</span> <span class="lp-l">faster releases.</span>')+'</h1>'
     +'<p class="lp-sub">'+copy('يَقِـــظ يرافــق منتجــك قبــل الإطــلاق: يفحــص، يشــرح، ويعيــد الفحــص تلقائيــًا، والقــرار دائمًــا بيــد الفريــق.','Yaqidh accompanies your product before release: it checks, explains and re-checks automatically, and the decision always stays with your team.')+'</p>'
-    +'<div class="actions lp-cta"><a class="action primary" href="'+go+'">'+goLabel+'</a>'+(demoInfo&&demoInfo.enabled&&!profile?'<button type="button" class="action demo-try" data-action="demo-enter">'+copy('جرّب الديمو','Try the demo')+'</button>':'')+'<a class="action" href="#about">'+copy('كيف يعمل','How it works')+'</a></div></div>'
+    +'<div class="actions lp-cta">'+mainCta+'<a class="action" href="#about">'+copy('كيف يعمل','How it works')+'</a></div></div>'
     +'<div class="lp-art" aria-hidden="true">'+ring(190,'a')+ring(150,'b')+''+animatedLogo()+'</div></div></section>'
 
     +'<section class="lp-section" id="problem"><span class="lp-eyebrow">'+copy('المشكلة','The problem')+'</span><h2>'+copy('كل مراجعة أمنية تعني دورة جديدة من الانتظار.','Every security review means a new round of waiting.')+'</h2>'
@@ -47,7 +50,7 @@ function landing(){
     +'<section class="lp-section" id="features"><span class="lp-eyebrow">'+copy('المميزات','Features')+'</span><h2>'+copy('ما الذي يميّز يَقِـــظ','What sets Yaqidh apart')+'</h2>'
     +'<div class="lp-feat">'+features().map(([icon,title,text])=>'<article class="lp-card"><span class="lp-ico">'+icon+'</span><h3>'+title+'</h3><p class="muted">'+text+'</p></article>').join('')+'</div></section>'
 
-    +'<section class="lp-final"><h2>'+copy('جاهز تجرّب؟','Ready to try it?')+'</h2><div class="actions"><a class="action primary" href="'+go+'">'+goLabel+'</a></div></section>'
+    +'<section class="lp-final"><h2>'+copy('جاهز تجرّب؟','Ready to try it?')+'</h2><div class="actions">'+mainCta+'</div></section>'
     +'<footer class="lp-foot">'+copy('يَقِـــظ · الجاهزية الأمنية للإصدارات','Yaqidh · security readiness for releases')+'</footer></main>';
 }
 
