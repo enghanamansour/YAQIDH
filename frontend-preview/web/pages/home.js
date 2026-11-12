@@ -7,7 +7,9 @@ function landing(){
   const goLabel=profile?copy('فتح لوحة المتابعة','Open the dashboard'):copy('إنشاء حساب جديد','Create a new account');
   // when the guided demo is on, a visitor's main button is the demo (no account needed); signing in stays in the top bar
   const demoOn=Boolean(demoInfo&&demoInfo.enabled)&&!profile;
-  const mainCta=demoOn?'<button type="button" class="action primary" data-action="demo-enter">'+copy('جرّب الديمو','Try the demo')+'</button>':'<a class="action primary" href="'+go+'">'+goLabel+'</a>';
+  // inside a demo session the landing page stays the same page: the button just carries on with the demo
+  const demoSession=Boolean(profile&&profile.guide);
+  const mainCta=demoOn?'<button type="button" class="action primary" data-action="demo-enter">'+copy('جرّب الديمو','Try the demo')+'</button>':demoSession?'<a class="action primary" href="/dashboard">'+copy('جرّب الديمو','Try the demo')+'</a>':'<a class="action primary" href="'+go+'">'+goLabel+'</a>';
   const journey=[
     [copy('فتح الطلب','Pull request opened'),copy('المطوّر يرفع تعديله على GitHub.','The developer pushes a change to GitHub.')],
     [copy('فحص الجودة','Quality check'),copy('يفحص الجودة الأمنية للتطبيق عبر اختبارات تحاكي سيناريوهات الهجوم.','Checks the security quality of the application with tests that simulate attack scenarios.')],
