@@ -669,7 +669,8 @@ a.action.hdr-login{background:var(--grad);border:0;color:#fff;border-radius:999p
 @media(max-width:600px){.hdr-account .acct-text{display:none}.hdr-account .acct{padding:5px}}
 .sec-exceptions{display:grid;gap:14px;margin-top:10px}.sec-exceptions .exception-card{margin:0}
 /* guided demo: a slim role row on the page, a small badge in the top bar, and the guide as an agent in the corner with a speech bubble */
-.demo-banner{display:flex;flex-wrap:wrap;align-items:center;gap:8px;width:100%;max-width:1240px;margin:14px auto 4px}
+/* same width as the dashboard (it sits inside the page's 56px side padding) so the two line up on any screen */
+.demo-banner{display:flex;flex-wrap:wrap;align-items:center;gap:8px;width:min(1240px,calc(100% - 2*clamp(16px,4vw,56px)));margin:14px auto 4px}
 .demo-roles-title{font-size:14px;font-weight:700;margin-inline-end:4px}
 .demo-role{padding:7px 18px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--text);font:inherit;font-size:14px;cursor:pointer;transition:border-color .2s,background .2s}
 .demo-role:hover{border-color:var(--brand)}.demo-role[aria-pressed=true]{background:var(--grad,var(--brand));border-color:transparent;color:#fff;font-weight:600}
@@ -697,3 +698,22 @@ a.action.hdr-login{background:var(--grad);border:0;color:#fff;border-radius:999p
 @media(max-width:700px){.demo-guide{inset-inline:16px;width:auto;bottom:14px}.demo-agent{width:80px;height:80px}}
 @media(prefers-reduced-motion:reduce){.demo-bubble.demo-flash,.demo-agent.demo-wiggle{animation:none}}
 .shell.demo-pad{padding-bottom:360px}
+/* the guide bubble must stand out from the page: light on the dark theme, deep purple on the light theme */
+html[data-theme=dark] .demo-bubble{background:#f3eeff;color:#1e1633;border-color:#f3eeff;box-shadow:0 18px 50px rgba(0,0,0,.55)}
+html[data-theme=dark] .demo-bubble::after{background:#f3eeff;border-color:#f3eeff}
+html[data-theme=dark] .demo-bubble .demo-num{color:#5a37d6}
+html[data-theme=dark] .demo-bubble .action{background:#fff;border:1px solid #bfb0f5;color:#1e1633}
+html[data-theme=dark] .demo-bubble .action.primary{background:#5a37d6;border-color:#5a37d6;color:#fff;font-weight:700}
+html[data-theme=dark] .demo-bubble .demo-min{border-color:#bfb0f5}
+html[data-theme=dark] .demo-bubble .demo-min::before,html[data-theme=dark] .demo-bubble .demo-min::after{background:#5a37d6}
+html[data-theme=dark] .demo-bubble .demo-foot{color:#5b5178}
+html[data-theme=dark] .demo-bubble .demo-foot b,html[data-theme=dark] .demo-bubble .demo-foot a{color:#5a37d6}
+html[data-theme=light] .demo-bubble{background:#5a37d6;color:#fff;border-color:#5a37d6;box-shadow:0 18px 50px rgba(30,10,90,.35)}
+html[data-theme=light] .demo-bubble::after{background:#5a37d6;border-color:#5a37d6}
+html[data-theme=light] .demo-bubble .demo-num{color:rgba(255,255,255,.85)}
+html[data-theme=light] .demo-bubble .action{background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.55);color:#fff}
+html[data-theme=light] .demo-bubble .action.primary{background:#fff;border-color:#fff;color:#4a2bc0;font-weight:700}
+html[data-theme=light] .demo-bubble .demo-min{border-color:rgba(255,255,255,.5)}
+html[data-theme=light] .demo-bubble .demo-min::before,html[data-theme=light] .demo-bubble .demo-min::after{background:#fff}
+html[data-theme=light] .demo-bubble .demo-foot{color:rgba(255,255,255,.85)}
+html[data-theme=light] .demo-bubble .demo-foot b,html[data-theme=light] .demo-bubble .demo-foot a{color:#fff}
