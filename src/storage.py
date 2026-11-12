@@ -1,6 +1,7 @@
 import os
 import re
 import tempfile
+from contextlib import contextmanager
 from pathlib import Path
 
 from src.schema import Evidence
@@ -16,6 +17,12 @@ class ReleaseExists(Exception):
     pass
 
 
+try:  # POSIX file locks; on other systems only the in-process lock applies
+    import fcntl
+except ImportError:  # pragma: no cover
+    fcntl = None
+
+
 class EvidenceStore:
     """One JSON file per release. Kept behind this interface so the storage can change later."""
 
@@ -28,6 +35,23 @@ class EvidenceStore:
         if not _RELEASE_ID.match(release_id):
             raise ValueError(f"invalid release_id: {release_id!r}")
         return self.data_dir / f"{release_id}.json"
+
+    @contextmanager
+    def locked(self, release_id: str):
+        """Holds an exclusive lock on one release across processes (the API and the MCP server both write evidence).
+
+        Wrap a whole read-change-save in it, so two writers can never overwrite each other's change."""
+        self._path(release_id)  # rejects a bad id before it becomes a file name
+        lock_dir = self.data_dir / ".locks"
+        lock_dir.mkdir(exist_ok=True)
+        with (lock_dir / f"{release_id}.lock").open("a") as handle:
+            if fcntl is not None:
+                fcntl.flock(handle, fcntl.LOCK_EX)
+            try:
+                yield
+            finally:
+                if fcntl is not None:
+                    fcntl.flock(handle, fcntl.LOCK_UN)
 
     def exists(self, release_id: str) -> bool:
         return self._path(release_id).exists()

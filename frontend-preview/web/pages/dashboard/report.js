@@ -24,7 +24,7 @@ function reportDistribution(report){
   const owasp=Object.entries(s.by_owasp||{}).filter(([k])=>k!=='none').map(([k,v])=>'<li>'+safe(k)+': <b>'+v+'</b></li>').join('');
   return '<div class="report-dist"><div><h3>'+copy('حسب خطورة الأداة','By tool rating')+'</h3><ul class="metric-records">'+levels+'</ul></div><div><h3>'+copy('حسب الأداة','By tool')+'</h3><ul class="metric-records">'+tools+'</ul></div><div><h3>OWASP Top 10</h3><ul class="metric-records">'+(owasp||'<li class="muted">—</li>')+'</ul></div></div>';
 }
-const reportStatus=row=>row.status==='open'?copy('مفتوحة','Open'):row.status==='excepted'?copy('مستثناة','Excepted'):copy('مغلقة بإثبات','Closed, proven');
+const reportStatus=row=>row.status==='open'?copy('مفتوحة','Open'):row.status==='excepted'?copy('مستثناة','Excepted'):copy('أُغلقت','Closed');
 const reportNotes={
   elapsed_time:()=>copy('الزمن هو المدة المنقضية بين الفحوصات وتشمل الانتظار، وليس جهد المطوّر.','Time is the elapsed time between scans and includes waiting; it is not the developer’s working time.'),
   scan_resolution:()=>copy('دقة الزمن بحجم الفترة بين فحصين.','Precision equals the gap between two scans.'),
@@ -91,7 +91,7 @@ function reportTile(label,value,tone,note){
 }
 
 /* Where the build is, in five steps, and one sentence saying what it needs. */
-const reportSteps=()=>[copy('فحص الجودة','QA check'),copy('موافقة الجودة','QA approval'),copy('فحص الأمن','Security check'),copy('موافقة الأمن','Security approval'),copy('جاهز للدمج','Ready to merge')];
+const reportSteps=()=>[copy('فحص الجودة','QA check'),copy('موافقة الجودة','QA approval'),copy('الفحص الأمني','Security check'),copy('موافقة الأمن','Security approval'),copy('جاهز للدمج','Ready to merge')];
 const reportWhere={
   not_started:[0,'bad'],qa_blocked:[0,'bad'],qa_rejected:[0,'bad'],awaiting_qa_approval:[1,'wait'],
   awaiting_security_scan:[2,'wait'],security_blocked:[2,'bad'],security_rejected:[2,'bad'],awaiting_security_approval:[3,'wait'],ready_to_merge:[4,'good']
@@ -101,10 +101,10 @@ const reportSentence={
   qa_blocked:()=>copy('فحص الجودة وجد ملاحظات تمنع الدمج. أصلحها وارفع تعديلاً جديداً.','The QA check found blocking findings. Fix them and push a new change.'),
   qa_rejected:()=>copy('أرجع فريق الجودة البناء. اقرأ السبب وأصلح ثم ارفع تعديلاً.','The QA team returned the build. Read the reason, fix it and push again.'),
   awaiting_qa_approval:()=>copy('اجتاز فحص الجودة، وينتظر موافقة فريق الجودة.','It passed the QA check and waits for the QA team.'),
-  awaiting_security_scan:()=>copy('ينتظر فحص الأمن.','Waiting for the security check.'),
-  security_blocked:()=>copy('فحص الأمن وجد ملاحظات تمنع الدمج. أصلحها وارفع تعديلاً جديداً.','The security check found blocking findings. Fix them and push a new change.'),
+  awaiting_security_scan:()=>copy('ينتظر الفحص الأمني.','Waiting for the security check.'),
+  security_blocked:()=>copy('الفحص الأمني وجد ملاحظات تمنع الدمج. أصلحها وارفع تعديلاً جديداً.','The security check found blocking findings. Fix them and push a new change.'),
   security_rejected:()=>copy('أرجع فريق الأمن البناء. اقرأ السبب وأصلح ثم ارفع تعديلاً.','The security team returned the build. Read the reason, fix it and push again.'),
-  awaiting_security_approval:()=>copy('اجتاز فحص الأمن، وينتظر موافقة فريق الأمن.','It passed the security check and waits for the security team.'),
+  awaiting_security_approval:()=>copy('اجتاز الفحص الأمني، وينتظر موافقة فريق الأمن.','It passed the security check and waits for the security team.'),
   ready_to_merge:()=>copy('كل شيء مكتمل. البناء جاهز للدمج.','Everything is done. The build is ready to merge.')
 };
 
@@ -194,7 +194,7 @@ function developerReport(){
   const head='<div class="section-head"><div>'+title+'<small>'+safe(requestName(release.pr))+' · '+mon((report.head_commit||'').slice(0,8))+'</small></div>'+picker+'</div>';
   const tiles='<div class="metric-row">'
     +reportTile(copy('ملاحظات وُجدت','Findings found'),s.findings,'')
-    +reportTile(copy('مغلقة بإثبات','Closed, proven'),s.closed,'good',s.closed_percent==null?'':s.closed_percent+'%')
+    +reportTile(copy('أُغلقت','Closed'),s.closed,'good',s.closed_percent==null?'':s.closed_percent+'%')
     +reportTile(copy('تمنع الدمج الآن','Blocking now'),s.open_blocking,s.open_blocking?'bad':'good')
     +reportTile(copy('متوسط زمن الإغلاق','Average time to close'),reportTime(avg),'wait',s.time_to_close.count?copy('الأطول: ','longest: ')+reportTime(s.time_to_close.max_seconds):copy('لا إغلاقات بعد','nothing closed yet'))
     +'</div>';

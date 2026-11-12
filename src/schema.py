@@ -121,6 +121,23 @@ class HumanDecision(BaseModel):
     commit: str = ""
 
 
+class ReviewRequestDecision(BaseModel):
+    """A security reviewer's answer to a developer's request (an exception for a finding, or more time for a deadline).
+    Recorded by a person through the dashboard; the policy still decides whether an exception counts."""
+
+    request_id: str
+    commit: str
+    finding: str = ""
+    kind: Literal["exception", "deadline"]
+    status: Literal["approved", "rejected"]
+    by: str
+    reason: str = ""
+    original: str | None = None
+    requested: str | None = None
+    approved_deadline: str | None = None
+    timestamp: datetime = Field(default_factory=utcnow)
+
+
 class PendingScan(BaseModel):
     """Scan results a CI job sent for a commit, waiting until that stage's turn. Findings here are untrusted input:
     they are reset to plain open findings when stored, so CI can never smuggle in a closure or an exception."""
@@ -130,6 +147,7 @@ class PendingScan(BaseModel):
     versions: dict[str, str] = Field(default_factory=dict)
     tools_run: list[str] = Field(default_factory=list)
     components: list[str] = Field(default_factory=list)
+    flaky: list[str] = Field(default_factory=list)  # QA checks that failed once and passed on a retry
     received_at: datetime = Field(default_factory=utcnow)
 
 
@@ -137,6 +155,7 @@ class Evidence(BaseModel):
     release_id: str
     stages: list[StageRecord] = Field(default_factory=list)
     human_decisions: list[HumanDecision] = Field(default_factory=list)
+    review_request_decisions: list[ReviewRequestDecision] = Field(default_factory=list)
     # The newest commit of the pull request, as GitHub reported it. Set by the system, never by the agent.
     head_commit: str = ""
     # Which pull request this release is, so results can be posted back to it. Set from the GitHub event.
@@ -146,6 +165,8 @@ class Evidence(BaseModel):
     branch: str = ""
     # Security scan results sent by CI for head_commit, used when SCAN_SOURCE=ci.
     pending_scan: PendingScan | None = None
+    # The same for the QA stage (the PR's own app was tested by Playwright in CI).
+    pending_qa_scan: PendingScan | None = None
 
     def stage(self, name: StageName) -> StageRecord:
         """Return the stage record, creating it on first use."""

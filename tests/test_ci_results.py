@@ -123,6 +123,83 @@ def test_the_scan_tool_says_it_is_waiting_when_no_results_arrived(stack):
     qa.decision = Decision(result="pass")
     ev.human_decisions.append(HumanDecision(stage=StageName.QA, decision="approve", by="S", reason=""))
     stack.service.store.save(ev)
-    with pytest.raises(Exception, match="waiting for the CI scan results"):
+    with pytest.raises(Exception, match="waiting for the CI security results"):
         stack.service.run_scan("r1", "security")
     assert not stack.service.store.get("r1").stage(StageName.SECURITY).tool_versions
+
+
+# --- QA results from CI (the pull request's own app was tested in CI) ---
+
+class CiBothStack(Stack):
+    """Both stages get their results from CI."""
+
+    def __init__(self, tmp_path):
+        super().__init__(tmp_path)
+        store = EvidenceStore(tmp_path / "d")
+        self.service = ReleaseService(store, self.service.policy_path, {
+            StageName.QA: submitted_runner(store, StageName.QA),
+            StageName.SECURITY: submitted_runner(store, StageName.SECURITY)}, tmp_path, self.history)
+
+
+@pytest.fixture
+def both(tmp_path):
+    s = CiBothStack(tmp_path)
+    return s, TestClient(create_app(s.service, s.history, s.agent))
+
+
+def qa_body(commit=C1, findings=None, flaky=None):
+    fs = [] if findings is None else findings
+    return {"stage": "qa", "commit": commit, "findings": [f.model_dump(mode="json") for f in fs], "versions": {"playwright": "1.40"},
+            "tools_run": ["playwright"], "components": [], "flaky": flaky or []}
+
+
+def test_qa_results_from_ci_are_applied_and_the_release_waits_for_the_qa_reviewer(both):
+    stack, client = both
+    open_pr(client)
+    r = client.post("/releases/r1/scan-results", headers=H, json=qa_body(flaky=["wobbly"]))
+    assert r.status_code == 202 and r.json()["applied"] is True and r.json()["stage"] == "qa"
+    assert client.get("/releases/r1/status", headers=H).json()["status"] == "awaiting_qa_approval"
+    assert stack.service.store.get("r1").stage(StageName.QA).flaky_tests == ["wobbly"]
+
+
+def test_a_failing_qa_check_blocks_and_a_later_push_closes_it_through_the_verifier(both):
+    stack, client = both
+    open_pr(client)
+    bad = finding("F-q", Severity.HIGH, tool="playwright", location="qa_checks/x.py::login")
+    client.post("/releases/r1/scan-results", headers=H, json=qa_body(findings=[bad]))
+    assert client.get("/releases/r1/status", headers=H).json()["status"] == "qa_blocked"
+    client.post("/releases/r1/events", headers=H, json={"event": "push", "commit": C2})
+    client.post("/releases/r1/scan-results", headers=H, json=qa_body(commit=C2, findings=[]))
+    f = stack.service.get_findings("r1", "qa")[0]
+    assert f["status"] == "fixed" and f["closure"]["result"] == "closed"
+    assert client.get("/releases/r1/status", headers=H).json()["status"] == "awaiting_qa_approval"
+
+
+def test_qa_results_must_come_from_playwright_with_its_version(both):
+    stack, client = both
+    open_pr(client)
+    assert client.post("/releases/r1/scan-results", headers=H, json={**qa_body(), "tools_run": ["semgrep"]}).status_code == 409
+    assert client.post("/releases/r1/scan-results", headers=H, json={**qa_body(), "versions": {}}).status_code == 409
+    assert client.post("/releases/r1/scan-results", headers=H, json=qa_body(commit=C2)).status_code == 409  # not the newest commit
+
+
+def test_without_qa_results_the_qa_scan_says_it_is_waiting(both):
+    stack, client = both
+    open_pr(client)
+    with pytest.raises(Exception, match="waiting for the CI qa results"):
+        stack.service.run_scan("r1", "qa")
+
+
+def test_the_qa_script_body_has_the_stage_and_the_flaky_list():
+    import importlib.util
+    from pathlib import Path
+
+    from src.scanning import ScanResult
+
+    spec = importlib.util.spec_from_file_location("ci_scan2", Path(__file__).resolve().parents[1] / "scripts" / "ci_scan.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    body = mod.build_submission(ScanResult([], {"playwright": "1"}, {"playwright"}, flaky=["b", "a"]), "abc1234", "qa")
+    assert body["stage"] == "qa" and body["flaky"] == ["a", "b"] and body["tools_run"] == ["playwright"]
+    from src.api.app import ScanSubmission
+    assert ScanSubmission(**body).stage == "qa"

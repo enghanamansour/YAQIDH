@@ -72,6 +72,16 @@ class Workflow:
         self.service.grant_exception(release_id, stage, fingerprint, justification, approved_by)
         return self.status(release_id)
 
+    def apply_qa_results(self, release_id: str) -> StatusReport:
+        """QA results arrived (from CI): scan, or re-scan with the verifier, and ask the policy. Security is not started here:
+        it starts by itself when its own results arrive or when the QA reviewer approves."""
+        if self.service.store.get(release_id).stage(StageName.QA).tool_versions:
+            self.service.verify_fix(release_id, QA)
+        else:
+            self.service.run_scan(release_id, QA)
+        self.service.evaluate_policy(release_id, QA)
+        return self.status(release_id)
+
     def apply_security_results(self, release_id: str) -> StatusReport:
         """Security results arrived (from CI). If it is security's turn, scan or re-scan with them and ask the policy."""
         if self.status(release_id).status in (

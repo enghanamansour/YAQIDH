@@ -1,6 +1,7 @@
 """Runs in CI (GitHub Actions) on the pull request's code: scans with our own tools and sends the results to Yaqidh.
 
-    python scripts/ci_scan.py --target . [--out results.json]      (without YAQIDH_URL it only writes the file)
+    python scripts/ci_scan.py --stage security --target . [--out results.json]   (without YAQIDH_URL it only writes the file)
+  python scripts/ci_scan.py --stage qa [--app-dir .] [--out results.json]       (starts the PR's app and runs the Playwright checks)
 
 Needs, from the workflow: YAQIDH_URL (e.g. https://host), YAQIDH_TOKEN (the API_TOKEN), GITHUB_REPOSITORY,
 PR_NUMBER and PR_HEAD_SHA (the pull request's head commit, not the merge commit GITHUB_SHA).
@@ -11,6 +12,7 @@ import argparse
 import json
 import os
 import sys
+import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -22,9 +24,11 @@ from src.github_sync import release_id_for  # noqa: E402
 from src.scanning import ScanResult, security_runner  # noqa: E402
 
 
-def build_submission(result: ScanResult, commit: str) -> dict:
+def build_submission(result: ScanResult, commit: str, stage: str = "security") -> dict:
     """The JSON body the server's /scan-results route expects."""
     return {
+        "stage": stage,
+        "flaky": sorted(result.flaky),
         "commit": commit,
         "findings": [f.model_dump(mode="json") for f in result.findings],
         "versions": result.versions,
@@ -35,17 +39,28 @@ def build_submission(result: ScanResult, commit: str) -> dict:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
+    ap.add_argument("--stage", choices=["security", "qa"], default="security")
+    ap.add_argument("--app-dir", default=".", help="qa: the folder that contains demo_app/ (the pull request's checkout)")
     ap.add_argument("--target", default=".")
     ap.add_argument("--rules", default=str(ROOT / "config" / "semgrep-rules"))
     ap.add_argument("--out")
     args = ap.parse_args()
 
-    from src.tools.security.semgrep import SemgrepTool
-    from src.tools.security.trivy import TrivyTool
+    if args.stage == "qa":
+        from qa_checks.maktabti_security import CHECKS
+        from src.scanning import qa_runner
+        from src.tools.qa.app_server import AppServer
+        from src.tools.qa.playwright_tool import PlaywrightTool
 
-    result = security_runner(SemgrepTool(Path(args.rules)), TrivyTool())(Path(args.target))
+        app_dir = Path(args.app_dir).resolve()
+        result = qa_runner(PlaywrightTool(CHECKS), lambda: AppServer("demo_app.app", cwd=app_dir))(app_dir)
+    else:
+        from src.tools.security.semgrep import SemgrepTool
+        from src.tools.security.trivy import TrivyTool
+
+        result = security_runner(SemgrepTool(Path(args.rules)), TrivyTool())(Path(args.target))
     commit = os.environ.get("PR_HEAD_SHA", "")
-    body = build_submission(result, commit)
+    body = build_submission(result, commit, args.stage)
     if args.out:
         Path(args.out).write_text(json.dumps(body, ensure_ascii=False, indent=2), encoding="utf-8")
     url, token = os.environ.get("YAQIDH_URL"), os.environ.get("YAQIDH_TOKEN")
@@ -56,10 +71,16 @@ def main() -> int:
         print("YAQIDH_TOKEN, PR_HEAD_SHA, GITHUB_REPOSITORY and PR_NUMBER are required to send results", file=sys.stderr)
         return 2
     release_id = release_id_for(os.environ["GITHUB_REPOSITORY"], int(os.environ["PR_NUMBER"]))
-    resp = httpx.post(f"{url.rstrip('/')}/releases/{release_id}/scan-results", json=body,
-                      headers={"X-API-Token": token}, timeout=60)
-    print(f"sent {len(result.findings)} findings for {release_id}: HTTP {resp.status_code} {resp.text[:200]}")
-    return 0 if resp.status_code < 300 else 1
+    for attempt in range(1, 7):  # the pull request event can arrive a moment after the scan finished
+        resp = httpx.post(f"{url.rstrip('/')}/releases/{release_id}/scan-results", json=body,
+                          headers={"X-API-Token": token}, timeout=60)
+        print(f"{args.stage}: sent {len(result.findings)} findings for {release_id}: HTTP {resp.status_code} {resp.text[:200]}")
+        if resp.status_code < 300:
+            return 0
+        if resp.status_code != 409 or "no release" not in resp.text:
+            return 1
+        time.sleep(10)
+    return 1
 
 
 if __name__ == "__main__":

@@ -5,6 +5,7 @@ The rule for a check: it must pass on a secure app and fail on a vulnerable one.
 
 from urllib.parse import quote
 
+from qa_checks.maktabti_requirements import REQUIREMENT_CHECKS
 from src.tools.qa.checks import Check
 
 SQLI_PAYLOAD = "zzznomatch' OR '1'='1' --"
@@ -52,3 +53,5 @@ CHECKS = [
     Check("errors_do_not_leak_internals", errors_do_not_leak_internals, "Error pages must not show internals"),
     Check("security_headers_are_set", security_headers_are_set, "Basic security headers must be present"),
 ]
+
+CHECKS += REQUIREMENT_CHECKS

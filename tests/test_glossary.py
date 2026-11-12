@@ -6,21 +6,18 @@ ROOT = Path(__file__).resolve().parents[1]
 
 # banned word -> the one to use
 BANNED = {
-    "تحتاج معالجة": "مفتوحة",
-    "قيد التنفيذ": "مفتوحة",
-    "إغلاق مثبت": "مغلقة بإثبات",
-    "إغلاقات مثبتة": "مغلقة بإثبات",
-    "مُصلحة": "مغلقة",
+    "تحتاج معالجة": "قيد التنفيذ",
+    "إغلاق مثبت": "أُغلقت",
+    "إغلاقات مثبتة": "أُغلقت",
+    "مُصلحة": "أُغلقت",
     "مرتفعة الخطورة": "عالية الخطورة",
-    "انقفل": "أُغلقت / مغلقة بإثبات",
-    "اعتماد البناء": "الموافقة على البناء",
-    "تسجيل الموافقة": "الموافقة على البناء",
-    "مسؤول الأمن": "مراجع الأمن",
-    "مراجع الأمن السيبراني": "مراجع الأمن",
-    "السايبر": "مراجع الأمن",
+    "انقفل": "أُغلقت",
+    "اعتماد البناء": "موافقة",
+    "تسجيل الموافقة": "موافقة",
+    "مسؤول الأمن": "مراجع الأمن السيبراني",
+    "السايبر": "مراجع الأمن السيبراني",
     "الـ QA": "الجودة",
-    "الفحص الأمني": "فحص الأمن",
-    "حالة الإصدار": "حالة البناء",
+    "حالة الإصدار": "حالة الطلب",
     "ليش خطيرة": "ليش خطرة",
     "مطور": "مطوّر (بالشدة)",
 }
@@ -47,19 +44,16 @@ def test_the_glossary_file_lists_every_banned_word():
 
 # the same, in English (the second text of every copy('عربي','English'))
 BANNED_EN = {
-    "Needs remediation": "Open",
-    "In progress": "Open",
-    "Verified closed": "Closed, proven",
-    "Verified closure": "Closed, proven",
-    "Closed, verified": "Closed, proven",
-    "Record approval": "Approve build",
-    "QA scan": "QA check",
-    "Security scan": "Security check",
-    "Assigned changes": "Assigned builds",
-    "Returned change": "Returned build",
-    "Return change": "Return build",
+    "Needs remediation": "In progress",
+    "Verified closed": "Closed",
+    "Verified closure": "Closed",
+    "Closed, verified": "Closed",
+    "Closed, proven": "Closed",
+    "Record approval": "Approve",
+    "Assigned changes": "Assigned requests",
+    "Returned change": "Returned request",
+    "Return change": "Return request",
     "Blocking vulnerability": "Blocking finding",
-    "Quality check": "QA check",
 }
 
 

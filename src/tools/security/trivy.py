@@ -88,6 +88,8 @@ class TrivyTool:
     (update_db), so the same code plus the same DB always gives the same findings.
     """
 
+    last_raw = ""  # the tool's own JSON report of the latest scan, kept so the developer can download it as it is
+
     name = "trivy"
 
     def __init__(self, timeout: int = 300):
@@ -139,6 +141,7 @@ class TrivyTool:
             data = json.loads(proc.stdout)
         except json.JSONDecodeError as e:
             raise ToolError(f"trivy produced no JSON (exit {proc.returncode}): {proc.stderr[-300:]}") from e
+        self.last_raw = proc.stdout
         return TrivyScan(findings=parse_output(data), components=parse_components(data))
 
     def run(self, target: Path) -> list[Finding]:

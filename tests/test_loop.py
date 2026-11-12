@@ -210,3 +210,29 @@ async def test_old_steps_are_dropped_whole_so_the_conversation_stays_small_and_v
         if m["role"] == "tool":
             assert last_sent[i - 1].get("tool_calls") or last_sent[i - 1]["role"] == "tool"
     assert "Earlier steps were removed" in last_sent[2]["content"]
+
+
+async def test_a_slow_model_call_does_not_freeze_the_rest_of_the_server(service, skills):
+    """The model call blocks (and may sleep through a rate limit). It must not stop the event loop, or the whole API hangs."""
+    import asyncio
+    import time
+
+    class SlowChat(ScriptedChat):
+        def complete(self, messages, tools):
+            time.sleep(0.6)
+            return super().complete(messages, tools)
+
+    ticks = []
+
+    async def heartbeat():
+        while True:
+            ticks.append(time.monotonic())
+            await asyncio.sleep(0.05)
+
+    task = asyncio.create_task(heartbeat())
+    try:
+        await drive(service, skills, SlowChat(say("done")))
+    finally:
+        task.cancel()
+    gaps = [b - a for a, b in zip(ticks, ticks[1:])]
+    assert ticks and max(gaps) < 0.3  # without the thread there would be one gap of about 0.6 seconds

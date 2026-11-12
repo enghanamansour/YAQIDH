@@ -1,6 +1,6 @@
 """Plays the developer in the demo: fixes the planted problems in demo_app the way a person would.
 
-    python scripts/demo_fix.py qa         fixes the two QA problems (SQL injection in search, debug page leaking errors)
+    python scripts/demo_fix.py qa         fixes the three QA problems (SQL injection in search, debug page leaking errors, session that never expires)
     python scripts/demo_fix.py security   fixes the security problems (secrets in code, old libraries, missing CSRF token)
     python scripts/demo_fix.py reset      puts demo_app back as it was (git checkout), so the demo can run again
 
@@ -31,6 +31,12 @@ def fix_qa() -> None:
     books = db.execute(sql).fetchall()""", """    like = "%" + q + "%"
     books = db.execute("SELECT * FROM books WHERE title LIKE ? OR author LIKE ? ORDER BY title", (like, like)).fetchall()""")
     sub("app.py", "debug=True", "debug=False")
+    # a signed-in session ends after an hour
+    sub("app.py", "import textwrap\n", "import textwrap\nfrom datetime import timedelta\n")
+    sub("app.py", 'app.config["DATABASE"] = config.DATABASE\n',
+        'app.config["DATABASE"] = config.DATABASE\napp.permanent_session_lifetime = timedelta(hours=1)  # a signed-in session ends after an hour\n')
+    sub("app.py", '            session["user_id"], session["user_name"] = user["id"], user["name"]\n',
+        '            session.permanent = True\n            session["user_id"], session["user_name"] = user["id"], user["name"]\n')
 
 
 def fix_security() -> None:

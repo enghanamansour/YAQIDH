@@ -10,7 +10,6 @@ Start it with:  python server.py --live --api-url http://127.0.0.1:8000     (tok
 
 import json
 import os
-import time
 import urllib.error
 import urllib.request
 
@@ -34,24 +33,15 @@ class LiveBackend:
         self._evidence: dict[str, dict] = {}
         self._status: dict[str, dict] = {}
         self._report: dict[str, dict | None] = {}
-        self._refreshed = 0.0
+        self.error = ""  # why the last refresh failed ("" = fine), shown to the user instead of an empty page
 
-    def report(self, key: str):
-        """The developer's report for one release, worked out by the API. None if the API cannot give it."""
-        if key not in self._report:
-            try:
-                self._report[key] = self._call("GET", f"/releases/{key}/report")
-            except LiveError:
-                self._report[key] = None
-        return self._report[key]
-
-    def _call(self, method: str, path: str, body: dict | None = None, timeout: int = 15):
+    def _call(self, method: str, path: str, body: dict | None = None):
         request = urllib.request.Request(
             self.base_url + path, method=method, headers={"X-API-Token": self.token, "Content-Type": "application/json"},
             data=json.dumps(body).encode() if body is not None else None,
         )
         try:
-            with urllib.request.urlopen(request, timeout=timeout) as response:
+            with urllib.request.urlopen(request, timeout=15) as response:
                 return json.loads(response.read() or b"null")
         except urllib.error.HTTPError as e:
             try:
@@ -63,20 +53,20 @@ class LiveBackend:
             raise LiveError(503, f"the Yaqidh API is not reachable: {e}") from None
 
     # --- reading ---
-    def refresh(self, releases: dict, runs: dict, dates: dict, force: bool = False) -> None:
-        """Rebuilds the dashboard's release tables from the API. A page load makes several requests in a row, so a
-        refresh done in the last two seconds is reused (a decision forces a new one)."""
-        if not force and releases and time.monotonic() - self._refreshed < 2.0:
-            return
-        self._refreshed = time.monotonic()
+    def refresh(self, releases: dict, runs: dict, dates: dict) -> None:
+        """Rebuilds the dashboard's release tables from the API. Called once per request."""
         self._evidence.clear()
         self._status.clear()
         self._report.clear()
         releases.clear(), runs.clear(), dates.clear()
+        self.error = ""
         try:
             listed = self._call("GET", "/releases")
-        except LiveError:
-            return  # the API is down: the dashboard shows no releases instead of stale ones
+        except LiveError as e:  # the API is down or refuses us: show no releases (never stale ones) and say why
+            self.error = {401: "the dashboard's API token does not match the API's token (check API_TOKEN)",
+                          503: "the Yaqidh API is not reachable (is it running on the address given with --api-url?)"}.get(
+                e.status, f"the Yaqidh API answered with an error ({e.status})")
+            return
         for number, row in enumerate(listed, start=1):
             key = row["release_id"]
             full = self._call("GET", f"/releases/{key}")
@@ -101,21 +91,64 @@ class LiveBackend:
             raise KeyError(key)
         return self.Evidence.model_validate(self._evidence[key])
 
+    def status_report(self, key: str) -> dict | None:
+        return self._status.get(key)
+
     def status(self, key: str) -> str:
         return self._status.get(key, {}).get("status", "")
 
     def can_decide(self, key: str, role: str) -> bool:
         return self.status(key) == f"awaiting_{role}_approval"
 
+    def report(self, key: str):
+        """The developer's report for one release, worked out by the API. None if the API cannot give it."""
+        if key not in self._report:
+            try:
+                self._report[key] = self._call("GET", f"/releases/{key}/report")
+            except LiveError:
+                self._report[key] = None
+        return self._report[key]
+
+    def reports(self, key: str) -> dict:
+        """Which tool reports were kept for this release (tool -> commit, time, size, versions)."""
+        try:
+            return self._call("GET", f"/releases/{key}/reports") or {}
+        except LiveError:
+            return {}
+
+    def report_bytes(self, key: str, tool: str) -> bytes:
+        """A tool's own report, exactly as the tool printed it."""
+        request = urllib.request.Request(self.base_url + f"/releases/{key}/reports/{tool}", headers={"X-API-Token": self.token})
+        try:
+            with urllib.request.urlopen(request, timeout=15) as response:
+                return response.read()
+        except urllib.error.HTTPError as e:
+            raise LiveError(e.code, "no such report") from None
+        except (urllib.error.URLError, TimeoutError) as e:
+            raise LiveError(503, f"the Yaqidh API is not reachable: {e}") from None
+
+    def history(self, key: str) -> dict:
+        """The release's event log and whether its hash chain is intact (fetched only for the detail view)."""
+        try:
+            entries = self._call("GET", f"/releases/{key}/history")
+            verified = self._call("GET", f"/releases/{key}/history/verify")
+        except LiveError:
+            return {"entries": [], "verified": {"ok": False, "reason": "the history could not be read"}}
+        slim = [{"seq": e["seq"], "time": e["time"], "event": e["event"], "actor": e["actor"],
+                 "data": {k: v for k, v in e["data"].items() if k not in ("text", "tool_versions", "reasons")}} for e in entries]
+        return {"entries": slim, "verified": verified}
+
     # --- deciding ---
-    def grant_exception(self, key: str, stage: str, fingerprint: str, justification: str, by: str) -> None:
-        """The reviewer accepts a finding the tool rated MEDIUM. The API refuses anything else (high is never excepted)."""
-        self._call("POST", f"/releases/{key}/stages/{stage}/exceptions",
+    def decide(self, key: str, role: str, choice: str, reason: str, by: str) -> None:
+        self._call("POST", f"/releases/{key}/stages/{role}/{choice}", {"by": by, "reason": reason})
+
+
+    def grant_exception(self, key: str, fingerprint: str, justification: str, by: str) -> None:
+        self._call("POST", f"/releases/{key}/stages/security/exceptions",
                    {"fingerprint": fingerprint, "justification": justification, "approved_by": by})
 
-    def decide(self, key: str, role: str, choice: str, reason: str, by: str) -> None:
-        # approving QA makes the API scan security before it answers (real tools: about a minute), so wait longer here
-        self._call("POST", f"/releases/{key}/stages/{role}/{choice}", {"by": by, "reason": reason}, timeout=180)
+    def record_review_request(self, key: str, decision: dict) -> None:
+        self._call("POST", f"/releases/{key}/review-requests", decision)
 
 
 class LiveStore:

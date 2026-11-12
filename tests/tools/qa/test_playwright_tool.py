@@ -126,7 +126,10 @@ def real_scan():
 
 
 def test_real_scan_finds_exactly_the_planted_defects(real_scan):
-    assert sorted(f.rule for f in real_scan.findings) == ["errors_do_not_leak_internals", "search_resists_sql_injection"]
+    # the two planted defects, plus a session that never expires
+    assert sorted(f.rule for f in real_scan.findings) == sorted([
+        "errors_do_not_leak_internals", "search_resists_sql_injection", "session_expires_after_inactivity",
+    ])
     assert all(f.severity == Severity.HIGH for f in real_scan.findings)
 
 

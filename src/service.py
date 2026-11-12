@@ -5,6 +5,8 @@ for a decision, and add explanation text. It cannot: choose tools or targets, se
 write a closure, record an exception, or record a human decision.
 """
 
+import json
+from contextlib import contextmanager
 from pathlib import Path
 
 from src.phases.status import ReleaseStatus, release_status
@@ -21,6 +23,7 @@ from src.schema import (
     FindingStatus,
     HumanDecision,
     PendingScan,
+    ReviewRequestDecision,
     StageName,
     utcnow,
 )
@@ -56,6 +59,12 @@ class ReleaseService:
         # one writer at a time, in this process AND in the other one (the API and the MCP server share the files)
         self._lock = InterProcessLock(self.store.data_dir / ".lock")
 
+    @contextmanager
+    def _locked(self, release_id: str):
+        """One writer at a time for this release: across threads here, and across processes through the store's file lock."""
+        with self._lock, self.store.locked(release_id):
+            yield
+
     def _log(self, release_id: str, event: str, actor: str, **data) -> None:
         if self.history is not None:
             self.history.append(release_id, event, actor, data)
@@ -63,9 +72,46 @@ class ReleaseService:
     def _run(self, runner: Runner, release_id: str) -> ScanResult:
         token = CURRENT_RELEASE.set(release_id)
         try:
-            return runner(self.target)
+            result = runner(self.target)
         finally:
             CURRENT_RELEASE.reset(token)
+        if result.raw:
+            self._keep_reports(release_id, result)
+        return result
+
+    # --- the tools' own reports (what Semgrep and Trivy printed), kept as they are so they can be downloaded ---
+    def _reports_dir(self, release_id: str) -> Path:
+        return self.store.data_dir / "reports" / release_id
+
+    def _keep_reports(self, release_id: str, result: ScanResult) -> None:
+        try:
+            folder = self._reports_dir(release_id)
+            folder.mkdir(parents=True, exist_ok=True)
+            meta_path = folder / "meta.json"
+            meta = json.loads(meta_path.read_text(encoding="utf-8")) if meta_path.exists() else {}
+            commit = self.store.get(release_id).head_commit if self.store.exists(release_id) else ""
+            for tool, text in result.raw.items():
+                (folder / f"{tool}.json").write_text(text, encoding="utf-8")
+                meta[tool] = {"commit": commit, "at": utcnow().isoformat(), "bytes": len(text.encode("utf-8")),
+                              "versions": {k: v for k, v in result.versions.items() if k.startswith(tool)}}
+            meta_path.write_text(json.dumps(meta), encoding="utf-8")
+        except OSError:  # a report that cannot be saved must never stop the scan
+            pass
+
+    def list_reports(self, release_id: str) -> dict:
+        meta_path = self._reports_dir(release_id) / "meta.json"
+        try:
+            return json.loads(meta_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return {}
+
+    def read_report(self, release_id: str, tool: str) -> str:
+        if tool not in ("semgrep", "trivy"):
+            raise ServiceError(f"no report for tool '{tool}'")
+        try:
+            return (self._reports_dir(release_id) / f"{tool}.json").read_text(encoding="utf-8")
+        except OSError:
+            raise ServiceError(f"no {tool} report for {release_id} yet") from None
 
     def _runner(self, stage: StageName) -> Runner:
         runner = self.runners.get(stage)
@@ -84,7 +130,7 @@ class ReleaseService:
         """First scan of a stage. A second scan would overwrite history, so it is refused (use verify_fix)."""
         name = self._stage(stage)
         runner = self._runner(name)
-        with self._lock:
+        with self._locked(release_id):
             evidence = self.store.get(release_id) if self.store.exists(release_id) else self.store.create(release_id)
             self._check_order(evidence, name)
             record = evidence.stage(name)
@@ -107,7 +153,7 @@ class ReleaseService:
         """Re-scan and let the verifier compare with the earlier scan. Only the verifier writes closures."""
         name = self._stage(stage)
         runner = self._runner(name)
-        with self._lock:
+        with self._locked(release_id):
             evidence = self.store.get(release_id)
             self._check_order(evidence, name)
             record = evidence.stage(name)
@@ -142,7 +188,7 @@ class ReleaseService:
     def evaluate_policy(self, release_id: str, stage: str) -> dict:
         name = self._stage(stage)
         policy = load_policy(self.policy_path)  # read on every call, so an edited policy takes effect at once
-        with self._lock:
+        with self._locked(release_id):
             evidence = self.store.get(release_id)
             record = evidence.stage(name)
             if not record.tool_versions:
@@ -166,7 +212,7 @@ class ReleaseService:
             raise ServiceError("explanation text is empty")
         if len(text) > MAX_EXPLANATION:
             raise ServiceError(f"explanation is longer than {MAX_EXPLANATION} characters")
-        with self._lock:
+        with self._locked(release_id):
             evidence = self.store.get(release_id)
             finding = self._find(evidence, name, fingerprint)
             finding.explanation = Explanation(text=text)
@@ -212,7 +258,7 @@ class ReleaseService:
             raise ServiceError("a human decision needs the name of the person who made it")
         if decision == "reject" and not reason.strip():
             raise ServiceError("a rejection needs a reason, so the developer knows what to fix")
-        with self._lock:
+        with self._locked(release_id):
             evidence = self.store.get(release_id)
             evidence.human_decisions.append(
                 HumanDecision(stage=name, decision=decision, by=by.strip(), reason=reason.strip(), commit=evidence.head_commit)
@@ -229,7 +275,7 @@ class ReleaseService:
         name = self._stage(stage)
         if not justification.strip() or not approved_by.strip():
             raise ServiceError("an exception needs a justification and the name of the approving person")
-        with self._lock:
+        with self._locked(release_id):
             evidence = self.store.get(release_id)
             finding = self._find(evidence, name, fingerprint)
             if finding.status != FindingStatus.OPEN:
@@ -241,8 +287,22 @@ class ReleaseService:
                   justification=justification.strip())
         return self.evaluate_policy(release_id, stage)
 
+    def add_review_request_decision(self, release_id: str, decision: ReviewRequestDecision) -> dict:
+        """Record a reviewer's answer to a developer's request. Human-only: it is not in the MCP server."""
+        if not decision.by.strip():
+            raise ServiceError("a decision needs the name of the person who made it")
+        with self._locked(release_id):
+            evidence = self.store.get(release_id)
+            if decision.commit != evidence.head_commit:
+                raise ServiceError(f"this answer is for {decision.commit[:8]}, but the newest commit is {evidence.head_commit[:8]}")
+            evidence.review_request_decisions.append(decision)
+            self.store.save(evidence)
+        self._log(release_id, "review_request", decision.by, kind=decision.kind, status=decision.status,
+                  finding=decision.finding, commit=decision.commit)
+        return {"release_id": release_id, "kind": decision.kind, "status": decision.status}
+
     def set_pull_request(self, release_id: str, repo: str, pr_number: int, author: str = "", branch: str = "") -> None:
-        with self._lock:
+        with self._locked(release_id):
             evidence = self.store.get(release_id) if self.store.exists(release_id) else self.store.create(release_id)
             evidence.repo, evidence.pr_number = repo, pr_number
             evidence.author, evidence.branch = author[:100], branch[:200]
@@ -253,7 +313,7 @@ class ReleaseService:
         commit = commit.strip()
         if not commit or len(commit) > 64:
             raise ServiceError("a commit id is required")
-        with self._lock:
+        with self._locked(release_id):
             evidence = self.store.get(release_id) if self.store.exists(release_id) else self.store.create(release_id)
             changed = evidence.head_commit != commit
             evidence.head_commit = commit
@@ -264,27 +324,36 @@ class ReleaseService:
 
     def submit_scan_results(
         self, release_id: str, commit: str, findings: list[Finding], versions: dict[str, str],
-        tools_run: list[str], components: list[str], by: str = "ci",
+        tools_run: list[str], components: list[str], by: str = "ci", stage: str = "security", flaky: list[str] | None = None,
     ) -> dict:
-        """Store the security results a CI job sent for the newest commit. They are used when the stage's turn comes."""
-        missing = {"semgrep", "trivy"} - set(tools_run)
-        if missing:
-            raise ServiceError(f"the results must come from both tools; missing: {', '.join(sorted(missing))}")
-        if not {"semgrep-rules", "trivy", "trivy-db"} <= versions.keys():
-            raise ServiceError("the results must include the versions semgrep-rules, trivy and trivy-db")
+        """Store the results a CI job sent for the newest commit. They are used when the stage's turn comes."""
+        name = self._stage(stage)
+        if name == StageName.SECURITY:
+            missing = {"semgrep", "trivy"} - set(tools_run)
+            if missing:
+                raise ServiceError(f"the results must come from both tools; missing: {', '.join(sorted(missing))}")
+            if not {"semgrep-rules", "trivy", "trivy-db"} <= versions.keys():
+                raise ServiceError("the results must include the versions semgrep-rules, trivy and trivy-db")
+        else:
+            if "playwright" not in tools_run or "playwright" not in versions:
+                raise ServiceError("the QA results must come from playwright, with its version")
         clean = [
             f.model_copy(update={"status": FindingStatus.OPEN, "explanation": None, "closure": None, "exception": None,
                                  "origin": "initial"})
             for f in findings
         ]
-        with self._lock:
+        with self._locked(release_id):
             if not self.store.exists(release_id):
                 raise ServiceError(f"no release {release_id}: the pull request event must arrive first")
             evidence = self.store.get(release_id)
             if commit != evidence.head_commit:
                 raise ServiceError(f"these results are for {commit[:8]}, but the newest commit is {evidence.head_commit[:8]}")
-            evidence.pending_scan = PendingScan(commit=commit, findings=clean, versions=versions,
-                                                tools_run=sorted(tools_run), components=sorted(components))
+            pending = PendingScan(commit=commit, findings=clean, versions=versions, tools_run=sorted(tools_run),
+                                  components=sorted(components), flaky=sorted(flaky or []))
+            if name == StageName.QA:
+                evidence.pending_qa_scan = pending
+            else:
+                evidence.pending_scan = pending
             self.store.save(evidence)
-        self._log(release_id, "scan_results_received", by, commit=commit, findings=len(clean), tool_versions=versions)
-        return {"release_id": release_id, "commit": commit, "findings": len(clean)}
+        self._log(release_id, "scan_results_received", by, stage=stage, commit=commit, findings=len(clean), tool_versions=versions)
+        return {"release_id": release_id, "stage": stage, "commit": commit, "findings": len(clean)}

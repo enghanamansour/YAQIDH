@@ -103,6 +103,7 @@ def merge_same_line(findings: list[Finding]) -> list[Finding]:
 
 class SemgrepTool:
     name = "semgrep"
+    last_raw = ""  # the tool's own JSON report of the latest run, kept so the developer can download it as it is
 
     def __init__(self, rules_dir: Path, timeout: int = 300):
         """rules_dir is the folder made by scripts/fetch_semgrep_rules.sh (official rules, pinned commit)."""
@@ -139,4 +140,5 @@ class SemgrepTool:
             data = json.loads(proc.stdout)
         except json.JSONDecodeError as e:
             raise ToolError(f"semgrep produced no JSON (exit {proc.returncode}): {proc.stderr[:300]}") from e
+        self.last_raw = proc.stdout
         return parse_output(data, target)
