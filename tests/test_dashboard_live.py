@@ -359,7 +359,11 @@ def test_the_replay_player_walks_the_recorded_states_in_order(tmp_path, monkeypa
     fixtures.write_text(json.dumps({"qa": [{"findings": []}] * 3, "security": [{"findings": []}] * 2}), encoding="utf-8")
     player = DemoPlayer(Fake(), fixtures)
     player.start()
+    assert calls == [] and player.guide("")["status"] == "none"  # a clean slate: no pull request yet
+    assert player.can_push("")
+    player.push("")  # the developer's first push opens the pull request and QA fails
     assert [c[:2] for c in calls] == [("events", "pull_request_opened"), ("scan-results", "qa")]
+    assert player.guide("qa_blocked")["status"] == "qa_blocked"
     assert player.can_push("qa_blocked") and not player.can_push("awaiting_qa_approval")
     calls.clear()
     player.push("qa_blocked")  # the developer's QA fix: QA results, and the security results wait for their turn
