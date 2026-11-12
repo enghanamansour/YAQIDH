@@ -67,7 +67,7 @@ function demoGuideHtml(){
     +'<p>'+text+'</p><div class="demo-actions">'+buttons+'<button type="button" class="action" data-action="demo-reset">'+copy('ابدأ من جديد','Start over')+'</button></div>'
     +'<small class="demo-foot"><b>'+copy('ديمو توضيحي','Guided demo')+'</b> '+copy('جُرّب النظام على طلب دمج حقيقي في GitHub. القرارات والشرح العربي والسجل يشتغلون بالنظام الحقيقي.','The system was tested on a real GitHub pull request. The decisions, the Arabic explanations and the evidence log run on the real system.')+real+'</small></div>';
   return '<aside class="demo-guide" aria-label="'+copy('مرشد يقظ','Yaqidh guide')+'">'+(demoGuideOpen?bubble:'')
-    +'<button type="button" class="demo-agent" data-action="demo-guide-toggle" aria-label="'+copy('مرشد يقظ','Yaqidh guide')+'" title="'+copy('مرشد يقظ','Yaqidh guide')+'"><img src="/assets/guide-agent.png" alt=""></button></aside>';
+    +'<button type="button" class="demo-agent" data-action="demo-guide-toggle" aria-label="'+copy('مرشد يقظ','Yaqidh guide')+'" title="'+copy('مرشد يقظ','Yaqidh guide')+'"><span class="demo-agent-art" aria-hidden="true"></span></button></aside>';
 }
 
 /* when the story moves the bubble opens, pulses and the agent wiggles, because the text changes quietly */
