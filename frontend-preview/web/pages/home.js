@@ -78,29 +78,25 @@ function features(){
   ];
 }
 
-/* the subtitle always appears word by word, every time the main page is drawn (not letter by letter, not all at once).
-   If the same page is drawn again a moment later (the page reads its data and draws twice), the new copy carries on from the word the first had reached. */
+/* the subtitle is typed letter by letter at a medium speed, every time the main page is drawn.
+   If the same page is drawn again a moment later (the page reads its data and draws twice), the new copy carries on from the letter the first had reached. */
+const TYPING_MS=45;
 function startTyping(){
   const el=document.querySelector('.lp-sub');
   if(!el)return;
   if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
   const now=Date.now();
-  const run=window.__yaqidhWords&&now-window.__yaqidhWords.at<2000?window.__yaqidhWords:(window.__yaqidhWords={at:now,shown:0});
-  const words=el.textContent.split(/\s+/).filter(Boolean);
-  el.textContent='';
-  words.forEach((word,i)=>{
-    const span=document.createElement('span');
-    span.className='lp-word'+(i<run.shown?' on':'');
-    span.textContent=word;
-    el.appendChild(span);
-    if(i<words.length-1)el.appendChild(document.createTextNode(' '));
-  });
-  const spans=[...el.querySelectorAll('.lp-word')];
+  const run=window.__yaqidhTyping&&now-window.__yaqidhTyping.at<2000?window.__yaqidhTyping:(window.__yaqidhTyping={at:now,count:0});
+  const full=Array.from(el.textContent);
+  el.style.minHeight=el.offsetHeight+'px'; // the box keeps its final height, so the page does not jump while typing
+  el.textContent=full.slice(0,run.count).join('');
+  el.classList.add('typing');
   const timer=setInterval(()=>{
-    if(!el.isConnected||run.shown>=spans.length){clearInterval(timer);return}
-    spans[run.shown++].classList.add('on');
-    run.at=Date.now();
-  },240);
+    if(!el.isConnected){clearInterval(timer);return}
+    run.count++;run.at=Date.now();
+    el.textContent=full.slice(0,run.count).join('');
+    if(run.count>=full.length){clearInterval(timer);el.classList.remove('typing')}
+  },TYPING_MS);
 }
 
 /* a sequence diagram: two actors and the arrows that go back and forth between them */
