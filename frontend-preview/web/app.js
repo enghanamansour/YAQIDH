@@ -153,6 +153,7 @@ function render(){
   if(page==='/'){app.innerHTML=header()+landing();startTyping();if(location.hash==='#about')document.getElementById('about').scrollIntoView();return}
   const content=page==='/signup'?signup():!profile?login():page==='/communication'?communicationView():page==='/exceptions'?exceptionsView():'<main>'+(['qa','developer','security'].includes(profile.role)?'':introduction())+(profile.role==='company-admin'?adminView():dashboardView())+'</main>';
   app.innerHTML=header()+(hasSidebar()?sidebar():'')+'<div class="'+(profile?(hasSidebar()?'shell':'shell no-side'):'public-shell')+'">'+demoBannerHtml()+content+'</div>';
+  demoAfterRender();
 }
 async function selectRelease(id){
   const turn=++requestNumber;
