@@ -25,6 +25,8 @@ from src.storage import EvidenceStore
 from src.verifier import verify
 
 # The shared demo password. A deployed copy sets its own through the environment, so the one written here is only for local use.
+# the guided demo (YAQIDH_DEMO_MODE=1): a visitor plays developer, QA and security on a request whose tool results are replayed
+DEMO_ACCOUNTS = ("developer", "qa", "security")
 PASSWORD = os.environ.get("YAQIDH_DEMO_PASSWORD") or "YaqidhDemo-2026"
 # Public host names this copy may be reached on (comma separated, for example "yaqidh.example.com"). Empty means local only.
 ALLOWED_HOSTS = {h.strip().lower() for h in os.environ.get("YAQIDH_ALLOWED_HOSTS", "").split(",") if h.strip()}
@@ -70,6 +72,7 @@ STATIC = {
     "/pages/about.js": "pages/about.js",
     "/pages/login.js": "pages/login.js",
     "/pages/signup.js": "pages/signup.js",
+    "/pages/demo.js": "pages/demo.js",
     "/pages/communication.js": "pages/communication.js",
     "/pages/admin.js": "pages/admin.js",
     "/pages/dashboard/developer.js": "pages/dashboard/developer.js",
@@ -256,6 +259,7 @@ def clean_finding(finding):
 
 class DemoServer(ThreadingHTTPServer):
     daemon_threads = True
+    demo = None  # the DemoPlayer, set in guided-demo mode
     request_queue_size = 32
 
     def __init__(self, address, store, verification, policy, live=None):
@@ -308,6 +312,38 @@ class Handler(BaseHTTPRequestHandler):
         sid = cookies["yaqidh_session"].value if "yaqidh_session" in cookies else None
         account = self.server.sessions.get(sid)
         return sid, account if account and ACCOUNTS[account]["active"] else None
+
+    def guide(self, account):
+        """In guided-demo mode: where the story stands, so the page can tell the visitor what to do next."""
+        demo = self.server.demo
+        if not demo or account not in DEMO_ACCOUNTS:
+            return None
+        return demo.guide(self.server.live.status(demo.release))
+
+    def demo_action(self, path, sid, account, data):
+        demo = self.server.demo
+        if not demo or account not in DEMO_ACCOUNTS:
+            return self.fail(403, "forbidden")
+        from live import LiveError
+        try:
+            if path == "/api/demo/role":
+                role = data.get("role")
+                if role not in DEMO_ACCOUNTS:
+                    return self.fail(400, "invalid_input")
+                self.server.sessions[sid] = role
+            elif path == "/api/demo/push":
+                status = self.server.live.status(demo.release)
+                if account != "developer" or not demo.can_push(status):
+                    return self.fail(409, "decision_unavailable")
+                demo.push(status)
+            elif path == "/api/demo/reset":
+                demo.start()
+            else:
+                return self.fail(404, "not_found")
+        except LiveError:
+            return self.fail(502, "decision_unavailable")
+        self.refresh_live()
+        return self.json(200, {"ok": True})
 
     def refresh_live(self):
         if self.server.live:
@@ -409,6 +445,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         path = urlsplit(self.path).path
+        if path == "/api/demo/info":
+            return self.json(200, {"enabled": bool(self.server.demo), "githubUrl": os.environ.get("YAQIDH_DEMO_GITHUB_URL", "")})
         if path in {"/", "/about", "/login", "/signup", "/dashboard", "/communication", "/exceptions"} or path in STATIC:
             target = ROOT / "web" / STATIC.get(path, "index.html")
             self.send_data(200, target.read_bytes(), MIME[target.suffix])
@@ -450,7 +488,7 @@ class Handler(BaseHTTPRequestHandler):
                             "active": meta["active"], "day": DEMO_RUN_DATES.get(key), "outcome": view["outcome"]["result"] if view["outcome"] else None,
                             "returnReason": view["decisions"][-1]["reason"] if role == "developer" and view["decisions"] and view["decisions"][-1]["decision"] == "reject" else None,
                             "pendingReview": view["canApprove"], "gate": (view.get("gate") or {}).get("status"), "failedRuns": sum(run["state"] == "error" for run in view["runs"])})
-                return self.json(200, {"account": account, "display": ACCOUNTS.get(account, {}).get("display", ""), "role": role, "demo": True, "live": bool(self.server.live), "releases": releases,
+                return self.json(200, {"account": account, "display": ACCOUNTS.get(account, {}).get("display", ""), "role": role, "demo": True, "live": bool(self.server.live), "releases": releases, "guide": self.guide(account),
                     "reviewAlerts": self.qa_review_alerts(account) if role == "qa" else [],
                     "liveError": self.server.live.error if self.server.live else ""})
             parts = path.strip("/").split("/")
@@ -779,6 +817,14 @@ class Handler(BaseHTTPRequestHandler):
             sid, account = self.auth()
             if path == "/api/signup":
                 return self.create_account(data)
+            if path == "/api/demo/enter":  # a visitor enters the guided demo without an account of their own
+                role = data.get("role")
+                if not self.server.demo or role not in DEMO_ACCOUNTS:
+                    return self.fail(404, "not_found")
+                self.server.sessions.pop(sid, None)
+                token = secrets.token_urlsafe(32)
+                self.server.sessions[token] = role
+                return self.json(200, {"ok": True}, [("Set-Cookie", f"yaqidh_session={token}; Path=/; HttpOnly; SameSite=Strict{secure}")])
             if path == "/api/login":
                 name, password = data.get("account"), data.get("password")
                 name = name.strip().lower() if isinstance(name, str) else name
@@ -790,6 +836,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self.json(200, {"ok": True}, [("Set-Cookie", f"yaqidh_session={token}; Path=/; HttpOnly; SameSite=Strict{secure}")])
             if not account:
                 return self.fail(401, "sign_in_required")
+            if path.startswith("/api/demo/"):
+                return self.demo_action(path, sid, account, data)
             if path == "/api/logout":
                 self.server.sessions.pop(sid, None)
                 return self.json(200, {"ok": True}, [("Set-Cookie", f"yaqidh_session=; Path=/; Max-Age=0; HttpOnly; SameSite=Strict{secure}")])
@@ -842,6 +890,12 @@ def main():
         ACCOUNTS["company-admin"]["projects"] = ["portal"]  # the demo's second project ("research") does not exist in live mode
         backend = live_module.from_env(Evidence, [n for n, a in ACCOUNTS.items() if a["role"] == "developer"])
         with DemoServer((args.host, args.port), live_module.LiveStore(backend), {}, policy, backend) as server:
+            if os.environ.get("YAQIDH_DEMO_MODE") == "1":
+                from demo import DemoPlayer
+                player = DemoPlayer(backend, ROOT.parent / "demo_replay" / "fixtures.json")
+                backend.only = lambda key: key == player.release
+                player.start()
+                server.demo = player
             print(f"YAQIDH dashboard (live, API {backend.base_url}): http://127.0.0.1:{server.server_port}/dashboard", flush=True)
             server.serve_forever()
         return

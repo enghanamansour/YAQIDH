@@ -6,6 +6,7 @@
 #   YAQIDH_ALLOWED_HOSTS   the public host name(s), comma separated; without it the dashboard only answers on localhost
 #   API_PORT               the private port of the API inside the container (default 8010)
 #   API_TOKEN              shared secret between the dashboard and the API (a random one is made if it is not set)
+#   YAQIDH_DEMO_MODE       1 (default) = guided demo with replayed tool results; 0 = real scans
 #   AGENT_MODE             "template" (default, no AI model and no tokens) or a model mode
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -24,7 +25,10 @@ export YAQIDH_API_TOKEN="$API_TOKEN"
 export DATA_DIR="${DATA_DIR:-/data/releases}"
 export HISTORY_DIR="${HISTORY_DIR:-/data/history}"
 export EVIDENCE_PATH="${EVIDENCE_PATH:-/data/evidence.jsonl}"
-export SCAN_SOURCE=local
+# Guided demo (default): a visitor plays the whole story on a request whose tool results are replayed from a real run, so no scan
+# tool has to run here. Set YAQIDH_DEMO_MODE=0 to scan for real with the tools in this image (needs more memory).
+export YAQIDH_DEMO_MODE="${YAQIDH_DEMO_MODE:-1}"
+if [ "$YAQIDH_DEMO_MODE" = "1" ]; then export SCAN_SOURCE=ci; else export SCAN_SOURCE=local; fi
 export GITHUB_TOKEN=""
 export GITHUB_MCP=0
 export AGENT_MODE="${AGENT_MODE:-template}"

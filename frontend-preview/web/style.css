@@ -668,3 +668,11 @@ a.action.hdr-login{background:var(--grad);border:0;color:#fff;border-radius:999p
 .hdr-account .acct-menu{bottom:auto;top:calc(100% + 8px);inset-inline:auto 0;min-width:170px}
 @media(max-width:600px){.hdr-account .acct-text{display:none}.hdr-account .acct{padding:5px}}
 .sec-exceptions{display:grid;gap:14px;margin-top:10px}.sec-exceptions .exception-card{margin:0}
+/* guided demo */
+.demo-banner{display:grid;gap:10px;margin:0 0 18px;padding:14px 16px;border:1px solid var(--line);border-radius:16px;background:linear-gradient(160deg,color-mix(in srgb,var(--brand) 12%,var(--surface)),var(--surface))}
+.demo-note{display:grid;gap:4px;font-size:13px;color:var(--muted);line-height:1.8}.demo-note b{color:var(--brand);font-size:14px}.demo-note a{color:var(--brand);margin-inline-start:6px}
+.demo-step{display:grid;gap:8px;padding:12px 14px;border-radius:12px;background:var(--card);border:1px solid color-mix(in srgb,var(--brand) 45%,var(--line))}
+.demo-num{font-size:12px;font-weight:700;color:var(--brand);letter-spacing:.04em}.demo-step p{margin:0;font-size:16px;line-height:1.8}
+.demo-actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.demo-switch{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)}.demo-switch select{padding:6px 10px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--text);font:inherit;font-size:13px}
+.demo-try{border-radius:999px;padding:15px 34px;font-size:18px}

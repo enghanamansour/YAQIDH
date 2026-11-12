@@ -19,7 +19,7 @@ function landing(){
     +'<div class="lp-hero-inner"><div class="lp-copy">'
     +'<h1>'+copy('<span class="lp-l">أمــان <span class="grad">استباقــي</span>،</span> <span class="lp-l">إطــلاق أســرع.</span>','<span class="lp-l"><span class="grad">Proactive</span> security,</span> <span class="lp-l">faster releases.</span>')+'</h1>'
     +'<p class="lp-sub">'+copy('يَقِـــظ يرافــق منتجــك قبــل الإطــلاق: يفحــص، يشــرح، ويعيــد الفحــص تلقائيــًا، والقــرار دائمًــا بيــد الفريــق.','Yaqidh accompanies your product before release: it checks, explains and re-checks automatically, and the decision always stays with your team.')+'</p>'
-    +'<div class="actions lp-cta"><a class="action primary" href="'+go+'">'+goLabel+'</a><a class="action" href="#about">'+copy('كيف يعمل','How it works')+'</a></div></div>'
+    +'<div class="actions lp-cta"><a class="action primary" href="'+go+'">'+goLabel+'</a>'+(demoInfo&&demoInfo.enabled&&!profile?'<button type="button" class="action demo-try" data-action="demo-enter">'+copy('جرّب الديمو','Try the demo')+'</button>':'')+'<a class="action" href="#about">'+copy('كيف يعمل','How it works')+'</a></div></div>'
     +'<div class="lp-art" aria-hidden="true">'+ring(190,'a')+ring(150,'b')+''+animatedLogo()+'</div></div></section>'
 
     +'<section class="lp-section" id="problem"><span class="lp-eyebrow">'+copy('المشكلة','The problem')+'</span><h2>'+copy('كل مراجعة أمنية تعني دورة جديدة من الانتظار.','Every security review means a new round of waiting.')+'</h2>'

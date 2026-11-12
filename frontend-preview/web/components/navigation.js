@@ -8,12 +8,17 @@ function hasSidebar(){return Boolean(profile&&profile.role==='company-admin')}
 function headerAccount(){
   return '<div class="hdr-account"><button type="button" class="acct" data-action="account-menu" aria-expanded="false"><span class="avatar" aria-hidden="true">'+safe(Array.from(personName())[0])+'</span><span class="acct-text"><b>'+safe(personName())+'</b><small>'+roleNames(profile.role)+'</small></span><span class="chev" aria-hidden="true">⋯</span></button><div class="acct-menu" hidden>'+action('logout',copy('تسجيل الخروج','Sign out'))+'</div></div>';
 }
+/* guided demo: one visitor plays all three roles, so the top bar lets them switch */
+function demoSwitch(){
+  if(!profile||!profile.guide)return '';
+  return '<label class="demo-switch"><span>'+copy('أنا الحين','I am now')+'</span><select id="demo-role-select" aria-label="'+copy('بدّل الدور','Switch role')+'">'+['developer','qa','security'].map(r=>'<option value="'+r+'" '+(profile.role===r?'selected':'')+'>'+roleNames(r)+'</option>').join('')+'</select></label>';
+}
 function header(){
   const ar=document.documentElement.lang==='ar', theme=document.documentElement.dataset.theme;
   const toggle=(id,label,active,name)=>action(id,label,'aria-pressed="'+active+'" aria-label="'+name+'" title="'+name+'"');
   return '<header class="top"><div class="top-navigation"><a class="top-logo" href="/" aria-label="'+copy('يقظ · الرئيسية','YAQIDH · Home')+'"><img class="brand" alt="'+copy('يقظ','YAQIDH')+'" src="'+logo()+'"></a><nav aria-label="'+copy('التنقل العام','Main navigation')+'">'+(location.pathname==='/'?'<a href="#problem">'+copy('المشكلة','The problem')+'</a><a href="#about">'+copy('كيف يعمل','How it works')+'</a><a href="#features">'+copy('المميزات','Features')+'</a>':'')+'</nav></div>'
     +'<div class="toolbar"><div class="top-control" role="group" aria-label="'+copy('اللغة','Language')+'">'+(ar?toggle('en','EN',false,'English'):toggle('ar','ع',false,'العربية'))+'</div>'
-    +'<div class="top-control" role="group" aria-label="'+copy('المظهر','Appearance')+'">'+(theme==='dark'?toggle('light','☀',false,copy('الوضع الفاتح','Light mode')):toggle('dark','☾',false,copy('الوضع الغامق','Dark mode')))+'</div>'+(!profile&&!['/login','/signup'].includes(location.pathname)?'<a class="action primary hdr-login" href="/login">'+copy('تسجيل الدخول','Sign in')+'</a>':'')+(profile&&(!hasSidebar()||location.pathname==='/')?headerAccount():'')+'</div></header>';
+    +'<div class="top-control" role="group" aria-label="'+copy('المظهر','Appearance')+'">'+(theme==='dark'?toggle('light','☀',false,copy('الوضع الفاتح','Light mode')):toggle('dark','☾',false,copy('الوضع الغامق','Dark mode')))+'</div>'+(!profile&&!['/login','/signup'].includes(location.pathname)?'<a class="action primary hdr-login" href="/login">'+copy('تسجيل الدخول','Sign in')+'</a>':'')+demoSwitch()+(profile&&(!hasSidebar()||location.pathname==='/')?headerAccount():'')+'</div></header>';
 }
 
 const sbIcon=path=>'<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+path+'</svg>';

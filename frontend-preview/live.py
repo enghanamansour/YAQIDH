@@ -33,6 +33,7 @@ class LiveBackend:
         self._evidence: dict[str, dict] = {}
         self._status: dict[str, dict] = {}
         self._report: dict[str, dict | None] = {}
+        self.only = None  # demo mode: a function key -> bool, so only the current demo request is listed
         self.error = ""  # why the last refresh failed ("" = fine), shown to the user instead of an empty page
 
     def _call(self, method: str, path: str, body: dict | None = None):
@@ -67,8 +68,12 @@ class LiveBackend:
                           503: "the Yaqidh API is not reachable (is it running on the address given with --api-url?)"}.get(
                 e.status, f"the Yaqidh API answered with an error ({e.status})")
             return
-        for number, row in enumerate(listed, start=1):
+        number = 0
+        for row in listed:
             key = row["release_id"]
+            if self.only and not self.only(key):
+                continue
+            number += 1
             full = self._call("GET", f"/releases/{key}")
             evidence, status = full["evidence"], full["status"]
             self._evidence[key], self._status[key] = evidence, status

@@ -335,3 +335,40 @@ def test_a_public_host_works_only_when_it_is_listed_and_the_origin_matches(world
             assert post(dash, "evil.example", "https://evil.example", login)[0] == 403
         finally:
             mod.ALLOWED_HOSTS.discard("demo.example.test")
+
+
+def test_the_demo_endpoints_are_off_unless_demo_mode_is_on(world):
+    _, dash, _ = world
+    browser = Browser(dash)
+    assert browser.call("GET", "/api/demo/info")[1]["enabled"] is False
+    assert browser.call("POST", "/api/demo/enter", {"role": "developer"})[0] == 404
+    assert browser.call("POST", "/api/demo/push", {})[0] == 401
+
+
+def test_the_replay_player_walks_the_recorded_states_in_order(tmp_path, monkeypatch):
+    monkeypatch.syspath_prepend(str(PREVIEW))
+    from demo import DemoPlayer
+
+    calls = []
+
+    class Fake:
+        def _call(self, method, path, body=None):
+            calls.append((path.rsplit("/", 1)[-1], (body or {}).get("event") or (body or {}).get("stage"), (body or {}).get("commit")))
+
+    fixtures = tmp_path / "fixtures.json"
+    fixtures.write_text(json.dumps({"qa": [{"findings": []}] * 3, "security": [{"findings": []}] * 2}), encoding="utf-8")
+    player = DemoPlayer(Fake(), fixtures)
+    player.start()
+    assert [c[:2] for c in calls] == [("events", "pull_request_opened"), ("scan-results", "qa")]
+    assert player.can_push("qa_blocked") and not player.can_push("awaiting_qa_approval")
+    calls.clear()
+    player.push("qa_blocked")  # the developer's QA fix: QA results, and the security results wait for their turn
+    assert player.phase == 1 and [c[:2] for c in calls] == [("events", "push"), ("scan-results", "qa"), ("scan-results", "security")]
+    assert len({c[2] for c in calls}) == 1  # one new commit for the whole push
+    player.push("security_blocked")  # the security fix
+    assert player.phase == 2
+    assert not player.can_push("security_blocked")  # nothing left to fix: the security reviewer decides on the medium finding
+    assert player.can_push("security_rejected")  # a returned request can be pushed again
+    before = player.phase
+    player.push("security_rejected")
+    assert player.phase == before

@@ -152,7 +152,7 @@ function render(){
   const page=location.pathname;
   if(page==='/'){app.innerHTML=header()+landing();startTyping();if(location.hash==='#about')document.getElementById('about').scrollIntoView();return}
   const content=page==='/signup'?signup():!profile?login():page==='/communication'?communicationView():page==='/exceptions'?exceptionsView():'<main>'+(['qa','developer','security'].includes(profile.role)?'':introduction())+(profile.role==='company-admin'?adminView():dashboardView())+'</main>';
-  app.innerHTML=header()+(hasSidebar()?sidebar():'')+'<div class="'+(profile?(hasSidebar()?'shell':'shell no-side'):'public-shell')+'">'+content+'</div>';
+  app.innerHTML=header()+(hasSidebar()?sidebar():'')+'<div class="'+(profile?(hasSidebar()?'shell':'shell no-side'):'public-shell')+'">'+demoBannerHtml()+content+'</div>';
 }
 async function selectRelease(id){
   const turn=++requestNumber;
@@ -161,6 +161,7 @@ async function selectRelease(id){
   release=next;tool='all';severity='all';findingFilter='all';runFilter='all';render();
 }
 async function load(){
+  if(!demoInfo){try{demoInfo=await api('/api/demo/info')}catch{demoInfo={enabled:false}}}
   if(location.pathname==='/about')history.replaceState(null,'','/#about');
   try{profile=await api('/api/dashboard')}catch(e){if(!['401','403'].includes(e.message))throw e;profile=null;if(!['/','/about','/login','/signup'].includes(location.pathname))history.replaceState(null,'','/login'+location.search)}
   if(profile&&['/login','/dashboard','/admin'].includes(location.pathname)){const destination=profile.role==='company-admin'?'/admin':'/dashboard';if(location.pathname!==destination)history.replaceState(null,'',destination+location.search)}
@@ -270,6 +271,9 @@ async function handleAction(button){
   const id=button.dataset.action;
   if(id==='close')return dialog.close();
   if(id==='refresh')return refreshData(true);
+  if(id==='demo-enter'){await api('/api/demo/enter',{role:'developer'});history.replaceState(null,'','/dashboard');qaTab=null;await load();return}
+  if(id==='demo-role'){await api('/api/demo/role',{role:button.dataset.id});qaTab=null;await load();return}
+  if(id==='demo-push'||id==='demo-reset'){await api('/api/demo/'+(id==='demo-push'?'push':'reset'),{});qaTab=null;await load();return}
   if(id==='exception'){
     return modal(copy('منح استثناء','Grant exception'),'<p>'+copy('للملاحظات المتوسطة فقط. تحتاج تبريرًا مكتوبًا، وسياسة يقظ هي التي تقرر هل يكفي.','Medium findings only. A written justification is required and the policy decides whether it is enough.')+'</p>'
       +'<form id="exception-form" data-release="'+safe(release.id)+'" data-finding="'+safe(button.dataset.id)+'"><label class="field">'+copy('التبرير','Justification')+'<textarea name="justification" required minlength="3" maxlength="1000"></textarea></label>'
@@ -405,6 +409,7 @@ document.addEventListener('keydown',event=>{
 });
 app.addEventListener('change',event=>{
   const input=event.target;
+  if(input.id==='demo-role-select'&&input.value){api('/api/demo/role',{role:input.value}).then(()=>{qaTab=null;return load()}).catch(()=>notify(copy('تعذّر تبديل الدور','Could not switch the role')))}
   if(input.id==='demo-account'&&input.value)$('#sign-in input[name=account]').value=input.value;
   if(input.id==='admin-active'){adminActive=input.value;render();$('#'+input.id)?.focus()}
   if((input.id==='release-select'||input.classList.contains('request-pick'))&&input.value){qaTab=null;selectRelease(input.value).catch(()=>notify(copy('تعذر فتح البناء','Build could not be loaded')));}
