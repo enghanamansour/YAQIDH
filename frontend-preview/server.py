@@ -6,6 +6,7 @@ import os
 import re
 import json
 import secrets
+import time
 import sys
 import tempfile
 import threading
@@ -25,6 +26,7 @@ from src.storage import EvidenceStore
 from src.verifier import verify
 
 # The shared demo password. A deployed copy sets its own through the environment, so the one written here is only for local use.
+LIVE_READ_REUSE_SECONDS = 1.5
 # the guided demo (YAQIDH_DEMO_MODE=1): a visitor plays developer, QA and security on a request whose tool results are replayed
 DEMO_ACCOUNTS = ("developer", "qa", "security")
 PASSWORD = os.environ.get("YAQIDH_DEMO_PASSWORD") or "YaqidhDemo-2026"
@@ -260,6 +262,7 @@ def clean_finding(finding):
 
 class DemoServer(ThreadingHTTPServer):
     daemon_threads = True
+    refreshed_at = 0.0  # when the releases were last read from the API (monotonic seconds)
     demo = None  # the DemoPlayer, set in guided-demo mode
     request_queue_size = 32
 
@@ -346,9 +349,15 @@ class Handler(BaseHTTPRequestHandler):
         self.refresh_live()
         return self.json(200, {"ok": True})
 
-    def refresh_live(self):
-        if self.server.live:
-            self.server.live.refresh(RELEASES, RUNS, DEMO_RUN_DATES)
+    def refresh_live(self, cached=False):
+        """Re-read the releases from the API. A read (GET) may reuse what was read a moment ago: one click makes several reads,
+        and each one asked the API again, which is slow on a small server. Any write (POST) always reads fresh and clears this."""
+        if not self.server.live:
+            return
+        if cached and time.monotonic() - self.server.refreshed_at < LIVE_READ_REUSE_SECONDS:
+            return
+        self.server.live.refresh(RELEASES, RUNS, DEMO_RUN_DATES)
+        self.server.refreshed_at = time.monotonic()
 
     def visible(self, account, key):
         meta = RELEASES.get(key)
@@ -463,7 +472,7 @@ class Handler(BaseHTTPRequestHandler):
         if path.startswith("/api/admin/"):
             return self.fail(404, "not_found")
         with self.server.lock:
-            self.refresh_live()
+            self.refresh_live(cached=True)
             _, account = self.auth()
             if not account:
                 return self.fail(401, "sign_in_required")
@@ -538,7 +547,7 @@ class Handler(BaseHTTPRequestHandler):
             self.server.live.grant_exception(key, finding_id, why.strip(), account)
         except LiveError:
             return self.fail(409, "decision_unavailable")
-        self.refresh_live()
+        self.refresh_live(cached=True)
         return self.json(200, self.release_view(account, key))
 
     def qa_review_alerts(self, account):
@@ -797,6 +806,12 @@ class Handler(BaseHTTPRequestHandler):
         return data
 
     def do_POST(self):
+        try:
+            self._do_POST()
+        finally:
+            self.server.refreshed_at = 0.0  # a write may have changed things: the next read asks the API again
+
+    def _do_POST(self):
         path = urlsplit(self.path).path
         origin = self.headers.get("Origin")
         host = self.headers.get("Host", "")

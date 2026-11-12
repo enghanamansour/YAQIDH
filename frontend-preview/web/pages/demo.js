@@ -2,6 +2,19 @@
    The banner says what is real and what is replayed, which role the visitor plays, and what to do next. */
 
 let demoInfo=null;
+let demoBusy=false;
+
+/* after a demo action the same request is still the one on screen, so the three reads go out together (not one after the other) */
+async function demoReload(){
+  const id=release&&release.id;
+  if(!id)return load();
+  try{
+    const [nextProfile,nextRelease,nextThreads]=await Promise.all([api('/api/dashboard'),api('/api/releases/'+encodeURIComponent(id)),api('/api/threads')]);
+    profile=nextProfile;release=nextRelease;threads=nextThreads;render();
+  }catch{
+    await load(); // this role cannot open that request (for example before it reaches security): the normal path picks one
+  }
+}
 
 function demoStep(guide){
   const role=profile.role,status=guide.status,phase=guide.phase;
@@ -86,7 +99,7 @@ function demoAfterRender(){
 
 /* the story moves when a reviewer approves or the developer pushes, so the banner follows without a reload */
 setInterval(async()=>{
-  if(!profile||!profile.guide||document.hidden||location.pathname!=='/dashboard')return;
+  if(!profile||!profile.guide||document.hidden||demoBusy||location.pathname!=='/dashboard')return;
   try{
     const fresh=await api('/api/dashboard');
     if(!fresh.guide||JSON.stringify(fresh.guide)===JSON.stringify(profile.guide))return;
@@ -97,4 +110,4 @@ setInterval(async()=>{
     if(guide)guide.outerHTML=demoGuideHtml();
     demoAfterRender();
   }catch{/* the next tick tries again */}
-},2500);
+},4000);

@@ -274,8 +274,9 @@ async function handleAction(button){
   if(id==='refresh')return refreshData(true);
   if(id==='demo-guide-toggle'){demoGuideOpen=!demoGuideOpen;const guide=document.querySelector('.demo-guide');if(guide)guide.outerHTML=demoGuideHtml();return}
   if(id==='demo-enter'){await api('/api/demo/enter',{role:'developer'});history.replaceState(null,'','/dashboard');qaTab=null;await load();return}
-  if(id==='demo-role'){await api('/api/demo/role',{role:button.dataset.id});qaTab=null;await load();return}
-  if(id==='demo-push'||id==='demo-reset'){await api('/api/demo/'+(id==='demo-push'?'push':'reset'),{});qaTab=null;await load();return}
+  if(id==='demo-role'){demoBusy=true;try{await api('/api/demo/role',{role:button.dataset.id});qaTab=null;await demoReload()}finally{demoBusy=false}return}
+  if(id==='demo-push'){demoBusy=true;try{await api('/api/demo/push',{});qaTab=null;await demoReload()}finally{demoBusy=false}return}
+  if(id==='demo-reset'){demoBusy=true;try{await api('/api/demo/reset',{});qaTab=null;await load()}finally{demoBusy=false}return}
   if(id==='exception'){
     return modal(copy('منح استثناء','Grant exception'),'<p>'+copy('للثغرات المتوسطة فقط. تحتاج تبريرًا مكتوبًا، وسياسة يَقِـــظ هي التي تقرر هل يكفي.','Medium findings only. A written justification is required and the policy decides whether it is enough.')+'</p>'
       +'<form id="exception-form" data-release="'+safe(release.id)+'" data-finding="'+safe(button.dataset.id)+'"><label class="field">'+copy('التبرير','Justification')+'<textarea name="justification" required minlength="3" maxlength="1000"></textarea></label>'
