@@ -152,7 +152,7 @@ function render(){
   const page=location.pathname;
   if(page==='/'){app.innerHTML=header()+landing();startTyping();if(location.hash==='#about')document.getElementById('about').scrollIntoView();return}
   const content=page==='/signup'?signup():!profile?login():page==='/communication'?communicationView():page==='/exceptions'?exceptionsView():'<main>'+(['qa','developer','security'].includes(profile.role)?'':introduction())+(profile.role==='company-admin'?adminView():dashboardView())+'</main>';
-  app.innerHTML=header()+(profile?sidebar():'')+'<div class="'+(profile?'shell':'public-shell')+'">'+content+'</div>';
+  app.innerHTML=header()+(hasSidebar()?sidebar():'')+'<div class="'+(profile?(hasSidebar()?'shell':'shell no-side'):'public-shell')+'">'+content+'</div>';
 }
 async function selectRelease(id){
   const turn=++requestNumber;

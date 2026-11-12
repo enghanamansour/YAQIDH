@@ -36,7 +36,7 @@ function devRail(){
 }
 
 function developerView(){
-  if(!release)return '<div class="qa-page">'+greeting()+'<section class="qa-card">'+copy('لا توجد طلبات مسندة إلى حسابك.','No requests are assigned to your account.')+'</section></div>';
+  if(!release)return '<div class="qa-page">'+greeting()+'<div class="qa-app dev-app">'+qaRail()+'<div class="qa-main">'+devEmptyResult()+'</div></div><div class="qa-below"><div class="dev-stages">'+devStageCard('qa')+devStageCard('security')+'</div></div></div>';
   return '<div class="qa-page">'+greeting()+'<div class="qa-app dev-app">'+qaRail()+'<div class="qa-main">'+devResult()+'</div></div><div class="qa-below">'+devBelow()+'</div></div>';
 }
 
@@ -131,7 +131,19 @@ function devTimeline(){
   return '<ul class="tl">'+rows.slice(-4).reverse().map(r=>'<li class="'+r.tone+'"><i></i><div>'+safe(r.text)+'<small>'+devWhen(r.time)+'</small></div></li>').join('')+'</ul>';
 }
 
-function devEmptyResult(){return qaEmptyResult()}
+/* no request yet: the journey map with every step still ahead, no "you are here" pin */
+function devEmptyResult(){
+  const names=[copy('فتح الطلب','Request opened'),copy('فحص الجودة','Quality check'),copy('موافقة الجودة','QA approval'),copy('الفحص الأمني','Security check'),copy('موافقة الأمن','Security approval'),copy('جاهز للإطلاق','Ready to release')];
+  const rtl=document.documentElement.dir!=='ltr';
+  const X=i=>rtl?520-i*96:40+i*96;
+  let svg='<svg viewBox="0 0 560 150" class="jm" role="img" aria-label="'+copy('خريطة رحلة الطلب','Request journey map')+'"><title>'+copy('خريطة رحلة الطلب','Request journey map')+'</title>';
+  svg+='<line class="jm-track" x1="'+X(0)+'" y1="78" x2="'+X(5)+'" y2="78"/>';
+  names.forEach((name,i)=>{
+    svg+='<circle class="jm-st todo" cx="'+X(i)+'" cy="78" r="14"/><text class="jm-mark" x="'+X(i)+'" y="83" text-anchor="middle">'+(i===5?'⚑':i+1)+'</text><text class="jm-name todo" x="'+X(i)+'" y="124" text-anchor="middle">'+name+'</text>';
+  });
+  svg+='</svg>';
+  return '<section class="qa-card qa-verdict qa-solo wf-card dev-map"><div class="verdict-top"><span class="eyebrow">'+copy('أين وصل طلبك','Where your request is')+'</span></div>'+svg+devLegend()+'<p class="muted dev-empty-note">'+copy('لا توجد طلبات بعد. تظهر هنا رحلة طلبك لما ترفع أول تعديل.','No requests yet. Your request\'s journey appears here once you push your first change.')+'</p></section>';
+}
 
 function devZeroMetrics(){
   const z=(label,tone)=>metric(label,0,tone,[],'',safe);
@@ -139,7 +151,7 @@ function devZeroMetrics(){
 }
 
 function devStageCard(key){
-  const st=(release.stages||{})[key]||{};
+  const st=((release||{}).stages||{})[key]||{};
   const title=key==='qa'?copy('فحص الجودة','Quality check'):copy('الفحص الأمني','Security check');
   const state=!st.scanned?['wait',copy('لم يبدأ','Not started')]:st.result==='pass'?['good',copy('نجح','Passed')]:st.result==='fail'?['bad',copy('فشل','Failed')]:['wait',copy('قيد الفحص','Checking')];
   const found=(st.open||0)+(st.fixed||0);

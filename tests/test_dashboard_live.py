@@ -29,6 +29,9 @@ def free_port():
 @pytest.fixture
 def world(tmp_path, monkeypatch):
     monkeypatch.setenv("API_TOKEN", "secret")
+    # the tests use the built-in demo password and local host rules, whatever the machine's environment says
+    monkeypatch.delenv("YAQIDH_DEMO_PASSWORD", raising=False)
+    monkeypatch.delenv("YAQIDH_ALLOWED_HOSTS", raising=False)
     stack = Stack(tmp_path)
     api_port = free_port()
     api = uvicorn.Server(uvicorn.Config(create_app(stack.service, stack.history, stack.agent), host="127.0.0.1",
@@ -49,6 +52,7 @@ def world(tmp_path, monkeypatch):
     backend = live_mod.LiveBackend(f"http://127.0.0.1:{api_port}", "secret", server_mod.Evidence, owners=["developer"])
     policy = server_mod.load_policy(Path(__file__).resolve().parents[1] / "config" / "policy.yaml")
     dash = server_mod.DemoServer(("127.0.0.1", 0), live_mod.LiveStore(backend), {}, policy, backend)
+    dash.server_mod = server_mod
     threading.Thread(target=dash.serve_forever, daemon=True).start()
     yield stack, dash, api_port
     dash.shutdown()
@@ -302,3 +306,32 @@ def test_the_pages_for_the_role_are_served(world):
     import urllib.request
     for path in ("/pages/dashboard/qa.js", "/pages/dashboard/review.js", "/app.js", "/style.css"):
         assert urllib.request.urlopen(f"http://127.0.0.1:{dash.server_port}{path}").status == 200
+
+
+def post(dash, host, origin, body, extra=None):
+    conn = http.client.HTTPConnection("127.0.0.1", dash.server_port)
+    headers = {"Host": host, "Content-Type": "application/json", **({"Origin": origin} if origin else {}), **(extra or {})}
+    conn.request("POST", "/api/login", json.dumps(body), headers)
+    resp = conn.getresponse()
+    resp.read()
+    return resp.status, resp.getheader("Set-Cookie")
+
+
+def test_a_public_host_works_only_when_it_is_listed_and_the_origin_matches(world):
+    _, dash, _ = world
+    mod = dash.server_mod
+    login = {"account": "developer", "password": "YaqidhDemo-2026"}
+    # not listed: refused, even with a matching origin
+    assert post(dash, "demo.example.test", "https://demo.example.test", login)[0] == 403
+    assert post(dash, "demo.example.test", "http://demo.example.test", login)[0] == 403
+    if True:
+        mod.ALLOWED_HOSTS.add("demo.example.test")
+        try:
+            status, cookie = post(dash, "demo.example.test", "https://demo.example.test", login, {"X-Forwarded-Proto": "https"})
+            assert status == 200 and "Secure" in cookie and "HttpOnly" in cookie
+            # a foreign origin on a listed host is still refused
+            assert post(dash, "demo.example.test", "https://evil.example", login)[0] == 403
+            # an unlisted host is still refused
+            assert post(dash, "evil.example", "https://evil.example", login)[0] == 403
+        finally:
+            mod.ALLOWED_HOSTS.discard("demo.example.test")

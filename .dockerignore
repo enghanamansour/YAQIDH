@@ -1,0 +1,17 @@
+.git
+.venv
+.env
+.pytest_cache
+__pycache__
+*.pyc
+node_modules
+tests
+reports
+docs
+data/history
+data/releases/*
+data/evidence.jsonl
+config/semgrep-rules
+demo_app/*.db
+*.md
+!README.md

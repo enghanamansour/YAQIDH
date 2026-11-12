@@ -24,11 +24,14 @@ from src.schema import Evidence, ExceptionRecord, Finding, HumanDecision, Review
 from src.storage import EvidenceStore
 from src.verifier import verify
 
-PASSWORD = "YaqidhDemo-2026"
+# The shared demo password. A deployed copy sets its own through the environment, so the one written here is only for local use.
+PASSWORD = os.environ.get("YAQIDH_DEMO_PASSWORD") or "YaqidhDemo-2026"
+# Public host names this copy may be reached on (comma separated, for example "yaqidh.example.com"). Empty means local only.
+ALLOWED_HOSTS = {h.strip().lower() for h in os.environ.get("YAQIDH_ALLOWED_HOSTS", "").split(",") if h.strip()}
 ACCOUNTS = {
     "developer": {"role": "developer", "projects": ["portal"], "active": True},
     "qa": {"role": "qa", "projects": ["portal"], "active": True, "display": "سما"},
-    "security": {"role": "security", "projects": ["portal"], "active": True},
+    "security": {"role": "security", "projects": ["portal"], "active": True, "display": "سما"},
     "company-admin": {"role": "company-admin", "projects": ["portal", "research"], "active": True},
 }
 RELEASES = {
@@ -759,10 +762,14 @@ class Handler(BaseHTTPRequestHandler):
         origin = self.headers.get("Origin")
         host = self.headers.get("Host", "")
         # three names for the same machine: a browser keeps a separate session for each (developer, QA and security side by side)
-        if host not in {f"127.0.0.1:{self.server.server_port}", f"localhost:{self.server.server_port}", f"localhost.:{self.server.server_port}"}:
+        local = {f"127.0.0.1:{self.server.server_port}", f"localhost:{self.server.server_port}", f"localhost.:{self.server.server_port}"}
+        public = host.lower() in ALLOWED_HOSTS
+        if host not in local and not public:
             return self.fail(403, "forbidden")
-        if origin != f"http://{host}" or self.headers.get_content_type() != "application/json":
+        # a public host is served over https by the platform in front of this server, so its origin may be https
+        if origin not in ({f"http://{host}", f"https://{host}"} if public else {f"http://{host}"}) or self.headers.get_content_type() != "application/json":
             return self.fail(403, "forbidden")
+        secure = "; Secure" if public and self.headers.get("X-Forwarded-Proto") == "https" else ""
         try:
             data = self.body()
         except (ValueError, UnicodeError):
@@ -780,12 +787,12 @@ class Handler(BaseHTTPRequestHandler):
                 self.server.sessions.pop(sid, None)
                 token = secrets.token_urlsafe(32)
                 self.server.sessions[token] = name
-                return self.json(200, {"ok": True}, [("Set-Cookie", f"yaqidh_session={token}; Path=/; HttpOnly; SameSite=Strict")])
+                return self.json(200, {"ok": True}, [("Set-Cookie", f"yaqidh_session={token}; Path=/; HttpOnly; SameSite=Strict{secure}")])
             if not account:
                 return self.fail(401, "sign_in_required")
             if path == "/api/logout":
                 self.server.sessions.pop(sid, None)
-                return self.json(200, {"ok": True}, [("Set-Cookie", "yaqidh_session=; Path=/; Max-Age=0; HttpOnly; SameSite=Strict")])
+                return self.json(200, {"ok": True}, [("Set-Cookie", f"yaqidh_session=; Path=/; Max-Age=0; HttpOnly; SameSite=Strict{secure}")])
             if path == "/api/company/accounts/delete":
                 return self.delete_account(account, data)
             if path == "/api/company/accounts":
@@ -823,6 +830,7 @@ class Handler(BaseHTTPRequestHandler):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, default=8765)
+    parser.add_argument("--host", default="127.0.0.1", help="address to listen on; a container uses 0.0.0.0")
     parser.add_argument("--live", action="store_true", help="read releases from the Yaqidh API instead of demo data")
     parser.add_argument("--api-url", help="the Yaqidh API address (or YAQIDH_API_URL); the token is YAQIDH_API_TOKEN")
     args = parser.parse_args()
@@ -833,7 +841,7 @@ def main():
         policy = load_policy(ROOT.parent / "config/policy.yaml")
         ACCOUNTS["company-admin"]["projects"] = ["portal"]  # the demo's second project ("research") does not exist in live mode
         backend = live_module.from_env(Evidence, [n for n, a in ACCOUNTS.items() if a["role"] == "developer"])
-        with DemoServer(("127.0.0.1", args.port), live_module.LiveStore(backend), {}, policy, backend) as server:
+        with DemoServer((args.host, args.port), live_module.LiveStore(backend), {}, policy, backend) as server:
             print(f"YAQIDH dashboard (live, API {backend.base_url}): http://127.0.0.1:{server.server_port}/dashboard", flush=True)
             server.serve_forever()
         return
@@ -841,7 +849,7 @@ def main():
     with tempfile.TemporaryDirectory(prefix="yaqidh-demo-") as directory:
         store = EvidenceStore(Path(directory))
         verification = seed(store, policy)
-        with DemoServer(("127.0.0.1", args.port), store, verification, policy) as server:
+        with DemoServer((args.host, args.port), store, verification, policy) as server:
             print(f"YAQIDH local demo: http://127.0.0.1:{server.server_port}/dashboard", flush=True)
             server.serve_forever()
 

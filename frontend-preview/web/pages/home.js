@@ -43,11 +43,33 @@ function landing(){
     +swim(journey)
     +'</section>'
 
-    +'<section class="lp-section" id="roles"><span class="lp-eyebrow">'+copy('الأدوار','Roles')+'</span></section>'
-    +'<section class="lp-section" id="features"><span class="lp-eyebrow">'+copy('المميزات','Features')+'</span></section>'
+    +'<section class="lp-section" id="features"><span class="lp-eyebrow">'+copy('المميزات','Features')+'</span><h2>'+copy('ما الذي يميّز يَقِـــظ','What sets Yaqidh apart')+'</h2>'
+    +'<div class="lp-feat">'+features().map(([icon,title,text])=>'<article class="lp-card"><span class="lp-ico">'+icon+'</span><h3>'+title+'</h3><p class="muted">'+text+'</p></article>').join('')+'</div></section>'
 
     +'<section class="lp-final"><h2>'+copy('جاهز تجرّب؟','Ready to try it?')+'</h2><div class="actions"><a class="action primary" href="'+go+'">'+goLabel+'</a></div></section>'
     +'<footer class="lp-foot">'+copy('يَقِـــظ · الجاهزية الأمنية للإصدارات','Yaqidh · security readiness for releases')+'</footer></main>';
+}
+
+/* what sets Yaqidh apart: only claims the product really keeps */
+function features(){
+  const i=(d)=>'<svg viewBox="0 0 24 24" aria-hidden="true">'+d+'</svg>';
+  return [
+    [i('<circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.7 2.7L16 9.5"/>'),
+      copy('إثبات الإغلاق','Proof of closure'),
+      copy('لا تُغلق الثغرة بكلام المطوّر، بل بإعادة فحص تلقائية تثبت أنها أُغلقت فعلًا.','A vulnerability is not closed on the developer\'s word, but by an automatic re-check that proves it is really closed.')],
+    [i('<path d="M4 5h16v11H9l-5 4z"/><path d="M8 9.5h8M8 12.5h5"/>'),
+      copy('شرح عربي لكل ثغرة','An Arabic explanation for every finding'),
+      copy('ما المشكلة، ولماذا هي مهمة، وكيف تُصلح، بلغة بسيطة يفهمها المطوّر.','What the problem is, why it matters and how to fix it, in plain language the developer understands.')],
+    [i('<circle cx="12" cy="8" r="3.6"/><path d="M5 20c1-4 4-6 7-6s6 2 7 6"/>'),
+      copy('القرار بيد الإنسان','The human decides'),
+      copy('الذكاء الاصطناعي يشرح فقط، ولا يقرر ولا يدمج ولا يوافق. الموافقة لمراجع بشري باسمه وسببه.','The AI only explains. It never decides, merges or approves. Approval comes from a human reviewer, by name and with a reason.')],
+    [i('<path d="M12 4v16M5 8h14M7 8l-3 6a3 3 0 0 0 6 0zM17 8l-3 6a3 3 0 0 0 6 0z"/>'),
+      copy('قواعد واضحة وثابتة','Clear, fixed rules'),
+      copy('الخطورة العالية تُحجب ولا تُستثنى، والمتوسطة تُستثنى بسبب مسجّل وموافقة، والمنخفضة تُسجَّل.','High severity is blocked and never excepted, medium can be excepted with a recorded reason and approval, low is recorded.')],
+    [i('<path d="M7 3h8l4 4v14H7z"/><path d="M15 3v4h4M10 12h6M10 16h6"/>'),
+      copy('سجل أدلة قابل للمراجعة','A reviewable evidence log'),
+      copy('كل خطوة وقرار يُسجَّل، والموافقة مربوطة بنسخة الكود نفسها.','Every step and decision is recorded, and the approval is tied to that exact version of the code.')]
+  ];
 }
 
 /* the subtitle is typed letter by letter, once per visit */

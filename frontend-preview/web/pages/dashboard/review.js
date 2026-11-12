@@ -71,7 +71,12 @@ async function refreshQAReviewAlerts(){
 }
 
 function reviewView(){
-  if(!release)return '<section class="panel">'+copy('لا يوجد بناء في نطاق الحساب','No builds in this account scope')+'</section>';
+  if(!release){
+    // no request yet: the full page with every number at zero, so a new account still sees how the page looks
+    if(profile.role==='security')return securityView();
+    if(profile.role==='qa')return '<div class="qa-page">'+greeting()+'<div class="qa-app">'+qaRail()+'<div class="qa-main">'+qaEmptyResult()+'</div></div><div class="qa-below">'+qaZeroMetrics()+'</div></div>';
+    return '<section class="panel">'+copy('لا يوجد بناء في نطاق الحساب','No builds in this account scope')+'</section>';
+  }
   const open=matched().filter(f=>findingGroup(f)==='open');
   const blockers=release.findings.filter(f=>(release.blockerIds||[]).includes(f.fingerprint));
   const closed=matched().filter(f=>f.closure?.result==='closed');
@@ -105,7 +110,9 @@ function reviewView(){
 
 function greeting(){
   if(!['qa','developer','security'].includes(profile.role))return '';
-  return '<header class="greet"><p class="greet-hi">'+copy('أهلًا بك','Welcome')+(profile.display?'، '+safe(profile.display):'')+'</p><h1 class="greet-title">'+(profile.role==='developer'?copy('لوحة متابعة المطوّر','Developer dashboard'):profile.role==='security'?copy('لوحة متابعة الأمن السيبراني','Cybersecurity dashboard'):copy('لوحة متابعة الجودة','QA dashboard'))+'</h1></header>';
+  // the display name if the account has one, otherwise the username (a demo account named after its role shows no name)
+  const who=profile.display||(profile.account&&profile.account!==profile.role?profile.account:'');
+  return '<header class="greet"><p class="greet-hi">'+copy('أهلًا بك','Welcome')+(who?'، '+safe(who):'')+'</p><h1 class="greet-title">'+(profile.role==='developer'?copy('لوحة متابعة المطوّر','Developer dashboard'):profile.role==='security'?copy('لوحة متابعة الأمن السيبراني','Cybersecurity dashboard'):copy('لوحة متابعة الجودة','QA dashboard'))+'</h1></header>';
 }
 
 function qaMetrics(open,closed){
@@ -170,7 +177,7 @@ function qaShowsRelease(){
 }
 function qaEmptyResult(){
   const ring='<div class="qa-ring-wrap"><svg viewBox="0 0 108 108" class="chart-donut qa-ring" role="img" aria-label="0 / 0"><circle class="qa-ring-track" cx="54" cy="54" r="39" pathLength="100"/><text x="54" y="60">0/0</text></svg></div>';
-  return '<section class="qa-card qa-verdict qa-solo wait"><div class="verdict-top"><span class="eyebrow">'+copy('نتيجة الفحص','Check result')+'</span></div>'+ring+'<small class="ring-cap">'+copy('اختاري طلبًا من القائمة','Choose a request from the list')+'</small></section>';
+  return '<section class="qa-card qa-verdict qa-solo wait"><div class="verdict-top"><span class="eyebrow">'+copy('نتيجة الفحص','Check result')+'</span></div>'+ring+'<small class="ring-cap">'+((profile.releases||[]).length?copy('اختاري طلبًا من القائمة','Choose a request from the list'):copy('لا توجد طلبات بعد','No requests yet'))+'</small></section>';
 }
 function qaZeroMetrics(){
   const z=(label,tone)=>metric(label,0,tone,[],'',safe);

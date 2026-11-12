@@ -654,3 +654,17 @@ a.action.hdr-login{background:var(--grad);border:0;color:#fff;border-radius:999p
 .hnode b{color:var(--text)}
 .hnode small,.hnode span{color:color-mix(in srgb,var(--text) 78%,var(--muted))}
 .qa-page .greet-title{background:none;-webkit-background-clip:border-box;background-clip:border-box;color:var(--text)}
+.lp-feat{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.lp-feat .lp-card{gap:12px}.lp-feat .lp-card p{line-height:1.8;margin:0}
+.lp-ico{width:48px;height:48px;border-radius:14px;display:grid;place-items:center;background:color-mix(in srgb,var(--brand) 14%,transparent);color:var(--brand)}
+.lp-ico svg{width:26px;height:26px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+@media(max-width:900px){.lp-feat{grid-template-columns:1fr}}
+.dev-empty-note{text-align:center;margin:6px 0 0}
+/* no sidebar for developer, QA and security: the account sits in the top bar */
+.shell.no-side{margin-right:0;margin-left:0}
+.hdr-account{position:relative}
+.hdr-account .acct{width:auto;padding:5px 14px 5px 8px;border-radius:999px;gap:10px}
+.hdr-account .acct-text{flex:none}
+.hdr-account .acct-menu{bottom:auto;top:calc(100% + 8px);inset-inline:auto 0;min-width:170px}
+@media(max-width:600px){.hdr-account .acct-text{display:none}.hdr-account .acct{padding:5px}}
+.sec-exceptions{display:grid;gap:14px;margin-top:10px}.sec-exceptions .exception-card{margin:0}

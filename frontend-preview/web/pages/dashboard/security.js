@@ -23,16 +23,16 @@ function secResult(){
 
 function secZero(){
   const z=(label,tone)=>metric(label,0,tone,[],'',safe);
-  return '<div class="metric-row five">'+z(copy('ملاحظات أُغلقت','Findings closed'),'')+z(copy('عالية الخطورة مفتوحة','High findings open'),'')+z(copy('متوسطة تحتاج قرارك','Medium findings for your decision'),'')+z(copy('طلبات تنتظر موافقتك','Requests awaiting your approval'),'')+'</div>';
+  return '<div class="metric-row five">'+z(copy('ثغرات أُغلقت','Vulnerabilities closed'),'')+z(copy('ثغرات عالية الخطورة مفتوحة','High-severity vulnerabilities open'),'')+z(copy('ثغرات متوسطة تحتاج قرارك','Medium vulnerabilities for your decision'),'')+z(copy('طلبات تنتظر موافقتك','Requests awaiting your approval'),'')+'</div>';
 }
 
 function secMetrics(d){
   const rec=f=>'<b>'+safe(findingName(f))+'</b> '+badge(severityName(f.severity),f.severity==='high'?'bad':'good')+'<br><small>'+safe(f.detail||'—')+'</small> '+action('finding',copy('التفاصيل','Details'),'data-id="'+safe(f.fingerprint)+'"');
   const reqRecord=r=>safe(requestName(r.pr))+' '+action('queue',copy('فتح الطلب','Open request'),'data-id="'+safe(r.id)+'"');
   return '<div class="metric-row five">'
-    +metric(copy('ملاحظات أُغلقت','Findings closed'),d.closed.length,'good',d.closed,buildScope(copy('ملاحظات تأكّد النظام من إصلاحها.','Findings the system confirmed as fixed.')),rec)
-    +metric(copy('عالية الخطورة مفتوحة','High findings open'),d.high.length,d.high.length?'bad':'',d.high,buildScope(copy('ملاحظات عالية تمنع الإطلاق وما تُستثنى.','High findings block the release and cannot be excepted.')),rec)
-    +metric(copy('متوسطة تحتاج قرارك','Medium findings for your decision'),d.medium.length,d.medium.length?'wait':'',d.medium,buildScope(copy('ملاحظات متوسطة يمكن استثناؤها بقرارك.','Medium findings that you may except.')),rec)
+    +metric(copy('ثغرات أُغلقت','Vulnerabilities closed'),d.closed.length,'good',d.closed,buildScope(copy('ملاحظات تأكّد النظام من إصلاحها.','Findings the system confirmed as fixed.')),rec)
+    +metric(copy('ثغرات عالية الخطورة مفتوحة','High-severity vulnerabilities open'),d.high.length,d.high.length?'bad':'',d.high,buildScope(copy('ملاحظات عالية تمنع الإطلاق وما تُستثنى.','High findings block the release and cannot be excepted.')),rec)
+    +metric(copy('ثغرات متوسطة تحتاج قرارك','Medium vulnerabilities for your decision'),d.medium.length,d.medium.length?'wait':'',d.medium,buildScope(copy('ملاحظات متوسطة يمكن استثناؤها بقرارك.','Medium findings that you may except.')),rec)
     +metric(copy('طلبات تنتظر موافقتك','Requests awaiting your approval'),d.awaiting.length,d.awaiting.length?'wait':'',d.awaiting,copy('طلبات اكتمل فحصها وتنتظر قرارك.','Requests whose checks are complete and wait for you.'),reqRecord)+'</div>';
 }
 
@@ -69,5 +69,5 @@ function securityView(){
   const main=shown?secResult():qaEmptyResult();
   let below=secZero();
   if(shown){const d=secData();below=secMetrics(d)+secTools()+secRequests(d)+exceptionPanel()+devBelowOld()+qaStory()}
-  return '<div class="qa-page">'+greeting()+'<div class="qa-app">'+qaRail()+'<div class="qa-main">'+main+'</div></div><div class="qa-below">'+below+'</div></div>';
+  return '<div class="qa-page">'+greeting()+'<div class="qa-app">'+qaRail()+'<div class="qa-main">'+main+'</div></div><div class="qa-below">'+below+exceptionsSection()+'</div></div>';
 }
