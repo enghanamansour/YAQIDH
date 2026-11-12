@@ -10,11 +10,14 @@ function headerAccount(){
 }
 function demoBadge(){return profile&&profile.guide?'<span class="demo-badge">'+copy('ديمو توضيحي','Guided demo')+'</span>':''}
 function header(){
+  // the main page is the same page for everyone: no account card and no demo badge up there; a demo visitor sees the sign-in button like any visitor
+  const landing=location.pathname==='/';
+  const showLogin=!['/login','/signup'].includes(location.pathname)&&(!profile||(landing&&Boolean(profile.guide)));
   const ar=document.documentElement.lang==='ar', theme=document.documentElement.dataset.theme;
   const toggle=(id,label,active,name)=>action(id,label,'aria-pressed="'+active+'" aria-label="'+name+'" title="'+name+'"');
   return '<header class="top"><div class="top-navigation"><a class="top-logo" href="/" aria-label="'+copy('يقظ · الرئيسية','YAQIDH · Home')+'"><img class="brand" alt="'+copy('يقظ','YAQIDH')+'" src="'+logo()+'"></a><nav aria-label="'+copy('التنقل العام','Main navigation')+'">'+(location.pathname==='/'?'<a href="#problem">'+copy('المشكلة','The problem')+'</a><a href="#about">'+copy('كيف يعمل','How it works')+'</a><a href="#features">'+copy('المميزات','Features')+'</a>':'')+'</nav></div>'
     +'<div class="toolbar"><div class="top-control" role="group" aria-label="'+copy('اللغة','Language')+'">'+(ar?toggle('en','EN',false,'English'):toggle('ar','ع',false,'العربية'))+'</div>'
-    +'<div class="top-control" role="group" aria-label="'+copy('المظهر','Appearance')+'">'+(theme==='dark'?toggle('light','☀',false,copy('الوضع الفاتح','Light mode')):toggle('dark','☾',false,copy('الوضع الغامق','Dark mode')))+'</div>'+(!profile&&!['/login','/signup'].includes(location.pathname)?'<a class="action primary hdr-login" href="/login">'+copy('تسجيل الدخول','Sign in')+'</a>':'')+demoBadge()+(profile&&(!hasSidebar()||location.pathname==='/')?headerAccount():'')+'</div></header>';
+    +'<div class="top-control" role="group" aria-label="'+copy('المظهر','Appearance')+'">'+(theme==='dark'?toggle('light','☀',false,copy('الوضع الفاتح','Light mode')):toggle('dark','☾',false,copy('الوضع الغامق','Dark mode')))+'</div>'+(showLogin?'<a class="action primary hdr-login" href="/login">'+copy('تسجيل الدخول','Sign in')+'</a>':'')+(landing?'':demoBadge()+(profile&&!hasSidebar()?headerAccount():''))+'</div></header>';
 }
 
 const sbIcon=path=>'<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+path+'</svg>';
