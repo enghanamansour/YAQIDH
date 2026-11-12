@@ -63,7 +63,7 @@ function demoGuideHtml(){
   const [step,text,buttons]=demoStep(profile.guide);
   const real=demoInfo&&demoInfo.githubUrl?' <a href="'+safe(demoInfo.githubUrl)+'" target="_blank" rel="noopener">'+copy('شاهد الطلب الحقيقي على GitHub','See the real request on GitHub')+'</a>':'';
   const bubble='<div class="demo-bubble" aria-live="polite"><div class="demo-bubble-head"><b>'+copy('مرشد يقظ','Yaqidh guide')+'</b><span class="demo-num">'+copy('الخطوة ','Step ')+step+copy(' من 6',' of 6')+'</span>'
-    +'<button type="button" class="demo-min" data-action="demo-guide-toggle" aria-label="'+copy('إخفاء المرشد','Hide the guide')+'">×</button></div>'
+    +'<button type="button" class="demo-min" data-action="demo-guide-toggle" aria-label="'+copy('إخفاء المرشد','Hide the guide')+'"></button></div>'
     +'<p>'+text+'</p><div class="demo-actions">'+buttons+'<button type="button" class="action" data-action="demo-reset">'+copy('ابدأ من جديد','Start over')+'</button></div>'
     +'<small class="demo-foot"><b>'+copy('ديمو توضيحي','Guided demo')+'</b> '+copy('جُرّب النظام على طلب دمج حقيقي في GitHub. القرارات والشرح العربي والسجل يشتغلون بالنظام الحقيقي.','The system was tested on a real GitHub pull request. The decisions, the Arabic explanations and the evidence log run on the real system.')+real+'</small></div>';
   return '<aside class="demo-guide" aria-label="'+copy('مرشد يقظ','Yaqidh guide')+'">'+(demoGuideOpen?bubble:'')
