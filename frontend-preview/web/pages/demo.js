@@ -26,11 +26,15 @@ function demoStep(guide){
   const toDev=swap('developer',copy('بدّل إلى المطوّر','Switch to the developer'));
   const toQa=swap('qa',copy('بدّل إلى مراجع الجودة','Switch to the QA reviewer'));
   const toSec=swap('security',copy('بدّل إلى مراجع الأمن','Switch to the security reviewer'));
-  if(status==='none')
-    return [1,mine('developer',
-        copy('أنت المطوّر. اضغط «ارفع على GitHub» لتفتح طلب دمج جديد، ويَقِـــظ يفحصه تلقائيًا.','You are the developer. Press "Push to GitHub" to open a new pull request, and Yaqidh checks it automatically.'),
-        copy('بدّل لدور المطوّر وارفع طلبًا على GitHub.','Switch to the developer and push a request to GitHub.')),
+  if(status==='none'){
+    const name='<span class="demo-name">'+copy('يَقِـــظ','Yaqidh')+'</span>';
+    const welcome='<b class="demo-welcome">'+copy('مرحبًا بك في تجربة '+name+'!','Welcome to the '+name+' experience!')+'</b>'
+      +'<span class="demo-intro">'+copy('جرّب '+name+' على مستودع حقيقي في GitHub يحتوي على ثغرات أمنية متعمّدة، تتيح لك استكشاف قدرات '+name+' في فحص الكود واكتشاف الثغرات وشرحها باللغة العربية.','Try '+name+' on a real GitHub repository that contains deliberately planted vulnerabilities, so you can explore how '+name+' scans code, finds vulnerabilities and explains them in Arabic.')+'</span>'
+      +'<b class="demo-letsgo">'+copy('لنبدأ التجربة','Let\'s start')+'</b>'
+      +'<span class="demo-do">'+copy('أنت الآن في دور <span class="demo-key">المطوّر</span>. اضغط على <span class="demo-btn-name">«ارفع على GitHub»</span>، وسيبدأ '+name+' بفحص التغييرات تلقائيًا.','You are now in the <span class="demo-key">developer</span> role. Press <span class="demo-btn-name">"Push to GitHub"</span> and '+name+' will start checking the changes automatically.')+'</span>';
+    return [1,mine('developer',{raw:welcome},copy('بدّل لدور المطوّر وارفع طلبًا على GitHub.','Switch to the developer and push a request to GitHub.')),
       mine('developer',push(),toDev)];
+  }
   if(status==='ready_to_merge')
     return [6,copy('انتهت القصة: الطلب جاهز للإطلاق. الموافقة مربوطة بهذه النسخة من الكود فقط. تقدر تضغط «ابدأ من جديد» وتجرّبها بدور ثاني.','The story is over: the request is ready to release. The approval is tied to this exact version of the code. Press "Start over" to try it with another role.'),''];
   if(status==='qa_rejected'||status==='security_rejected')
@@ -83,10 +87,10 @@ function demoGuideHtml(){
   if(!profile||!profile.guide||location.pathname!=='/dashboard')return '';
   const [step,text,buttons]=demoStep(profile.guide);
   const real=demoInfo&&demoInfo.githubUrl?' <a href="'+safe(demoInfo.githubUrl)+'" target="_blank" rel="noopener">'+copy('شاهد الطلب الحقيقي على GitHub','See the real request on GitHub')+'</a>':'';
-  const bubble='<div class="demo-bubble" aria-live="polite"><div class="demo-bubble-head"><b class="demo-title">'+copy('مرشد يَقِـــظ','Yaqidh guide')+'</b><span class="demo-num">'+copy('الخطوة ','Step ')+step+copy(' من 6',' of 6')+'</span>'
+  const bubble='<div class="demo-bubble" aria-live="polite"><div class="demo-bubble-head"><b class="demo-title">'+copy('مرشد <span class="demo-name">يَقِـــظ</span>','<span class="demo-name">Yaqidh</span> guide')+'</b><span class="demo-num">'+copy('الخطوة ','Step ')+step+copy(' من 6',' of 6')+'</span>'
     +'<button type="button" class="demo-min" data-action="demo-guide-toggle" aria-label="'+copy('إخفاء المرشد','Hide the guide')+'"></button></div>'
-    +'<p>'+demoMark(text)+'</p><div class="demo-actions">'+buttons+'<button type="button" class="action" data-action="demo-reset">'+copy('ابدأ من جديد','Start over')+'</button></div>'
-    +'<small class="demo-foot"><b>'+copy('ديمو توضيحي','Guided demo')+'</b> '+copy('جُرّب النظام على طلب دمج حقيقي في GitHub. القرارات والشرح العربي والسجل يشتغلون بالنظام الحقيقي.','The system was tested on a real GitHub pull request. The decisions, the Arabic explanations and the evidence log run on the real system.')+real+'</small></div>';
+    +'<div class="demo-text">'+(typeof text==='object'?text.raw:'<p>'+demoMark(text)+'</p>')+'</div><div class="demo-actions">'+buttons+'<button type="button" class="action" data-action="demo-reset">'+copy('ابدأ من جديد','Start over')+'</button></div>'
+    +(real?'<small class="demo-foot">'+real.trim()+'</small>':'')+'</div>';
   return '<aside class="demo-guide" aria-label="'+copy('مرشد يَقِـــظ','Yaqidh guide')+'">'+(demoGuideOpen?bubble:'')
     +'<button type="button" class="demo-agent" data-action="demo-guide-toggle" aria-label="'+copy('مرشد يَقِـــظ','Yaqidh guide')+'" title="'+copy('مرشد يَقِـــظ','Yaqidh guide')+'"><span class="demo-agent-art" aria-hidden="true"></span></button></aside>';
 }

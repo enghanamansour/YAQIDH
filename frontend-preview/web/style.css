@@ -744,3 +744,16 @@ html[data-theme=light] .demo-key{background:rgba(255,255,255,.2);color:#fff;anim
 html[data-theme=light] .demo-btn-name{color:#ffd1f3}
 @keyframes demo-glow-light{0%,100%{box-shadow:0 0 0 0 rgba(255,255,255,0)}50%{box-shadow:0 0 0 5px rgba(255,255,255,.22)}}
 @media(prefers-reduced-motion:reduce){.demo-title,.demo-title::before,.demo-key{animation:none}}
+
+/* the first step: a welcome, what the demo is, a small heading, and what to do */
+.demo-title{background:none;-webkit-background-clip:border-box;background-clip:border-box;color:inherit;animation:none}
+.demo-name{font-weight:800;background:linear-gradient(90deg,#5a37d6,#d946ef,#5a37d6);background-size:200% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:demo-shimmer 3.2s linear infinite}
+html[data-theme=light] .demo-name{background-image:linear-gradient(90deg,#ffffff,#ffc2ec,#ffffff)}
+.demo-text{display:grid;gap:8px}
+.demo-text>p{margin:0}
+.demo-welcome{display:block;font-size:19px;line-height:1.6}
+.demo-intro{display:block;font-size:15px;line-height:1.9}
+.demo-letsgo{display:block;font-size:16px;margin-top:2px;padding-top:8px;border-top:1px dashed rgba(90,55,214,.35)}
+html[data-theme=light] .demo-letsgo{border-top-color:rgba(255,255,255,.4)}
+.demo-do{display:block;font-size:16px;line-height:1.9}
+@media(prefers-reduced-motion:reduce){.demo-name{animation:none}}
