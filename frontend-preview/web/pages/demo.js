@@ -38,8 +38,8 @@ function demoStep(guide){
       mine('developer',push(),toDev)];
   if(status==='security_blocked')
     return [5,mine('security',
-        copy('يقظ أعاد الفحص وأُغلقت الثغرات، وبقيت ملاحظة وحدة متوسطة. دورك كمراجع أمن: اقبل الاستثناء مع سبب مكتوب (أسفل الصفحة)، ثم اضغط «موافقة».','Yaqidh re-checked and the vulnerabilities are closed; one medium finding is left. Your turn as the security reviewer: accept the exception with a written reason (further down the page), then press "Approve".'),
-        copy('أُغلقت الثغرات، وبقيت ملاحظة متوسطة تحتاج قرار مراجع الأمن. بدّل لدوره.','The vulnerabilities are closed; one medium finding needs the security reviewer. Switch to that role.')),
+        copy('يقظ أعاد الفحص وأُغلقت الثغرات، وبقيت ثغرة وحدة متوسطة. دورك كمراجع أمن: اقبل الاستثناء مع سبب مكتوب (أسفل الصفحة)، ثم اضغط «موافقة».','Yaqidh re-checked and the vulnerabilities are closed; one medium vulnerability is left. Your turn as the security reviewer: accept the exception with a written reason (further down the page), then press "Approve".'),
+        copy('أُغلقت الثغرات، وبقيت ثغرة متوسطة تحتاج قرار مراجع الأمن. بدّل لدوره.','The vulnerabilities are closed; one medium vulnerability needs the security reviewer. Switch to that role.')),
       mine('security','',toSec)];
   if(status==='awaiting_security_approval')
     return [5,mine('security',
