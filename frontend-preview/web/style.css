@@ -670,9 +670,9 @@ a.action.hdr-login{background:var(--grad);border:0;color:#fff;border-radius:999p
 .sec-exceptions{display:grid;gap:14px;margin-top:10px}.sec-exceptions .exception-card{margin:0}
 /* guided demo: a slim role row on the page, a small badge in the top bar, and the guide: a small agent on the left with a coloured speech bubble.
    On a wide screen the dashboard moves right to leave the left column to the guide, so nothing is covered. */
-.demo-banner{display:flex;flex-wrap:wrap;align-items:center;gap:8px;width:min(1240px,calc(100% - 112px));margin:14px auto 4px}
-.demo-roles-title{font-size:14px;font-weight:700;margin-inline-end:4px}
-.demo-role{padding:7px 18px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--text);font:inherit;font-size:14px;cursor:pointer;transition:border-color .2s,background .2s}
+.demo-banner{display:flex;flex-wrap:wrap;align-items:center;gap:10px;width:min(1240px,calc(100% - 112px));margin:14px auto 8px;padding:14px 20px;border-radius:16px;border:1px solid color-mix(in srgb,var(--brand) 60%,var(--line));background:color-mix(in srgb,var(--brand) 12%,var(--surface));box-shadow:0 8px 28px color-mix(in srgb,var(--brand) 18%,transparent)}
+.demo-roles-title{font-size:16px;font-weight:700;margin-inline-end:8px}
+.demo-role{padding:9px 22px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--text);font:inherit;font-size:15px;cursor:pointer;transition:border-color .2s,background .2s}
 .demo-role:hover{border-color:var(--brand)}.demo-role[aria-pressed=true]{background:var(--grad,var(--brand));border-color:transparent;color:#fff;font-weight:600}
 .demo-badge{padding:5px 12px;border-radius:999px;border:1px solid var(--brand);color:var(--brand);font-size:12px;font-weight:700;white-space:nowrap}
 .demo-guide{position:fixed;left:22px;bottom:22px;z-index:20;display:flex;flex-direction:column;align-items:flex-start;direction:ltr;gap:12px;width:340px;max-width:calc(100vw - 32px);pointer-events:none}
