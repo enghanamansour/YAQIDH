@@ -12,12 +12,12 @@ function demoStep(guide){
     return [5,copy('انتهت القصة: الطلب جاهز للإطلاق، والموافقة مربوطة بهذه النسخة من الكود فقط. جرّب «ابدأ من جديد» وكرّرها بدور مختلف.','The story is done: the request is ready to release, and the approval is tied to this exact version of the code. Try "Start over" and play it again with another role.'),''];
   if(status==='qa_rejected'||status==='security_rejected')
     return [guide.phase>=2?4:guide.phase>=1?3:1,copy('المراجع أرجع الطلب للمطوّر. بدّل لدور المطوّر وارفع تعديلًا ليعيد يقظ الفحص.','The reviewer returned the request to the developer. Switch to the developer and push a change so Yaqidh checks again.'),
-      mine('developer',push(copy('ارفع تعديلًا','Push a change')),swap('developer',copy('بدّل إلى المطوّر','Switch to the developer')))];
+      mine('developer',push(copy('ارفع على GitHub','Push to GitHub')),swap('developer',copy('بدّل إلى المطوّر','Switch to the developer')))];
   if(status==='qa_blocked')
     return [1,mine('developer',
-        copy('فشل فحص الجودة: يقظ لقي مشاكل وشرحها لك بالعربي أدناه. اقرأها، ثم اضغط «ارفع الإصلاح» كأنك رفعت تعديلًا على GitHub.','The quality check failed: Yaqidh found problems and explained them in Arabic below. Read them, then press "Push the fix" as if you pushed a change to GitHub.'),
+        copy('فشل فحص الجودة: يقظ لقي مشاكل وشرحها لك بالعربي أدناه. اقرأها، ثم اضغط «ارفع على GitHub» كأنك رفعت الإصلاح بنفسك.','The quality check failed: Yaqidh found problems and explained them in Arabic below. Read them, then press "Push to GitHub" as if you pushed the fix yourself.'),
         copy('الطلب عند المطوّر الحين، يصلّح مشاكل الجودة. بدّل لدور المطوّر لترفع الإصلاح.','The request is with the developer, fixing the quality problems. Switch to the developer to push the fix.')),
-      mine('developer',push(copy('ارفع الإصلاح','Push the fix')),swap('developer',copy('بدّل إلى المطوّر','Switch to the developer')))];
+      mine('developer',push(copy('ارفع على GitHub','Push to GitHub')),swap('developer',copy('بدّل إلى المطوّر','Switch to the developer')))];
   if(status==='awaiting_qa_approval')
     return [2,mine('qa',
         copy('أعاد يقظ الفحص تلقائيًا ونجحت كل الاختبارات. القرار لك كمراجع جودة: وافق من لوحة القرار.','Yaqidh re-checked automatically and every test passed. The decision is yours as the QA reviewer: approve it.'),
@@ -25,9 +25,9 @@ function demoStep(guide){
       mine('qa','',swap('qa',copy('بدّل إلى مراجع الجودة','Switch to the QA reviewer')))];
   if(status==='security_blocked'&&phase<2)
     return [3,mine('developer',
-        copy('وافقت الجودة، وبدأ الفحص الأمني: لقي يقظ ثغرات في الكود والمكتبات وشرحها لك. عالجها ثم اضغط «ارفع الإصلاح الأمني».','Quality approved and the security check started: Yaqidh found vulnerabilities in the code and libraries and explained them. Fix them, then press "Push the security fix".'),
+        copy('وافقت الجودة، وبدأ الفحص الأمني: لقي يقظ ثغرات في الكود والمكتبات وشرحها لك. عالجها ثم اضغط «ارفع على GitHub».','Quality approved and the security check started: Yaqidh found vulnerabilities in the code and libraries and explained them. Fix them, then press "Push to GitHub".'),
         copy('وافقت الجودة، ولقي الفحص الأمني ثغرات. بدّل لدور المطوّر ليصلحها.','Quality approved and the security check found vulnerabilities. Switch to the developer to fix them.')),
-      mine('developer',push(copy('ارفع الإصلاح الأمني','Push the security fix')),swap('developer',copy('بدّل إلى المطوّر','Switch to the developer')))];
+      mine('developer',push(copy('ارفع على GitHub','Push to GitHub')),swap('developer',copy('بدّل إلى المطوّر','Switch to the developer')))];
   if(status==='security_blocked')
     return [4,mine('security',
         copy('أعاد يقظ الفحص وأُغلقت الثغرات، وبقيت ملاحظة متوسطة وحدة. القرار لك كمراجع أمن: اقبل الاستثناء بسبب مكتوب (أسفل الصفحة)، ثم وافق.','Yaqidh re-checked and the vulnerabilities are closed; one medium finding remains. The decision is yours as the security reviewer: accept the exception with a written reason (further down), then approve.'),
