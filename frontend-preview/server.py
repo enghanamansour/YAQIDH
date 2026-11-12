@@ -29,7 +29,7 @@ PASSWORD = os.environ.get("YAQIDH_DEMO_PASSWORD") or "YaqidhDemo-2026"
 # Public host names this copy may be reached on (comma separated, for example "yaqidh.example.com"). Empty means local only.
 ALLOWED_HOSTS = {h.strip().lower() for h in os.environ.get("YAQIDH_ALLOWED_HOSTS", "").split(",") if h.strip()}
 ACCOUNTS = {
-    "developer": {"role": "developer", "projects": ["portal"], "active": True},
+    "developer": {"role": "developer", "projects": ["portal"], "active": True, "display": "سما"},
     "qa": {"role": "qa", "projects": ["portal"], "active": True, "display": "سما"},
     "security": {"role": "security", "projects": ["portal"], "active": True, "display": "سما"},
     "company-admin": {"role": "company-admin", "projects": ["portal", "research"], "active": True},
