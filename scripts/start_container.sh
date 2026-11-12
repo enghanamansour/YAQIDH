@@ -11,6 +11,10 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 PORT="${PORT:-8080}"
+# Render tells the container its own public host name; allow it automatically
+if [ -n "${RENDER_EXTERNAL_HOSTNAME:-}" ]; then
+  export YAQIDH_ALLOWED_HOSTS="${YAQIDH_ALLOWED_HOSTS:+$YAQIDH_ALLOWED_HOSTS,}$RENDER_EXTERNAL_HOSTNAME"
+fi
 API_PORT="${API_PORT:-8010}"
 if [ -z "${API_TOKEN:-}" ]; then
   API_TOKEN="$(python -c 'import secrets; print(secrets.token_urlsafe(24))')"

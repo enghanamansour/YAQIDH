@@ -1,0 +1,13 @@
+# Render Blueprint: publishes Yaqidh from the Dockerfile on Render's free plan.
+# Free plan limits: it sleeps after 15 minutes without visits (see .github/workflows/keep-awake.yml),
+# its storage is wiped on every restart, and its memory is small (the dashboards run, real scans do not).
+services:
+  - type: web
+    name: yaqidh
+    runtime: docker
+    plan: free
+    healthCheckPath: /
+    envVars:
+      # set in the Render dashboard, never written here
+      - key: YAQIDH_DEMO_PASSWORD
+        sync: false
